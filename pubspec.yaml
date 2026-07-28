@@ -13,7 +13,7 @@ dependencies:
     path: packages/analytics_repository
   auth_repo:
     path: packages/auth_repo
-  bloc: ^9.0.1
+  bloc: ^9.2.1
   cloud_firestore: ^5.0.0
   firebase_messaging: ^15.0.0
   flutter:
