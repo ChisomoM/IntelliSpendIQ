@@ -1,0 +1,32 @@
+name: auth_repo
+description: Repo for application authentication
+version: 0.1.0+1
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  equatable: ^2.0.5
+  firebase_auth: any
+  flutter:
+    sdk: flutter
+  google_sign_in: ^6.2.2
+  json_annotation: ^4.9.0
+  local_data:
+    git:
+      url: https://gitlab+deploy-token-4:4zjU2bJymy7c6vTztanf@gitlab.probasegroup.com/flutter_packages/local_data.git
+      ref: 25bcb3354fc6171858c62e33d81410192458969f
+  net_source:
+    path: ../net_source
+  package_info_plus: any
+  sign_in_with_apple: ^6.1.4
+  ua_client_hints: ^1.2.2
+  uuid: any
+
+dev_dependencies:
+  build_runner: ^2.4.14
+  json_serializable: ^6.9.3
+  mocktail: ^1.0.4
+  test: ^1.25.8
+  very_good_analysis: ^7.0.0

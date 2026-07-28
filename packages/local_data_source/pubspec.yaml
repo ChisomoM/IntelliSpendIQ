@@ -1,0 +1,17 @@
+name: local_data_source
+description: A package to handle local data persistence via a sqlite database and shared preferences.
+version: 0.1.0+1
+publish_to: none
+
+environment:
+  sdk: ">=2.19.0 <3.0.0"
+
+dev_dependencies:
+  mocktail: ^0.3.0
+  test: ^1.23.1
+  very_good_analysis: ^4.0.0+1
+dependencies:
+  path: ^1.8.2
+  shared_preferences: ^2.0.18
+  sqflite: ^2.2.5
+  sqflite_migration: ^0.3.0
