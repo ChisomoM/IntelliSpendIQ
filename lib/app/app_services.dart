@@ -1,0 +1,149 @@
+import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/data/db/connection.dart';
+import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/budget_repository.dart';
+import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
+import 'package:intellispendiq/data/repositories/settings_repository.dart';
+import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/secure/secure_store.dart';
+import 'package:intellispendiq/domain/ai/ai_provider.dart';
+import 'package:intellispendiq/domain/ai/anthropic_claude_provider.dart';
+import 'package:intellispendiq/domain/parsers/parser_registry.dart';
+import 'package:intellispendiq/domain/services/capture_service.dart';
+import 'package:intellispendiq/domain/services/dedupe_service.dart';
+import 'package:intellispendiq/domain/services/sms_sync_service.dart';
+import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
+import 'package:intellispendiq/platform/capture_bridge.dart';
+
+/// Composition root: builds the encrypted database and every repository
+/// and service the app needs, wired together once at startup.
+class AppServices {
+  AppServices._({
+    required this.db,
+    required this.userId,
+    required this.secureStore,
+    required this.accounts,
+    required this.categories,
+    required this.transactions,
+    required this.rawCaptures,
+    required this.budgets,
+    required this.settings,
+    required this.registry,
+    required this.captureService,
+    required this.smsSync,
+    required this.voicePipeline,
+    required this.aiProvider,
+    required this.captureBridge,
+  });
+
+  /// Opens the SQLCipher-encrypted database, seeds first-run data, and
+  /// wires the services. The passphrase and user id come from
+  /// Keystore-backed storage and are generated on first launch.
+  static Future<AppServices> bootstrap({SecureStore? secureStore}) async {
+    final store = secureStore ?? SecureStore();
+    final passphrase = await store.dbPassphrase();
+    final userId = await store.userId();
+
+    final db = AppDatabase(openEncryptedConnection(passphrase: passphrase));
+    return _wire(db: db, userId: userId, store: store);
+  }
+
+  /// Wires services around an already-open database — used by tests with
+  /// an in-memory executor.
+  static Future<AppServices> forDatabase({
+    required AppDatabase db,
+    required String userId,
+    required SecureStore secureStore,
+    CaptureBridge? captureBridge,
+    AiProvider? aiProvider,
+  }) => _wire(
+    db: db,
+    userId: userId,
+    store: secureStore,
+    captureBridge: captureBridge,
+    aiProvider: aiProvider,
+  );
+
+  static Future<AppServices> _wire({
+    required AppDatabase db,
+    required String userId,
+    required SecureStore store,
+    CaptureBridge? captureBridge,
+    AiProvider? aiProvider,
+  }) async {
+    final accounts = AccountRepository(db, userId: userId);
+    final categories = CategoryRepository(db, userId: userId);
+    final transactions = TransactionRepository(db, userId: userId);
+    final rawCaptures = RawCaptureRepository(db, userId: userId);
+    final budgets = BudgetRepository(db, userId: userId);
+    final settings = SettingsRepository(db);
+
+    // Day-one seeds (plan §6.2): categories and the default Airtel Money
+    // account. Both are no-ops after the first launch.
+    await categories.ensureSeeds();
+    await accounts.ensureDefaultAccount();
+
+    final registry = ParserRegistry();
+    final captureService = CaptureService(
+      registry: registry,
+      rawCaptures: rawCaptures,
+      transactions: transactions,
+      accounts: accounts,
+      categories: categories,
+      dedupe: DedupeService(transactions),
+    );
+    final bridge = captureBridge ?? CaptureBridge();
+    final ai = aiProvider ?? AnthropicClaudeProvider(secureStore: store);
+
+    return AppServices._(
+      db: db,
+      userId: userId,
+      secureStore: store,
+      accounts: accounts,
+      categories: categories,
+      transactions: transactions,
+      rawCaptures: rawCaptures,
+      budgets: budgets,
+      settings: settings,
+      registry: registry,
+      captureService: captureService,
+      smsSync: SmsSyncService(
+        bridge: bridge,
+        captureService: captureService,
+        registry: registry,
+        settings: settings,
+      ),
+      voicePipeline: VoicePipeline(
+        aiProvider: ai,
+        rawCaptures: rawCaptures,
+        transactions: transactions,
+        accounts: accounts,
+        categories: categories,
+      ),
+      aiProvider: ai,
+      captureBridge: bridge,
+    );
+  }
+
+  final AppDatabase db;
+  final String userId;
+  final SecureStore secureStore;
+  final AccountRepository accounts;
+  final CategoryRepository categories;
+  final TransactionRepository transactions;
+  final RawCaptureRepository rawCaptures;
+  final BudgetRepository budgets;
+  final SettingsRepository settings;
+  final ParserRegistry registry;
+  final CaptureService captureService;
+  final SmsSyncService smsSync;
+  final VoicePipeline voicePipeline;
+  final AiProvider aiProvider;
+  final CaptureBridge captureBridge;
+
+  Future<void> dispose() async {
+    await smsSync.dispose();
+    await db.close();
+  }
+}

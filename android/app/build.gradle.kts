@@ -12,9 +12,11 @@ val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
+val hasReleaseKeystore =
+    System.getenv("ANDROID_KEYSTORE_PATH") != null || keystorePropertiesFile.exists()
 
 android {
-    namespace = "com.example.verygoodcore.c_template_app"
+    namespace = "com.intellispendiq.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -28,55 +30,44 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.verygoodcore.c_template_app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        applicationId = "com.intellispendiq.app"
+        // API 26 baseline (D12): Keystore + notification behaviour we rely
+        // on. Revisit if a tester's device is older.
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appName"] = "IntelliSpendIQ"
     }
 
     signingConfigs {
-        create("release") {
-            if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
-                storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH"))
-                keyAlias = System.getenv("ANDROID_KEYSTORE_ALIAS")
-                keyPassword = System.getenv("ANDROID_KEYSTORE_PRIVATE_KEY_PASSWORD")
-                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                
-            } else {
-                keyAlias = keystoreProperties["keyAlias"] as String?
-                keyPassword = keystoreProperties["keyPassword"] as String?
-                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-                storePassword = keystoreProperties["storePassword"] as String?
+        if (hasReleaseKeystore) {
+            create("release") {
+                if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
+                    storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH"))
+                    keyAlias = System.getenv("ANDROID_KEYSTORE_ALIAS")
+                    keyPassword = System.getenv("ANDROID_KEYSTORE_PRIVATE_KEY_PASSWORD")
+                    storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                } else {
+                    keyAlias = keystoreProperties["keyAlias"] as String?
+                    keyPassword = keystoreProperties["keyPassword"] as String?
+                    storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                    storePassword = keystoreProperties["storePassword"] as String?
+                }
             }
-        }
-    }
-
-    flavorDimensions += "default"
-    productFlavors {
-        create("production") {
-            dimension = "default"
-            applicationIdSuffix = ""
-            manifestPlaceholders["appName"] = "Kiza Mechanic Find"
-        }
-        create("staging") {
-            dimension = "default"
-            applicationIdSuffix = ".stg"
-            manifestPlaceholders["appName"] = "[STG] Kiza Mechanic Find"
-        }
-        create("development") {
-            dimension = "default"
-            applicationIdSuffix = ".dev"
-            manifestPlaceholders["appName"] = "[DEV] Kiza Mechanic Find"
         }
     }
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            // Sideload builds (D02) work without a release keystore by
+            // falling back to debug signing, so an APK can be produced
+            // on a fresh clone. Configure key.properties before sharing.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android.txt"),
