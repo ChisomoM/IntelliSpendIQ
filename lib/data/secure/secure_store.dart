@@ -19,6 +19,7 @@ class SecureStore {
   static const _dbPassphraseKey = 'db_passphrase';
   static const _userIdKey = 'local_user_id';
   static const _anthropicApiKeyKey = 'anthropic_api_key';
+  static const _appLockKey = 'app_lock_credential';
 
   /// Returns the SQLCipher passphrase, generating a random 256-bit hex
   /// value on first launch.
@@ -51,6 +52,20 @@ class SecureStore {
       await _storage.delete(key: _anthropicApiKeyKey);
     } else {
       await _storage.write(key: _anthropicApiKeyKey, value: value);
+    }
+  }
+
+  /// The serialised app-lock credential, or null when no PIN is set.
+  ///
+  /// This is a PBKDF2 verifier, never the PIN itself — see
+  /// `PinHasher`. Reading it back must not be enough to unlock.
+  Future<String?> appLockCredential() => _storage.read(key: _appLockKey);
+
+  Future<void> setAppLockCredential(String? value) async {
+    if (value == null || value.isEmpty) {
+      await _storage.delete(key: _appLockKey);
+    } else {
+      await _storage.write(key: _appLockKey, value: value);
     }
   }
 }

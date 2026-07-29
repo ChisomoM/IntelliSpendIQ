@@ -57,22 +57,25 @@ lib/
   main_development.dart / main_staging.dart / main_production.dart
   app/
     view/app.dart     MultiRepositoryProvider + MaterialApp
+    cubit/            app-wide: theme mode, pending deep link
     theme/            Material 3 theme
     app_services.dart composition root
     app_bloc_observer.dart
-  core/               money, ids/hashing, time helpers
+  core/               money, ids/hashing, time, PIN hashing, deep link parsing
   data/
     db/               Drift schema, SQLCipher connection
-    repositories/     accounts, categories, transactions, raw captures, budgets
-    secure/           Keystore-backed passphrase, user id, API key
+    repositories/     accounts, categories, transactions, raw captures,
+                      budgets, app lock
+    secure/           Keystore-backed passphrase, user id, API key, PIN verifier
   domain/
     parsers/          ParserRegistry + one file per provider
     services/         capture pipeline, dedupe, SMS sync
     voice/            transcription interface, voice pipeline
     ai/               AiProvider abstraction + Claude implementation
-  home/ transactions/ review/ budgets/ reports/ voice/
+  splash/             shown while the encrypted DB opens
+  auth/ home/ transactions/ review/ budgets/ reports/ voice/ settings/
                       one folder per feature, each cubit/ + view/ + widgets/
-  platform/           Dart side of the Android capture bridge
+  platform/           Android capture bridge, biometrics, deep link source
 
 android/app/src/main/kotlin/com/intellispendiq/app/
   MainActivity.kt              method + event channel wiring
@@ -80,6 +83,47 @@ android/app/src/main/kotlin/com/intellispendiq/app/
   SmsReceiver.kt               live SMS broadcast
   NotificationCaptureService.kt  secondary channel, off by default
 ```
+
+## App lock
+
+Optional PIN, with biometrics as a shortcut once a PIN exists. Off by default;
+turn it on in Settings.
+
+It is a **UI gate, not a crypto gate**, and that is deliberate. Deriving the
+database key from the PIN would make the database unreadable while the app is
+locked — but SMS capture writes to it from a broadcast receiver at any hour. A
+lock that made the capture pipeline fail closed would break priority #1 on every
+message that arrived while the phone was in a pocket. So the data at rest is
+protected by SQLCipher plus the Keystore, and the lock protects the screen from
+someone holding an already-unlocked phone. Different threats, both covered.
+
+- The PIN is stored as a salted PBKDF2-HMAC-SHA256 verifier in the Keystore,
+  never in plaintext, and compared in constant time.
+- Five wrong attempts start a cooldown that doubles per further failure, capped
+  at 15 minutes. A cancelled biometric prompt never burns an attempt.
+- There is no "forgot PIN" reset, because there is no server that could verify
+  who you are. Clearing app data is the honest recovery path.
+- Re-locks after 30 seconds in the background — not instantly, because the
+  biometric prompt itself pauses the activity.
+
+`AuthRepository` is the interface the UI is written against; `AppLockRepository`
+is today's only implementation. A Google OAuth provider can be added later by
+satisfying the same interface, without touching a cubit or a view.
+
+## Deep links
+
+`intellispendiq://<section>` and `https://intellispendiq.app/<section>` both
+resolve, covering the five tabs plus `add`, `voice`, and `transaction/<id>`.
+
+Parsing is pure (`core/deep_link.dart`) and tested without a device. A link is
+only *parked* by `DeepLinkCubit`; `HomeView` performs the navigation — and
+because `HomeView` exists only after the lock is satisfied, a link that arrives
+at the lock screen simply waits. The gating is a property of where the listener
+lives, so there is no check to forget. Unrecognized links are dropped, not
+parked.
+
+Verified app links need `/.well-known/assetlinks.json` served from the host;
+until then https links open in the browser.
 
 ## Security
 
@@ -126,8 +170,9 @@ known senders only — personal messages are never imported.
 ## Current state
 
 Working: encrypted storage, SMS capture and parsing, review inbox, duplicate
-detection, manual entry, budgets with carry-over, monthly reports, and the voice
-pipeline behind a typed quick-add.
+detection, manual entry, budgets with carry-over, monthly reports, the voice
+pipeline behind a typed quick-add, app lock with PIN and biometrics, deep
+links, and light/dark/system theming.
 
 Not yet wired: on-device Whisper transcription (the voice sheet takes typed text
 through the same extraction and routing path), and sync. Sync is deliberately

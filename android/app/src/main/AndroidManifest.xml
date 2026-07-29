@@ -34,6 +34,25 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Custom scheme, e.g. intellispendiq://review. Always
+                 available, no domain ownership needed. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="intellispendiq"/>
+            </intent-filter>
+
+            <!-- Verified app links. android:autoVerify only takes effect
+                 once /.well-known/assetlinks.json is served from the
+                 host; until then these open in the browser instead. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="intellispendiq.app"/>
+            </intent-filter>
         </activity>
 
         <!-- Live SMS delivery while the app runs. The launch-time inbox

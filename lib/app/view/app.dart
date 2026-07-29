@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/app/app_services.dart';
+import 'package:intellispendiq/app/cubit/cubit.dart';
 import 'package:intellispendiq/app/theme/theme.dart';
+import 'package:intellispendiq/auth/auth.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -42,12 +45,32 @@ class App extends StatelessWidget {
         ),
         RepositoryProvider<SmsSyncService>.value(value: services.smsSync),
         RepositoryProvider<VoicePipeline>.value(value: services.voicePipeline),
+        RepositoryProvider<AppLockRepository>.value(value: services.appLock),
       ],
-      child: MaterialApp(
-        title: services.flavor.displayName,
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        home: const HomePage(),
+      // Theme, auth and deep links are app-wide, so they sit above the
+      // MaterialApp rather than inside any one screen.
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => ThemeCubit(services.settings)..loadUnawaited(),
+          ),
+          BlocProvider(create: (_) => AuthCubit(services.appLock)),
+          BlocProvider(
+            create: (_) =>
+                DeepLinkCubit(services.deepLinkSource)..startUnawaited(),
+          ),
+        ],
+        child: BlocBuilder<ThemeCubit, ThemeMode>(
+          builder: (context, themeMode) {
+            return MaterialApp(
+              title: services.flavor.displayName,
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: themeMode,
+              home: const AuthGate(child: HomePage()),
+            );
+          },
+        ),
       ),
     );
   }

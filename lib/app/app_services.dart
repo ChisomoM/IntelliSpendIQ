@@ -2,6 +2,7 @@ import 'package:intellispendiq/bootstrap.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/db/connection.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -15,7 +16,9 @@ import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
+import 'package:intellispendiq/platform/biometric_authenticator.dart';
 import 'package:intellispendiq/platform/capture_bridge.dart';
+import 'package:intellispendiq/platform/deep_link_source.dart';
 
 /// Composition root: builds the encrypted database and every repository
 /// and service the app needs, wired together once at startup.
@@ -31,12 +34,14 @@ class AppServices {
     required this.rawCaptures,
     required this.budgets,
     required this.settings,
+    required this.appLock,
     required this.registry,
     required this.captureService,
     required this.smsSync,
     required this.voicePipeline,
     required this.aiProvider,
     required this.captureBridge,
+    required this.deepLinkSource,
   });
 
   /// Opens the SQLCipher-encrypted database, seeds first-run data, and
@@ -62,6 +67,8 @@ class AppServices {
     required SecureStore secureStore,
     CaptureBridge? captureBridge,
     AiProvider? aiProvider,
+    BiometricAuthenticator? biometrics,
+    DeepLinkSource? deepLinkSource,
     AppFlavor flavor = AppFlavor.development,
   }) => _wire(
     db: db,
@@ -69,6 +76,8 @@ class AppServices {
     store: secureStore,
     captureBridge: captureBridge,
     aiProvider: aiProvider,
+    biometrics: biometrics,
+    deepLinkSource: deepLinkSource,
     flavor: flavor,
   );
 
@@ -79,6 +88,8 @@ class AppServices {
     required AppFlavor flavor,
     CaptureBridge? captureBridge,
     AiProvider? aiProvider,
+    BiometricAuthenticator? biometrics,
+    DeepLinkSource? deepLinkSource,
   }) async {
     final accounts = AccountRepository(db, userId: userId);
     final categories = CategoryRepository(db, userId: userId);
@@ -115,6 +126,11 @@ class AppServices {
       rawCaptures: rawCaptures,
       budgets: budgets,
       settings: settings,
+      appLock: AppLockRepository(
+        secureStore: store,
+        settings: settings,
+        biometrics: biometrics ?? LocalAuthBiometrics(),
+      ),
       registry: registry,
       captureService: captureService,
       smsSync: SmsSyncService(
@@ -132,6 +148,7 @@ class AppServices {
       ),
       aiProvider: ai,
       captureBridge: bridge,
+      deepLinkSource: deepLinkSource ?? AppLinksSource(),
     );
   }
 
@@ -145,15 +162,18 @@ class AppServices {
   final RawCaptureRepository rawCaptures;
   final BudgetRepository budgets;
   final SettingsRepository settings;
+  final AppLockRepository appLock;
   final ParserRegistry registry;
   final CaptureService captureService;
   final SmsSyncService smsSync;
   final VoicePipeline voicePipeline;
   final AiProvider aiProvider;
   final CaptureBridge captureBridge;
+  final DeepLinkSource deepLinkSource;
 
   Future<void> dispose() async {
     await smsSync.dispose();
+    await appLock.dispose();
     await db.close();
   }
 }

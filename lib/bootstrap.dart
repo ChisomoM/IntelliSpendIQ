@@ -5,6 +5,7 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intellispendiq/app/app_bloc_observer.dart';
 import 'package:intellispendiq/app/app_services.dart';
+import 'package:intellispendiq/splash/splash.dart';
 
 /// Build flavours (D02: all three sideload, none go to Play Store).
 enum AppFlavor {
@@ -41,6 +42,11 @@ Future<void> bootstrap(
 
   await runZonedGuarded(
     () async {
+      // Paint something first. Deriving the SQLCipher key and opening
+      // the database is slow enough to be visible, and without this the
+      // user stares at a blank window while it happens.
+      runApp(const SplashApp());
+
       final services = await AppServices.bootstrap(flavor: flavor);
       runApp(await builder(services));
     },
