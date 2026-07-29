@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intellispendiq/accounts/accounts.dart';
 import 'package:intellispendiq/app/cubit/cubit.dart';
 import 'package:intellispendiq/auth/auth.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
@@ -26,12 +27,23 @@ class SettingsView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        children: const [
-          _SectionHeader('Appearance'),
-          _ThemeSelector(),
-          Divider(height: 32),
-          _SectionHeader('Security'),
-          _AppLockSection(),
+        children: [
+          const _SectionHeader('Appearance'),
+          const _ThemeSelector(),
+          const Divider(height: 32),
+          const _SectionHeader('Money'),
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet_outlined),
+            title: const Text('Accounts'),
+            subtitle: const Text(
+              'Manage cash, bank, and mobile money accounts',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push<void>(AccountsPage.route()),
+          ),
+          const Divider(height: 32),
+          const _SectionHeader('Security'),
+          const _AppLockSection(),
         ],
       ),
     );

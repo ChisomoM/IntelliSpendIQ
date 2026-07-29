@@ -5,6 +5,7 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/income_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -36,6 +37,7 @@ class AppServices {
     required this.transactions,
     required this.rawCaptures,
     required this.budgets,
+    required this.income,
     required this.settings,
     required this.appLock,
     required this.registry,
@@ -104,6 +106,7 @@ class AppServices {
     final transactions = TransactionRepository(db, userId: userId);
     final rawCaptures = RawCaptureRepository(db, userId: userId);
     final budgets = BudgetRepository(db, userId: userId);
+    final income = IncomeRepository(db, userId: userId);
     final settings = SettingsRepository(db);
 
     // Day-one seeds (plan §6.2): categories and the default Airtel Money
@@ -141,6 +144,7 @@ class AppServices {
       transactions: transactions,
       rawCaptures: rawCaptures,
       budgets: budgets,
+      income: income,
       settings: settings,
       appLock: AppLockRepository(
         secureStore: store,
@@ -179,6 +183,7 @@ class AppServices {
   final TransactionRepository transactions;
   final RawCaptureRepository rawCaptures;
   final BudgetRepository budgets;
+  final IncomeRepository income;
   final SettingsRepository settings;
   final AppLockRepository appLock;
   final ParserRegistry registry;

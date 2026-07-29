@@ -129,4 +129,58 @@ class AccountRepository {
       ),
     );
   }
+
+  /// Adds a user-created account, e.g. a cash wallet or a second bank
+  /// account not tied to any SMS parser.
+  Future<Account> create({
+    required String name,
+    required AccountType type,
+    String? providerKey,
+  }) async {
+    final now = Iso.nowUtc();
+    final id = Ids.newId();
+    await _db
+        .into(_db.accounts)
+        .insert(
+          AccountsCompanion.insert(
+            id: id,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+            name: name,
+            type: type.dbName,
+            providerKey: Value(providerKey),
+          ),
+        );
+    final row = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.id.equals(id))).getSingle();
+    return _fromRow(row);
+  }
+
+  /// Removes an account the user added by mistake or no longer uses.
+  /// Existing transactions keep their account id — this only hides the
+  /// account from pickers, same as every other soft delete in the app.
+  /// If the deleted account was the default, another remaining account
+  /// is promoted so [getDefault] always has somewhere to fall back to.
+  Future<void> delete(String id) async {
+    final target = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.id.equals(id))).getSingleOrNull();
+    if (target == null) return;
+
+    final now = Iso.nowUtc();
+    await (_db.update(_db.accounts)..where((a) => a.id.equals(id))).write(
+      AccountsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
+
+    if (!target.isDefault) return;
+    final remaining = await getAll();
+    if (remaining.isEmpty) return;
+    await (_db.update(
+      _db.accounts,
+    )..where((a) => a.id.equals(remaining.first.id))).write(
+      AccountsCompanion(isDefault: const Value(true), updatedAt: Value(now)),
+    );
+  }
 }

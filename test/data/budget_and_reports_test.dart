@@ -197,6 +197,88 @@ void main() {
     });
   });
 
+  group('accounts', () {
+    test('creates additional accounts of any type', () async {
+      final account = await services.accounts.create(
+        name: 'Piggy Bank',
+        type: AccountType.cash,
+      );
+
+      final all = await services.accounts.getAll();
+      expect(all, hasLength(2));
+      expect(all.map((a) => a.name), contains('Piggy Bank'));
+      expect(account.type, AccountType.cash);
+    });
+
+    test('a deleted account disappears from the list', () async {
+      final account = await services.accounts.create(
+        name: 'Extra Bank',
+        type: AccountType.bank,
+      );
+
+      await services.accounts.delete(account.id);
+
+      final all = await services.accounts.getAll();
+      expect(all.map((a) => a.id), isNot(contains(account.id)));
+    });
+
+    test(
+      'deleting the default account promotes another as the new default',
+      () async {
+        final original = await services.accounts.getDefault();
+        final second = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+
+        await services.accounts.delete(original.id);
+
+        final newDefault = await services.accounts.getDefault();
+        expect(newDefault.id, second.id);
+        expect(newDefault.isDefault, isTrue);
+      },
+    );
+  });
+
+  group('monthly income', () {
+    test('upsert replaces the declared income for the same month', () async {
+      const period = '2026-07';
+      await services.income.upsert(period: period, amountMinor: 500000);
+      await services.income.upsert(period: period, amountMinor: 650000);
+
+      final income = await services.income.getForPeriod(period);
+      expect(income!.amountMinor, 650000);
+    });
+
+    test('no income set for a period returns null', () async {
+      expect(await services.income.getForPeriod('2026-08'), isNull);
+    });
+
+    test('totalSpent sums confirmed debits across every category', () async {
+      final transportId = (await services.categories.byName('Transport'))!.id;
+      await addSpend(amountMinor: 3000, at: DateTime(2026, 7, 5));
+      await addSpend(
+        amountMinor: 7000,
+        at: DateTime(2026, 7, 6),
+        categoryId: transportId,
+      );
+      // Excluded: not yet confirmed.
+      await addSpend(
+        amountMinor: 9999,
+        at: DateTime(2026, 7, 7),
+        status: TxStatus.needsReview,
+      );
+      // Excluded: a credit, not spending.
+      await addSpend(
+        amountMinor: 9999,
+        at: DateTime(2026, 7, 8),
+        direction: TxDirection.credit,
+      );
+
+      expect(await services.transactions.totalSpent('2026-07'), 10000);
+    });
+  });
+
   group('month boundaries', () {
     test('previousMonthKey rolls back across the new year', () {
       expect(Iso.previousMonthKey('2026-01'), '2025-12');

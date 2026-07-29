@@ -279,6 +279,27 @@ class TransactionRepository {
     return row.read(total) ?? 0;
   }
 
+  /// Confirmed debit total across every category for a month, for
+  /// tracking spend against a declared income rather than a per-category
+  /// limit.
+  Future<int> totalSpent(String period) async {
+    final (from, to) = Iso.monthBoundsUtc(period);
+    final t = _db.transactions;
+    final total = t.amountMinor.sum();
+    final query = _db.selectOnly(t)
+      ..addColumns([total])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.direction.equals(TxDirection.debit.name) &
+            t.status.equals(TxStatus.confirmed.dbName) &
+            t.transactedAt.isBiggerOrEqualValue(from) &
+            t.transactedAt.isSmallerThanValue(to),
+      );
+    final row = await query.getSingle();
+    return row.read(total) ?? 0;
+  }
+
   /// Capture health metric: how many of this month's captured
   /// transactions came in per source (plan §Phase 1f).
   Future<Map<String, int>> countBySource(String period) async {
