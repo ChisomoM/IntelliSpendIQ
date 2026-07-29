@@ -34,9 +34,9 @@ void main() {
       );
 
       expect(result.outcome, VoiceOutcome.autoSaved);
-      expect(result.transaction!.status, TxStatus.confirmed.dbName);
+      expect(result.transaction!.status, TxStatus.confirmed);
       expect(result.transaction!.amountMinor, 5000);
-      expect(result.transaction!.source, TxSource.voice.name);
+      expect(result.transaction!.source, TxSource.voice);
       expect(result.transaction!.confidence, 0.85);
     });
 
@@ -51,7 +51,7 @@ void main() {
       );
 
       expect(result.outcome, VoiceOutcome.needsReview);
-      expect(result.transaction!.status, TxStatus.needsReview.dbName);
+      expect(result.transaction!.status, TxStatus.needsReview);
     });
 
     test('routes to review when the category is missing', () async {
@@ -103,7 +103,7 @@ void main() {
       expect(result.outcome, VoiceOutcome.storedForReview);
       final raw = await services.rawCaptures.byId(result.rawCapture!.id);
       expect(raw!.body, transcript);
-      expect(raw.parseStatus, ParseStatus.failed.name);
+      expect(raw.parseStatus, ParseStatus.failed);
       expect(await services.rawCaptures.watchFailed().first, hasLength(1));
     });
 
@@ -161,7 +161,7 @@ void main() {
         'taxi last Monday',
       );
       expect(
-        DateTime.parse(result.transaction!.transactedAt).toUtc(),
+        result.transaction!.transactedAt.toUtc(),
         DateTime.parse('2026-07-20').toUtc(),
       );
     });
@@ -177,7 +177,7 @@ void main() {
       final result = await services.voicePipeline.processTranscript(
         'received fifty kwacha',
       );
-      expect(result.transaction!.direction, TxDirection.credit.name);
+      expect(result.transaction!.direction, TxDirection.credit);
     });
   });
 

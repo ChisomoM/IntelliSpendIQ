@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/parsers/airtel_money_parser.dart';
 import 'package:intellispendiq/domain/parsers/stanchart_parser.dart';
@@ -11,6 +12,16 @@ class AccountRepository {
 
   final AppDatabase _db;
   final String userId;
+
+  static Account _fromRow(AccountRow row) => Account(
+    id: row.id,
+    name: row.name,
+    type: AccountType.fromDbName(row.type),
+    currency: row.currency,
+    isDefault: row.isDefault,
+    providerKey: row.providerKey,
+    balanceMinor: row.balanceMinor,
+  );
 
   /// Day-one seed (D07): one default mobile-money account mapped to
   /// Airtel Money.
@@ -36,19 +47,19 @@ class AccountRepository {
         );
   }
 
-  Stream<List<AccountRow>> watchAll() {
+  Stream<List<Account>> watchAll() {
     final query = _db.select(_db.accounts)
       ..where((a) => a.userId.equals(userId) & a.deletedAt.isNull());
-    return query.watch();
+    return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
-  Future<List<AccountRow>> getAll() {
+  Future<List<Account>> getAll() async {
     final query = _db.select(_db.accounts)
       ..where((a) => a.userId.equals(userId) & a.deletedAt.isNull());
-    return query.get();
+    return (await query.get()).map(_fromRow).toList();
   }
 
-  Future<AccountRow> getDefault() async {
+  Future<Account> getDefault() async {
     final query = _db.select(_db.accounts)
       ..where(
         (a) =>
@@ -58,7 +69,7 @@ class AccountRepository {
       )
       ..limit(1);
     final row = await query.getSingleOrNull();
-    if (row != null) return row;
+    if (row != null) return _fromRow(row);
     final any = await getAll();
     return any.first;
   }
@@ -66,7 +77,7 @@ class AccountRepository {
   /// Maps a parser provider to its account, creating it on first use —
   /// e.g. the StanChart account appears when the first StanChart SMS is
   /// parsed (plan §19).
-  Future<AccountRow> findOrCreateForProvider(String providerKey) async {
+  Future<Account> findOrCreateForProvider(String providerKey) async {
     final query = _db.select(_db.accounts)
       ..where(
         (a) =>
@@ -76,7 +87,7 @@ class AccountRepository {
       )
       ..limit(1);
     final existing = await query.getSingleOrNull();
-    if (existing != null) return existing;
+    if (existing != null) return _fromRow(existing);
 
     final (name, type) = switch (providerKey) {
       AirtelMoneyParser.providerKey => (
@@ -101,9 +112,10 @@ class AccountRepository {
             providerKey: Value(providerKey),
           ),
         );
-    return (_db.select(
+    final row = await (_db.select(
       _db.accounts,
     )..where((a) => a.id.equals(id))).getSingle();
+    return _fromRow(row);
   }
 
   /// Updates the informational cached balance reported by provider SMS.

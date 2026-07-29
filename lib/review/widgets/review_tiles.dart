@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/core/money.dart';
-import 'package:intellispendiq/core/time.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/raw_capture.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/review/cubit/cubit.dart';
 import 'package:intellispendiq/transactions/transactions.dart';
 import 'package:intl/intl.dart';
@@ -44,7 +45,7 @@ class SectionHeader extends StatelessWidget {
 class NeedsReviewTile extends StatelessWidget {
   const NeedsReviewTile({required this.transaction, super.key});
 
-  final TransactionRow transaction;
+  final Transaction transaction;
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +97,7 @@ class NeedsReviewTile extends StatelessWidget {
 class DuplicateTile extends StatelessWidget {
   const DuplicateTile({required this.transaction, super.key});
 
-  final TransactionRow transaction;
+  final Transaction transaction;
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +110,7 @@ class DuplicateTile extends StatelessWidget {
             title: Text(transaction.merchant ?? 'Unknown merchant'),
             subtitle: Text(
               '${Money.format(transaction.amountMinor, currency: transaction.currency)} · '
-              '${DateFormat('d MMM, HH:mm').format(Iso.toDateTime(transaction.transactedAt).toLocal())}',
+              '${DateFormat('d MMM, HH:mm').format(transaction.transactedAt.toLocal())}',
             ),
           ),
           OverflowBar(
@@ -134,7 +135,7 @@ class DuplicateTile extends StatelessWidget {
 class FailedCaptureTile extends StatelessWidget {
   const FailedCaptureTile({required this.capture, super.key});
 
-  final RawCaptureRow capture;
+  final RawCapture capture;
 
   @override
   Widget build(BuildContext context) {
@@ -149,9 +150,7 @@ class FailedCaptureTile extends StatelessWidget {
           ListTile(
             title: Text(capture.sender ?? 'Unknown sender'),
             subtitle: Text(
-              DateFormat(
-                'd MMM, HH:mm',
-              ).format(Iso.toDateTime(capture.receivedAt).toLocal()),
+              DateFormat('d MMM, HH:mm').format(capture.receivedAt.toLocal()),
             ),
           ),
           Padding(
@@ -188,10 +187,10 @@ class CategoryPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<CategoryRow>>(
+    return FutureBuilder<List<Category>>(
       future: context.read<CategoryRepository>().getAll(),
       builder: (context, snapshot) {
-        final categories = snapshot.data ?? const <CategoryRow>[];
+        final categories = snapshot.data ?? const <Category>[];
         if (categories.isEmpty) return const SizedBox.shrink();
         return SizedBox(
           height: 48,
@@ -203,7 +202,7 @@ class CategoryPicker extends StatelessWidget {
             itemBuilder: (context, index) {
               final category = categories[index];
               return ActionChip(
-                label: Text('${category.icon ?? ''} ${category.name}'),
+                label: Text(category.displayName),
                 onPressed: () => onSelected(category.id),
               );
             },

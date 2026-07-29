@@ -6,6 +6,7 @@ import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 
 /// A category's spend within one period, for reports and budgets.
@@ -33,28 +34,57 @@ class TransactionRepository {
   final AppDatabase _db;
   final String userId;
 
-  Future<TransactionRow?> byId(String id) {
-    return (_db.select(
+  /// Decodes a stored row into the model the rest of the app uses —
+  /// ISO strings become [DateTime], status/direction/source codes
+  /// become enums, and the metadata blob is parsed once here instead of
+  /// by every screen that touches a transaction.
+  static Transaction _fromRow(TransactionRow row) => Transaction(
+    id: row.id,
+    accountId: row.accountId,
+    categoryId: row.categoryId,
+    amountMinor: row.amountMinor,
+    currency: row.currency,
+    direction: TxDirection.fromName(row.direction),
+    merchant: row.merchant,
+    description: row.description,
+    transactedAt: Iso.toDateTime(row.transactedAt),
+    source: TxSource.fromName(row.source),
+    confidence: row.confidence,
+    status: TxStatus.fromDbName(row.status),
+    rawCaptureId: row.rawCaptureId,
+    idempotencyKey: row.idempotencyKey,
+    duplicateOfId: row.duplicateOfId,
+    paymentMethod: row.paymentMethod,
+    externalRef: row.externalRef,
+    metadata: row.metadataJson == null
+        ? const {}
+        : jsonDecode(row.metadataJson!) as Map<String, Object?>,
+  );
+
+  Future<Transaction?> byId(String id) async {
+    final row = await (_db.select(
       _db.transactions,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _fromRow(row);
   }
 
-  Future<TransactionRow?> byIdempotencyKey(String key) {
+  Future<Transaction?> byIdempotencyKey(String key) async {
     final query = _db.select(_db.transactions)
       ..where((t) => t.userId.equals(userId) & t.idempotencyKey.equals(key))
       ..limit(1);
-    return query.getSingleOrNull();
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _fromRow(row);
   }
 
   /// Fuzzy duplicate candidates: same amount + direction, transacted
   /// within [window] of [transactedAt] (plan §10.2). Merchant similarity
   /// is checked by the caller (DedupeService).
-  Future<List<TransactionRow>> fuzzyCandidates({
+  Future<List<Transaction>> fuzzyCandidates({
     required int amountMinor,
     required TxDirection direction,
     required DateTime transactedAt,
     Duration window = const Duration(minutes: 30),
-  }) {
+  }) async {
     final from = Iso.fromDateTime(transactedAt.subtract(window));
     final to = Iso.fromDateTime(transactedAt.add(window));
     final query = _db.select(_db.transactions)
@@ -66,12 +96,12 @@ class TransactionRepository {
             t.transactedAt.isBetweenValues(from, to) &
             t.deletedAt.isNull(),
       );
-    return query.get();
+    return (await query.get()).map(_fromRow).toList();
   }
 
   /// Inserts a draft as a transaction row. The caller has already run
   /// dedupe and decided [status]/[duplicateOfId].
-  Future<TransactionRow> insertDraft(
+  Future<Transaction> insertDraft(
     TransactionDraft draft, {
     required String accountId,
     required String idempotencyKey,
@@ -110,20 +140,21 @@ class TransactionRepository {
             ),
           ),
         );
-    return (_db.select(
+    final row = await (_db.select(
       _db.transactions,
     )..where((t) => t.id.equals(id))).getSingle();
+    return _fromRow(row);
   }
 
-  Stream<List<TransactionRow>> watchRecent({int limit = 100}) {
+  Stream<List<Transaction>> watchRecent({int limit = 100}) {
     final query = _db.select(_db.transactions)
       ..where((t) => t.userId.equals(userId) & t.deletedAt.isNull())
       ..orderBy([(t) => OrderingTerm.desc(t.transactedAt)])
       ..limit(limit);
-    return query.watch();
+    return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
-  Stream<List<TransactionRow>> watchByStatus(TxStatus status) {
+  Stream<List<Transaction>> watchByStatus(TxStatus status) {
     final query = _db.select(_db.transactions)
       ..where(
         (t) =>
@@ -132,7 +163,7 @@ class TransactionRepository {
             t.deletedAt.isNull(),
       )
       ..orderBy([(t) => OrderingTerm.desc(t.transactedAt)]);
-    return query.watch();
+    return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
   /// Count of transactions needing human attention, for the inbox badge.

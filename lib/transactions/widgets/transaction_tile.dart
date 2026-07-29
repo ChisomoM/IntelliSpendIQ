@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:intellispendiq/core/money.dart';
-import 'package:intellispendiq/core/time.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/transactions/view/view.dart';
 import 'package:intl/intl.dart';
 
 class TransactionTile extends StatelessWidget {
   const TransactionTile({required this.transaction, super.key});
 
-  final TransactionRow transaction;
+  final Transaction transaction;
 
   static final _dateFormat = DateFormat('d MMM, HH:mm');
 
   @override
   Widget build(BuildContext context) {
-    final isCredit = transaction.direction == TxDirection.credit.name;
-    final status = TxStatus.fromDbName(transaction.status);
+    final isCredit = transaction.direction == TxDirection.credit;
     final theme = Theme.of(context);
 
     return ListTile(
@@ -25,7 +23,7 @@ class TransactionTile extends StatelessWidget {
             ? theme.colorScheme.tertiaryContainer
             : theme.colorScheme.surfaceContainerHighest,
         child: Icon(
-          switch (TxSource.fromName(transaction.source)) {
+          switch (transaction.source) {
             TxSource.sms => Icons.sms_outlined,
             TxSource.voice => Icons.mic_none,
             TxSource.notification => Icons.notifications_none,
@@ -41,9 +39,7 @@ class TransactionTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Text(
-        _dateFormat.format(Iso.toDateTime(transaction.transactedAt).toLocal()),
-      ),
+      subtitle: Text(_dateFormat.format(transaction.transactedAt.toLocal())),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -55,9 +51,9 @@ class TransactionTile extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (status != TxStatus.confirmed)
+          if (transaction.status != TxStatus.confirmed)
             Text(
-              status == TxStatus.duplicateSuspect
+              transaction.status == TxStatus.duplicateSuspect
                   ? 'possible duplicate'
                   : 'needs review',
               style: theme.textTheme.labelSmall?.copyWith(

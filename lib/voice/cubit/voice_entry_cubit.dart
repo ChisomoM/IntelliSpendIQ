@@ -1,6 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 
 part 'voice_entry_state.dart';

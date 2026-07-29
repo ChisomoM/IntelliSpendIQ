@@ -2,12 +2,23 @@ import 'package:drift/drift.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 
 class CategoryRepository {
   CategoryRepository(this._db, {required this.userId});
 
   final AppDatabase _db;
   final String userId;
+
+  static Category _fromRow(CategoryRow row) => Category(
+    id: row.id,
+    name: row.name,
+    icon: row.icon,
+    color: row.color,
+    parentId: row.parentId,
+    isSystem: row.isSystem,
+    sortOrder: row.sortOrder,
+  );
 
   /// Default system categories seeded on first launch (plan §6.2).
   static const seedNames = [
@@ -48,21 +59,21 @@ class CategoryRepository {
     });
   }
 
-  Stream<List<CategoryRow>> watchAll() {
+  Stream<List<Category>> watchAll() {
     final query = _db.select(_db.categories)
       ..where((c) => c.userId.equals(userId) & c.deletedAt.isNull())
       ..orderBy([(c) => OrderingTerm.asc(c.sortOrder)]);
-    return query.watch();
+    return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
-  Future<List<CategoryRow>> getAll() async {
+  Future<List<Category>> getAll() async {
     final query = _db.select(_db.categories)
       ..where((c) => c.userId.equals(userId) & c.deletedAt.isNull())
       ..orderBy([(c) => OrderingTerm.asc(c.sortOrder)]);
-    return query.get();
+    return (await query.get()).map(_fromRow).toList();
   }
 
-  Future<CategoryRow?> byName(String name) {
+  Future<Category?> byName(String name) async {
     final query = _db.select(_db.categories)
       ..where(
         (c) =>
@@ -71,10 +82,11 @@ class CategoryRepository {
             c.deletedAt.isNull(),
       )
       ..limit(1);
-    return query.getSingleOrNull();
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _fromRow(row);
   }
 
-  Future<CategoryRow> create(String name, {String? icon}) async {
+  Future<Category> create(String name, {String? icon}) async {
     final now = Iso.nowUtc();
     final id = Ids.newId();
     await _db
@@ -90,8 +102,9 @@ class CategoryRepository {
             sortOrder: const Value(1000),
           ),
         );
-    return (_db.select(
+    final row = await (_db.select(
       _db.categories,
     )..where((c) => c.id.equals(id))).getSingle();
+    return _fromRow(row);
   }
 }

@@ -2,10 +2,11 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/raw_capture.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 
 part 'review_inbox_state.dart';
 

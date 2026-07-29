@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
 
 /// Manual entry and edit screen (Phase 1a) — also the editor used when
@@ -15,13 +15,13 @@ class TransactionEntryPage extends StatelessWidget {
   const TransactionEntryPage({this.existing, this.rawCaptureId, super.key});
 
   /// Transaction being edited, or null when adding a new one.
-  final TransactionRow? existing;
+  final Transaction? existing;
 
   /// Raw capture this entry resolves, when opened from the inbox.
   final String? rawCaptureId;
 
   static Route<void> route({
-    TransactionRow? existing,
+    Transaction? existing,
     String? rawCaptureId,
   }) {
     return MaterialPageRoute<void>(
@@ -190,7 +190,7 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
                     for (final category in state.categories)
                       DropdownMenuItem(
                         value: category.id,
-                        child: Text('${category.icon ?? ''} ${category.name}'),
+                        child: Text(category.displayName),
                       ),
                   ],
                   onChanged: cubit.categoryChanged,

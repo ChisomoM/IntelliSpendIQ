@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/domain/models/budget.dart';
 
 class BudgetRepository {
   BudgetRepository(this._db, {required this.userId});
@@ -9,7 +10,15 @@ class BudgetRepository {
   final AppDatabase _db;
   final String userId;
 
-  Stream<List<BudgetRow>> watchForPeriod(String period) {
+  static Budget _fromRow(BudgetRow row) => Budget(
+    id: row.id,
+    categoryId: row.categoryId,
+    period: row.period,
+    amountMinor: row.amountMinor,
+    carryOver: row.carryOver,
+  );
+
+  Stream<List<Budget>> watchForPeriod(String period) {
     final query = _db.select(_db.budgets)
       ..where(
         (b) =>
@@ -17,10 +26,10 @@ class BudgetRepository {
             b.period.equals(period) &
             b.deletedAt.isNull(),
       );
-    return query.watch();
+    return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
-  Future<List<BudgetRow>> getForPeriod(String period) {
+  Future<List<Budget>> getForPeriod(String period) async {
     final query = _db.select(_db.budgets)
       ..where(
         (b) =>
@@ -28,7 +37,7 @@ class BudgetRepository {
             b.period.equals(period) &
             b.deletedAt.isNull(),
       );
-    return query.get();
+    return (await query.get()).map(_fromRow).toList();
   }
 
   Future<void> upsert({

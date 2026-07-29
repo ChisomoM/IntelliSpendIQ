@@ -25,8 +25,8 @@ class TransactionEntryState extends Equatable {
   final String? categoryId;
   final String? accountId;
   final DateTime transactedAt;
-  final List<CategoryRow> categories;
-  final List<AccountRow> accounts;
+  final List<Category> categories;
+  final List<Account> accounts;
   final String? errorMessage;
 
   bool get isSaving => status == TransactionEntryStatus.saving;
@@ -40,8 +40,8 @@ class TransactionEntryState extends Equatable {
     String? categoryId,
     String? accountId,
     DateTime? transactedAt,
-    List<CategoryRow>? categories,
-    List<AccountRow>? accounts,
+    List<Category>? categories,
+    List<Account>? accounts,
     String? errorMessage,
   }) {
     return TransactionEntryState(

@@ -1,5 +1,5 @@
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 
 /// Outcome of a duplicate check before insert (plan §10.2).
@@ -17,7 +17,7 @@ class DedupeNone extends DedupeOutcome {
 class DedupeHard extends DedupeOutcome {
   const DedupeHard(this.existing);
 
-  final TransactionRow existing;
+  final Transaction existing;
 }
 
 /// Fuzzy match: same amount + merchant + close time. Insert as
@@ -25,7 +25,7 @@ class DedupeHard extends DedupeOutcome {
 class DedupeFuzzy extends DedupeOutcome {
   const DedupeFuzzy(this.existing);
 
-  final TransactionRow existing;
+  final Transaction existing;
 }
 
 class DedupeService {

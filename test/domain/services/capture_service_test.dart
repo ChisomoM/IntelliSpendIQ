@@ -22,9 +22,9 @@ void main() {
 
       expect(result.status, IngestStatus.saved);
       expect(result.transaction, isNotNull);
-      expect(result.transaction!.status, TxStatus.confirmed.dbName);
+      expect(result.transaction!.status, TxStatus.confirmed);
       expect(result.transaction!.amountMinor, 1000);
-      expect(result.transaction!.source, TxSource.sms.name);
+      expect(result.transaction!.source, TxSource.sms);
       expect(result.transaction!.externalRef, 'MP260728.0729.D08222');
     });
 
@@ -34,7 +34,7 @@ void main() {
       );
 
       final raw = await services.rawCaptures.byId(result.rawCapture!.id);
-      expect(raw!.parseStatus, ParseStatus.parsed.name);
+      expect(raw!.parseStatus, ParseStatus.parsed);
       expect(raw.parsedTransactionId, result.transaction!.id);
       expect(raw.parserKey, AirtelMoneyParser.providerKey);
       expect(result.transaction!.rawCaptureId, raw.id);
@@ -68,7 +68,7 @@ void main() {
         (a) => a.providerKey == StanChartParser.providerKey,
       );
       expect(result.transaction!.accountId, stanChart.id);
-      expect(stanChart.type, AccountType.bank.dbName);
+      expect(stanChart.type, AccountType.bank);
     });
 
     test('records a non-zero charge as its own fee transaction', () async {
@@ -99,7 +99,7 @@ void main() {
       expect(result.transaction, isNull);
       final raw = await services.rawCaptures.byId(result.rawCapture!.id);
       expect(raw!.body, body, reason: 'The original text must be preserved');
-      expect(raw.parseStatus, ParseStatus.failed.name);
+      expect(raw.parseStatus, ParseStatus.failed);
       expect(raw.error, isNotEmpty);
     });
 
@@ -119,7 +119,7 @@ void main() {
 
       expect(result.status, IngestStatus.ignored);
       final raw = await services.rawCaptures.byId(result.rawCapture!.id);
-      expect(raw!.parseStatus, ParseStatus.ignored.name);
+      expect(raw!.parseStatus, ParseStatus.ignored);
       expect(raw.body, 'Hey, are we still meeting at 5?');
 
       // Ignored captures are stored but must not clutter the inbox.
@@ -204,7 +204,7 @@ void main() {
         expect(second.status, IngestStatus.duplicateSuspect);
         expect(
           second.transaction!.status,
-          TxStatus.duplicateSuspect.dbName,
+          TxStatus.duplicateSuspect,
           reason: 'The suspect must still be stored for review',
         );
         expect(second.transaction!.duplicateOfId, isNotNull);
@@ -228,7 +228,7 @@ void main() {
       expect(rows, hasLength(2), reason: 'Keeping both must delete neither');
       expect(
         rows.map((r) => r.status),
-        everyElement(TxStatus.confirmed.dbName),
+        everyElement(TxStatus.confirmed),
       );
       expect(
         await services.transactions

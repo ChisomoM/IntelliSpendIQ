@@ -4,6 +4,7 @@ import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/domain/models/capture_input.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/raw_capture.dart';
 
 class RawCaptureRepository {
   RawCaptureRepository(this._db, {required this.userId});
@@ -11,32 +12,50 @@ class RawCaptureRepository {
   final AppDatabase _db;
   final String userId;
 
-  Future<RawCaptureRow?> byId(String id) {
-    return (_db.select(
+  static RawCapture _fromRow(RawCaptureRow row) => RawCapture(
+    id: row.id,
+    channel: CaptureChannel.fromDbName(row.sourceChannel),
+    sender: row.sender,
+    body: row.body,
+    receivedAt: Iso.toDateTime(row.receivedAt),
+    androidSmsId: row.androidSmsId,
+    packageName: row.packageName,
+    parseStatus: ParseStatus.fromName(row.parseStatus),
+    parserKey: row.parserKey,
+    error: row.error,
+    parsedTransactionId: row.parsedTransactionId,
+    contentHash: row.contentHash,
+  );
+
+  Future<RawCapture?> byId(String id) async {
+    final row = await (_db.select(
       _db.rawCaptures,
     )..where((r) => r.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _fromRow(row);
   }
 
-  Future<RawCaptureRow?> byContentHash(String hash) {
+  Future<RawCapture?> byContentHash(String hash) async {
     final query = _db.select(_db.rawCaptures)
       ..where((r) => r.userId.equals(userId) & r.contentHash.equals(hash))
       ..limit(1);
-    return query.getSingleOrNull();
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _fromRow(row);
   }
 
-  Future<RawCaptureRow?> byAndroidSmsId(String androidSmsId) {
+  Future<RawCapture?> byAndroidSmsId(String androidSmsId) async {
     final query = _db.select(_db.rawCaptures)
       ..where(
         (r) => r.userId.equals(userId) & r.androidSmsId.equals(androidSmsId),
       )
       ..limit(1);
-    return query.getSingleOrNull();
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _fromRow(row);
   }
 
   /// Persists a capture immediately — before any parsing — so a
   /// financial event is never lost even if everything downstream fails
   /// (D23).
-  Future<RawCaptureRow> insert(
+  Future<RawCapture> insert(
     CaptureInput input, {
     required String contentHash,
   }) async {
@@ -59,9 +78,10 @@ class RawCaptureRepository {
             contentHash: contentHash,
           ),
         );
-    return (_db.select(
+    final row = await (_db.select(
       _db.rawCaptures,
     )..where((r) => r.id.equals(id))).getSingle();
+    return _fromRow(row);
   }
 
   Future<void> markParsed(
@@ -107,7 +127,7 @@ class RawCaptureRepository {
   }
 
   /// Failed captures for the Review Inbox.
-  Stream<List<RawCaptureRow>> watchFailed() {
+  Stream<List<RawCapture>> watchFailed() {
     final query = _db.select(_db.rawCaptures)
       ..where(
         (r) =>
@@ -116,7 +136,7 @@ class RawCaptureRepository {
             r.deletedAt.isNull(),
       )
       ..orderBy([(r) => OrderingTerm.desc(r.receivedAt)]);
-    return query.watch();
+    return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
   Stream<int> watchFailedCount() {

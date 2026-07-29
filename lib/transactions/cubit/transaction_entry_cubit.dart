@@ -4,13 +4,14 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/money.dart';
-import 'package:intellispendiq/core/time.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/models/account.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 
 part 'transaction_entry_state.dart';
@@ -23,7 +24,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     required AccountRepository accounts,
     required CategoryRepository categories,
     required RawCaptureRepository rawCaptures,
-    TransactionRow? existing,
+    Transaction? existing,
     String? rawCaptureId,
   }) : _transactions = transactions,
        _accounts = accounts,
@@ -38,10 +39,10 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
                  amount: (existing.amountMinor / 100).toStringAsFixed(2),
                  merchant: existing.merchant ?? '',
                  description: existing.description ?? '',
-                 direction: TxDirection.fromName(existing.direction),
+                 direction: existing.direction,
                  categoryId: existing.categoryId,
                  accountId: existing.accountId,
-                 transactedAt: Iso.toDateTime(existing.transactedAt).toLocal(),
+                 transactedAt: existing.transactedAt.toLocal(),
                ),
        );
 
@@ -49,7 +50,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   final AccountRepository _accounts;
   final CategoryRepository _categories;
   final RawCaptureRepository _rawCaptures;
-  final TransactionRow? _existing;
+  final Transaction? _existing;
   final String? _rawCaptureId;
 
   bool get isEditing => _existing != null;

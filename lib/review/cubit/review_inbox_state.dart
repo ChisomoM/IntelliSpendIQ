@@ -12,9 +12,9 @@ class ReviewInboxState extends Equatable {
   });
 
   final ReviewInboxStatus status;
-  final List<TransactionRow> needsReview;
-  final List<TransactionRow> duplicates;
-  final List<RawCaptureRow> failedCaptures;
+  final List<Transaction> needsReview;
+  final List<Transaction> duplicates;
+  final List<RawCapture> failedCaptures;
 
   bool get isEmpty =>
       needsReview.isEmpty && duplicates.isEmpty && failedCaptures.isEmpty;
@@ -25,9 +25,9 @@ class ReviewInboxState extends Equatable {
 
   ReviewInboxState copyWith({
     ReviewInboxStatus? status,
-    List<TransactionRow>? needsReview,
-    List<TransactionRow>? duplicates,
-    List<RawCaptureRow>? failedCaptures,
+    List<Transaction>? needsReview,
+    List<Transaction>? duplicates,
+    List<RawCapture>? failedCaptures,
   }) {
     return ReviewInboxState(
       status: status ?? this.status,

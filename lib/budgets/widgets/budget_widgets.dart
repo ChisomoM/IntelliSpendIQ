@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/budgets/cubit/cubit.dart';
 import 'package:intellispendiq/core/money.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/domain/models/budget.dart';
 
 class BudgetCard extends StatelessWidget {
   const BudgetCard({
@@ -13,7 +13,7 @@ class BudgetCard extends StatelessWidget {
     super.key,
   });
 
-  final BudgetRow budget;
+  final Budget budget;
   final String categoryName;
   final int spentMinor;
 
@@ -68,9 +68,9 @@ class BudgetCard extends StatelessWidget {
 class BudgetEditorSheet extends StatefulWidget {
   const BudgetEditorSheet({this.existing, super.key});
 
-  final BudgetRow? existing;
+  final Budget? existing;
 
-  static Future<void> show(BuildContext context, {BudgetRow? existing}) {
+  static Future<void> show(BuildContext context, {Budget? existing}) {
     final cubit = context.read<BudgetsCubit>();
     return showModalBottomSheet<void>(
       context: context,
@@ -150,7 +150,7 @@ class _BudgetEditorSheetState extends State<BudgetEditorSheet> {
               for (final category in categories)
                 DropdownMenuItem(
                   value: category.id,
-                  child: Text('${category.icon ?? ''} ${category.name}'),
+                  child: Text(category.displayName),
                 ),
             ],
             onChanged: widget.existing != null

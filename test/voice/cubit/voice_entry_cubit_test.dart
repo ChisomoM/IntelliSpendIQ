@@ -43,8 +43,8 @@ void main() {
 
       expect(cubit.state.status, VoiceEntryStatus.autoSaved);
       expect(cubit.state.transaction!.amountMinor, 5000);
-      expect(cubit.state.transaction!.status, TxStatus.confirmed.dbName);
-      expect(cubit.state.transaction!.source, TxSource.voice.name);
+      expect(cubit.state.transaction!.status, TxStatus.confirmed);
+      expect(cubit.state.transaction!.source, TxSource.voice);
     });
 
     test('routes to review just below the threshold', () async {
@@ -57,7 +57,7 @@ void main() {
       await cubit.submit();
 
       expect(cubit.state.status, VoiceEntryStatus.needsReview);
-      expect(cubit.state.transaction!.status, TxStatus.needsReview.dbName);
+      expect(cubit.state.transaction!.status, TxStatus.needsReview);
     });
 
     test('routes to review when the category is unknown', () async {

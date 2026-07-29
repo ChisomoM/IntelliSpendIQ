@@ -68,6 +68,8 @@ lib/
                       budgets, app lock
     secure/           Keystore-backed passphrase, user id, API key, PIN verifier
   domain/
+    models/           Transaction, Account, Category, Budget, RawCapture —
+                      what repositories return; Drift rows never leave data/
     parsers/          ParserRegistry + one file per provider
     services/         capture pipeline, dedupe, SMS sync
     voice/            transcription interface, voice pipeline

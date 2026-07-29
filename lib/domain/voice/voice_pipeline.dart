@@ -1,5 +1,4 @@
 import 'package:intellispendiq/core/ids.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -8,6 +7,8 @@ import 'package:intellispendiq/domain/ai/ai_provider.dart';
 import 'package:intellispendiq/domain/ai/transaction_extraction.dart';
 import 'package:intellispendiq/domain/models/capture_input.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/raw_capture.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 
 enum VoiceOutcome {
@@ -30,8 +31,8 @@ class VoiceResult {
   });
 
   final VoiceOutcome outcome;
-  final TransactionRow? transaction;
-  final RawCaptureRow? rawCapture;
+  final Transaction? transaction;
+  final RawCapture? rawCapture;
   final String? error;
 }
 

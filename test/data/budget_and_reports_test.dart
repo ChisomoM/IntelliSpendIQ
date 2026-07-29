@@ -57,7 +57,7 @@ void main() {
       expect(accounts, hasLength(1));
       expect(accounts.single.name, 'Airtel Money');
       expect(accounts.single.isDefault, isTrue);
-      expect(accounts.single.type, AccountType.mobileMoney.dbName);
+      expect(accounts.single.type, AccountType.mobileMoney);
     });
   });
 

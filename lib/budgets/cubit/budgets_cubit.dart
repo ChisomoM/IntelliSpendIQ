@@ -4,10 +4,11 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/core/time.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/models/budget.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 
 part 'budgets_state.dart';
 
@@ -29,7 +30,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
   final BudgetRepository _budgets;
   final CategoryRepository _categories;
   final TransactionRepository _transactions;
-  StreamSubscription<List<BudgetRow>>? _subscription;
+  StreamSubscription<List<Budget>>? _subscription;
 
   /// Fire-and-forget entry point for widget construction.
   void loadUnawaited() => unawaited(load());
@@ -45,7 +46,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     _subscription = _budgets.watchForPeriod(state.period).listen(_onBudgets);
   }
 
-  Future<void> _onBudgets(List<BudgetRow> budgets) async {
+  Future<void> _onBudgets(List<Budget> budgets) async {
     final spent = <String, int>{};
     for (final budget in budgets) {
       spent[budget.categoryId] = await _transactions.spentForCategory(

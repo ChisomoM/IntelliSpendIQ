@@ -1,5 +1,4 @@
 import 'package:intellispendiq/core/ids.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -7,6 +6,8 @@ import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/capture_input.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/parse_result.dart';
+import 'package:intellispendiq/domain/models/raw_capture.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
@@ -36,8 +37,8 @@ class IngestResult {
   const IngestResult(this.status, {this.rawCapture, this.transaction});
 
   final IngestStatus status;
-  final RawCaptureRow? rawCapture;
-  final TransactionRow? transaction;
+  final RawCapture? rawCapture;
+  final Transaction? transaction;
 }
 
 /// The core capture loop (plan §5):
@@ -124,7 +125,7 @@ class CaptureService {
 
   Future<IngestResult> _persistDraft(
     TransactionDraft draft, {
-    required RawCaptureRow raw,
+    required RawCapture raw,
     required String providerKey,
     required String contentHash,
   }) async {

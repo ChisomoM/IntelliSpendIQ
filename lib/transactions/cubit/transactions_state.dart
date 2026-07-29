@@ -9,14 +9,14 @@ class TransactionsState extends Equatable {
   });
 
   final TransactionsStatus status;
-  final List<TransactionRow> transactions;
+  final List<Transaction> transactions;
 
   bool get isEmpty =>
       status == TransactionsStatus.loaded && transactions.isEmpty;
 
   TransactionsState copyWith({
     TransactionsStatus? status,
-    List<TransactionRow>? transactions,
+    List<Transaction>? transactions,
   }) {
     return TransactionsState(
       status: status ?? this.status,

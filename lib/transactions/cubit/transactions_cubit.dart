@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 
 part 'transactions_state.dart';
 
@@ -12,7 +12,7 @@ class TransactionsCubit extends Cubit<TransactionsState> {
   TransactionsCubit(this._transactions) : super(const TransactionsState());
 
   final TransactionRepository _transactions;
-  StreamSubscription<List<TransactionRow>>? _subscription;
+  StreamSubscription<List<Transaction>>? _subscription;
 
   void subscribe() {
     if (_subscription != null) return;

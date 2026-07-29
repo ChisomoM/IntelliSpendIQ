@@ -24,7 +24,7 @@ class VoiceEntryState extends Equatable {
 
   final VoiceEntryStatus status;
   final String transcript;
-  final TransactionRow? transaction;
+  final Transaction? transaction;
   final String? errorMessage;
 
   bool get isWorking => status == VoiceEntryStatus.working;
@@ -32,7 +32,7 @@ class VoiceEntryState extends Equatable {
   VoiceEntryState copyWith({
     VoiceEntryStatus? status,
     String? transcript,
-    TransactionRow? transaction,
+    Transaction? transaction,
     String? errorMessage,
   }) {
     return VoiceEntryState(

@@ -16,8 +16,8 @@ class BudgetsState extends Equatable {
 
   /// Month key, `YYYY-MM`.
   final String period;
-  final List<BudgetRow> budgets;
-  final List<CategoryRow> categories;
+  final List<Budget> budgets;
+  final List<Category> categories;
 
   /// Confirmed debit spend per category for [period], in ngwee.
   final Map<String, int> spentByCategory;
@@ -30,15 +30,15 @@ class BudgetsState extends Equatable {
   String categoryName(String categoryId) =>
       categories
           .where((c) => c.id == categoryId)
-          .map((c) => '${c.icon ?? ''} ${c.name}')
+          .map((c) => c.displayName)
           .firstOrNull ??
       'Category';
 
   BudgetsState copyWith({
     BudgetsStatus? status,
     String? period,
-    List<BudgetRow>? budgets,
-    List<CategoryRow>? categories,
+    List<Budget>? budgets,
+    List<Category>? categories,
     Map<String, int>? spentByCategory,
     String? errorMessage,
   }) {
