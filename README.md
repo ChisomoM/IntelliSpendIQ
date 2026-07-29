@@ -53,18 +53,26 @@ Two layers, because the failure modes differ:
 
 ```
 lib/
-  core/          money, ids/hashing, time helpers
+  bootstrap.dart      flavour-aware startup: error hooks, BlocObserver, DB
+  main_development.dart / main_staging.dart / main_production.dart
+  app/
+    view/app.dart     MultiRepositoryProvider + MaterialApp
+    theme/            Material 3 theme
+    app_services.dart composition root
+    app_bloc_observer.dart
+  core/               money, ids/hashing, time helpers
   data/
-    db/          Drift schema, SQLCipher connection
-    repositories/  accounts, categories, transactions, raw captures, budgets
-    secure/      Keystore-backed passphrase, user id, API key
+    db/               Drift schema, SQLCipher connection
+    repositories/     accounts, categories, transactions, raw captures, budgets
+    secure/           Keystore-backed passphrase, user id, API key
   domain/
-    parsers/     ParserRegistry + one file per provider
-    services/    capture pipeline, dedupe, SMS sync
-    voice/       transcription interface, voice pipeline
-    ai/          AiProvider abstraction + Claude implementation
-  features/      UI: activity, review inbox, budgets, reports, entry, voice
-  platform/      Dart side of the Android capture bridge
+    parsers/          ParserRegistry + one file per provider
+    services/         capture pipeline, dedupe, SMS sync
+    voice/            transcription interface, voice pipeline
+    ai/               AiProvider abstraction + Claude implementation
+  home/ transactions/ review/ budgets/ reports/ voice/
+                      one folder per feature, each cubit/ + view/ + widgets/
+  platform/           Dart side of the Android capture bridge
 
 android/app/src/main/kotlin/com/intellispendiq/app/
   MainActivity.kt              method + event channel wiring
@@ -101,8 +109,10 @@ never touch the database or UI, so their tests run without a device.
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs   # Drift codegen
 flutter test
-flutter run                      # debug
-flutter build apk --release      # sideload build
+
+# Three flavours, each with its own entrypoint and applicationId suffix
+flutter run --flavor development -t lib/main_development.dart
+flutter build apk --flavor production -t lib/main_production.dart --release
 ```
 
 Release builds fall back to debug signing when no keystore is configured, so a

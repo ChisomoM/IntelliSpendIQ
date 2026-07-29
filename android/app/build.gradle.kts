@@ -37,7 +37,6 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["appName"] = "IntelliSpendIQ"
     }
 
     signingConfigs {
@@ -55,6 +54,25 @@ android {
                     storePassword = keystoreProperties["storePassword"] as String?
                 }
             }
+        }
+    }
+
+    flavorDimensions += "default"
+    productFlavors {
+        create("production") {
+            dimension = "default"
+            applicationIdSuffix = ""
+            manifestPlaceholders["appName"] = "IntelliSpendIQ"
+        }
+        create("staging") {
+            dimension = "default"
+            applicationIdSuffix = ".stg"
+            manifestPlaceholders["appName"] = "[STG] IntelliSpendIQ"
+        }
+        create("development") {
+            dimension = "default"
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["appName"] = "[DEV] IntelliSpendIQ"
         }
     }
 

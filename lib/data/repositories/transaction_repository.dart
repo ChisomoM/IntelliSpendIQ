@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
@@ -8,7 +9,10 @@ import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 
 /// A category's spend within one period, for reports and budgets.
-class CategorySpend {
+///
+/// Equatable so cubit states holding these compare by value and do not
+/// emit spurious rebuilds.
+class CategorySpend extends Equatable {
   const CategorySpend({
     required this.categoryId,
     required this.categoryName,
@@ -18,6 +22,9 @@ class CategorySpend {
   final String? categoryId;
   final String categoryName;
   final int spentMinor;
+
+  @override
+  List<Object?> get props => [categoryId, categoryName, spentMinor];
 }
 
 class TransactionRepository {

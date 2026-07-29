@@ -1,3 +1,4 @@
+import 'package:intellispendiq/bootstrap.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/db/connection.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
@@ -22,6 +23,7 @@ class AppServices {
   AppServices._({
     required this.db,
     required this.userId,
+    required this.flavor,
     required this.secureStore,
     required this.accounts,
     required this.categories,
@@ -40,13 +42,16 @@ class AppServices {
   /// Opens the SQLCipher-encrypted database, seeds first-run data, and
   /// wires the services. The passphrase and user id come from
   /// Keystore-backed storage and are generated on first launch.
-  static Future<AppServices> bootstrap({SecureStore? secureStore}) async {
+  static Future<AppServices> bootstrap({
+    required AppFlavor flavor,
+    SecureStore? secureStore,
+  }) async {
     final store = secureStore ?? SecureStore();
     final passphrase = await store.dbPassphrase();
     final userId = await store.userId();
 
     final db = AppDatabase(openEncryptedConnection(passphrase: passphrase));
-    return _wire(db: db, userId: userId, store: store);
+    return _wire(db: db, userId: userId, store: store, flavor: flavor);
   }
 
   /// Wires services around an already-open database — used by tests with
@@ -57,18 +62,21 @@ class AppServices {
     required SecureStore secureStore,
     CaptureBridge? captureBridge,
     AiProvider? aiProvider,
+    AppFlavor flavor = AppFlavor.development,
   }) => _wire(
     db: db,
     userId: userId,
     store: secureStore,
     captureBridge: captureBridge,
     aiProvider: aiProvider,
+    flavor: flavor,
   );
 
   static Future<AppServices> _wire({
     required AppDatabase db,
     required String userId,
     required SecureStore store,
+    required AppFlavor flavor,
     CaptureBridge? captureBridge,
     AiProvider? aiProvider,
   }) async {
@@ -99,6 +107,7 @@ class AppServices {
     return AppServices._(
       db: db,
       userId: userId,
+      flavor: flavor,
       secureStore: store,
       accounts: accounts,
       categories: categories,
@@ -128,6 +137,7 @@ class AppServices {
 
   final AppDatabase db;
   final String userId;
+  final AppFlavor flavor;
   final SecureStore secureStore;
   final AccountRepository accounts;
   final CategoryRepository categories;

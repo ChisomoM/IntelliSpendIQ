@@ -3,51 +3,11 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intellispendiq/app/app_services.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
-import 'package:intellispendiq/domain/models/capture_input.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
-import 'package:intellispendiq/platform/capture_bridge.dart';
 
 import '../../support/corpus.dart';
 import '../../support/test_harness.dart';
-
-/// Stands in for the Android bridge so the backfill and live-event paths
-/// can be exercised without a device.
-class _FakeBridge implements CaptureBridge {
-  _FakeBridge({this.inbox = const [], this.permission = true});
-
-  final List<CaptureInput> inbox;
-  final bool permission;
-  final _events = StreamController<CaptureInput>.broadcast();
-  final readCalls = <int>[];
-
-  @override
-  Future<bool> hasSmsPermission() async => permission;
-
-  @override
-  Future<bool> requestSmsPermission() async => permission;
-
-  @override
-  Future<bool> isNotificationAccessGranted() async => false;
-
-  @override
-  Future<void> requestNotificationAccess() async {}
-
-  @override
-  Future<List<CaptureInput>> readInboxSince(int sinceMs) async {
-    readCalls.add(sinceMs);
-    return inbox
-        .where((m) => m.receivedAt.millisecondsSinceEpoch >= sinceMs)
-        .toList();
-  }
-
-  @override
-  Stream<CaptureInput> events() => _events.stream;
-
-  void emit(CaptureInput input) => _events.add(input);
-
-  Future<void> close() => _events.close();
-}
 
 void main() {
   late AppServices services;
@@ -55,7 +15,7 @@ void main() {
   setUp(() async => services = await createTestServices());
   tearDown(() async => services.dispose());
 
-  SmsSyncService syncWith(_FakeBridge bridge) => SmsSyncService(
+  SmsSyncService syncWith(FakeCaptureBridge bridge) => SmsSyncService(
     bridge: bridge,
     captureService: services.captureService,
     registry: ParserRegistry(),
@@ -64,7 +24,7 @@ void main() {
 
   group('backfill', () {
     test('ingests provider messages and ignores personal ones', () async {
-      final bridge = _FakeBridge(
+      final bridge = FakeCaptureBridge(
         inbox: [
           Corpus.capture(Corpus.withdrawal, androidSmsId: '1'),
           Corpus.capture(
@@ -94,7 +54,7 @@ void main() {
     });
 
     test('does nothing when SMS permission has not been granted', () async {
-      final bridge = _FakeBridge(
+      final bridge = FakeCaptureBridge(
         inbox: [Corpus.capture(Corpus.withdrawal)],
         permission: false,
       );
@@ -105,7 +65,7 @@ void main() {
     });
 
     test('advances the watermark so the next run reads less', () async {
-      final bridge = _FakeBridge(
+      final bridge = FakeCaptureBridge(
         inbox: [
           Corpus.capture(
             Corpus.withdrawal,
@@ -131,7 +91,7 @@ void main() {
     });
 
     test('first run looks back 30 days, not to the start of time', () async {
-      final bridge = _FakeBridge();
+      final bridge = FakeCaptureBridge();
       addTearDown(bridge.close);
 
       await syncWith(bridge).backfill();
@@ -146,7 +106,7 @@ void main() {
     });
 
     test('re-running does not duplicate already-captured messages', () async {
-      final bridge = _FakeBridge(
+      final bridge = FakeCaptureBridge(
         inbox: [Corpus.capture(Corpus.withdrawal, androidSmsId: '1')],
       );
       addTearDown(bridge.close);
@@ -161,7 +121,7 @@ void main() {
 
   group('live events', () {
     test('ingests an SMS that arrives while the app is open', () async {
-      final bridge = _FakeBridge();
+      final bridge = FakeCaptureBridge();
       addTearDown(bridge.close);
       final sync = syncWith(bridge);
 
@@ -179,7 +139,7 @@ void main() {
     test('a live event and a backfill of the same SMS are not '
         'double-counted', () async {
       final message = Corpus.capture(Corpus.withdrawal, androidSmsId: '77');
-      final bridge = _FakeBridge(inbox: [message]);
+      final bridge = FakeCaptureBridge(inbox: [message]);
       addTearDown(bridge.close);
       final sync = syncWith(bridge);
 
