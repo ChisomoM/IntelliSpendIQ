@@ -5,6 +5,7 @@ import 'package:intellispendiq/app/app_services.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/ai/ai_provider.dart';
+import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/ai/transaction_extraction.dart';
 import 'package:intellispendiq/domain/models/capture_input.dart';
 import 'package:intellispendiq/platform/biometric_authenticator.dart';
@@ -16,6 +17,7 @@ import 'package:mocktail/mocktail.dart';
 /// without a device, a Keystore, or SQLCipher.
 Future<AppServices> createTestServices({
   AiProvider? aiProvider,
+  ChatProvider? chatProvider,
   CaptureBridge? captureBridge,
   SecureStore? secureStore,
   BiometricAuthenticator? biometrics,
@@ -27,6 +29,7 @@ Future<AppServices> createTestServices({
     userId: 'test-user',
     secureStore: secureStore ?? FakeSecureStore(),
     aiProvider: aiProvider,
+    chatProvider: chatProvider ?? FakeChatProvider(),
     // Without these the real implementations would reach for platform
     // channels and throw MissingPluginException off-device.
     captureBridge: captureBridge ?? FakeCaptureBridge(),
@@ -157,3 +160,34 @@ class FakeAiProvider implements AiProvider {
 }
 
 class MockAiProvider extends Mock implements AiProvider {}
+
+/// Chat provider that replays a scripted queue of completions, for
+/// exercising `FinanceChatService`'s tool-use loop without a network
+/// call. Each `complete` call consumes the next scripted response and
+/// records the messages it was sent, so tests can assert on both sides.
+class FakeChatProvider implements ChatProvider {
+  FakeChatProvider({this.configured = true, List<ChatCompletion>? responses})
+    : responses = responses ?? [];
+
+  final bool configured;
+  final List<ChatCompletion> responses;
+  final calls = <List<Map<String, dynamic>>>[];
+  var _next = 0;
+
+  @override
+  Future<bool> get isConfigured async => configured;
+
+  @override
+  Future<ChatCompletion> complete({
+    required List<Map<String, dynamic>> messages,
+    required List<Map<String, dynamic>> tools,
+  }) async {
+    calls.add(messages);
+    if (_next >= responses.length) {
+      throw StateError(
+        'FakeChatProvider: no scripted response for call #$_next',
+      );
+    }
+    return responses[_next++];
+  }
+}

@@ -10,10 +10,13 @@ import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/ai/ai_provider.dart';
+import 'package:intellispendiq/domain/ai/anthropic_chat_provider.dart';
 import 'package:intellispendiq/domain/ai/anthropic_claude_provider.dart';
+import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
+import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/platform/biometric_authenticator.dart';
@@ -40,6 +43,8 @@ class AppServices {
     required this.smsSync,
     required this.voicePipeline,
     required this.aiProvider,
+    required this.chatProvider,
+    required this.financeChat,
     required this.captureBridge,
     required this.deepLinkSource,
   });
@@ -67,6 +72,7 @@ class AppServices {
     required SecureStore secureStore,
     CaptureBridge? captureBridge,
     AiProvider? aiProvider,
+    ChatProvider? chatProvider,
     BiometricAuthenticator? biometrics,
     DeepLinkSource? deepLinkSource,
     AppFlavor flavor = AppFlavor.development,
@@ -76,6 +82,7 @@ class AppServices {
     store: secureStore,
     captureBridge: captureBridge,
     aiProvider: aiProvider,
+    chatProvider: chatProvider,
     biometrics: biometrics,
     deepLinkSource: deepLinkSource,
     flavor: flavor,
@@ -88,6 +95,7 @@ class AppServices {
     required AppFlavor flavor,
     CaptureBridge? captureBridge,
     AiProvider? aiProvider,
+    ChatProvider? chatProvider,
     BiometricAuthenticator? biometrics,
     DeepLinkSource? deepLinkSource,
   }) async {
@@ -114,6 +122,14 @@ class AppServices {
     );
     final bridge = captureBridge ?? CaptureBridge();
     final ai = aiProvider ?? AnthropicClaudeProvider(secureStore: store);
+    final chat = chatProvider ?? AnthropicChatProvider(secureStore: store);
+    final financeChatService = FinanceChatService(
+      provider: chat,
+      transactions: transactions,
+      accounts: accounts,
+      categories: categories,
+      budgets: budgets,
+    );
 
     return AppServices._(
       db: db,
@@ -147,6 +163,8 @@ class AppServices {
         categories: categories,
       ),
       aiProvider: ai,
+      chatProvider: chat,
+      financeChat: financeChatService,
       captureBridge: bridge,
       deepLinkSource: deepLinkSource ?? AppLinksSource(),
     );
@@ -168,6 +186,8 @@ class AppServices {
   final SmsSyncService smsSync;
   final VoicePipeline voicePipeline;
   final AiProvider aiProvider;
+  final ChatProvider chatProvider;
+  final FinanceChatService financeChat;
   final CaptureBridge captureBridge;
   final DeepLinkSource deepLinkSource;
 

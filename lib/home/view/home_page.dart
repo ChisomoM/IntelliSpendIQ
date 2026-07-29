@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/app/cubit/cubit.dart';
 import 'package:intellispendiq/budgets/budgets.dart';
+import 'package:intellispendiq/chat/chat.dart';
 import 'package:intellispendiq/core/app_section.dart';
 import 'package:intellispendiq/core/deep_link.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -42,6 +43,7 @@ class HomeView extends StatelessWidget {
     ReviewInboxPage(),
     BudgetsPage(),
     ReportsPage(),
+    ChatPage(),
     SettingsPage(),
   ];
 
@@ -98,6 +100,11 @@ class HomeView extends StatelessWidget {
         icon: Icon(Icons.pie_chart_outline),
         selectedIcon: Icon(Icons.pie_chart),
         label: 'Reports',
+      ),
+      AppSection.chat => const NavigationDestination(
+        icon: Icon(Icons.forum_outlined),
+        selectedIcon: Icon(Icons.forum),
+        label: 'Assistant',
       ),
       AppSection.settings => const NavigationDestination(
         icon: Icon(Icons.settings_outlined),

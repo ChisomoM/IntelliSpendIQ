@@ -12,6 +12,7 @@ import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
+import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/home/home.dart';
@@ -45,6 +46,9 @@ class App extends StatelessWidget {
         ),
         RepositoryProvider<SmsSyncService>.value(value: services.smsSync),
         RepositoryProvider<VoicePipeline>.value(value: services.voicePipeline),
+        RepositoryProvider<FinanceChatService>.value(
+          value: services.financeChat,
+        ),
         RepositoryProvider<AppLockRepository>.value(value: services.appLock),
       ],
       // Theme, auth and deep links are app-wide, so they sit above the

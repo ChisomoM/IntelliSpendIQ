@@ -9,6 +9,7 @@ enum AppSection {
   review,
   budgets,
   reports,
+  chat,
   settings;
 
   /// The URL segment that addresses this section.
