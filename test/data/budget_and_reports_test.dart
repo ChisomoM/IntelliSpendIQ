@@ -24,6 +24,7 @@ void main() {
     required int amountMinor,
     required DateTime at,
     String? categoryId,
+    String? txAccountId,
     TxStatus status = TxStatus.confirmed,
     TxDirection direction = TxDirection.debit,
   }) async {
@@ -36,7 +37,7 @@ void main() {
         categoryId: categoryId ?? foodCategoryId,
         merchant: 'Test',
       ),
-      accountId: accountId,
+      accountId: txAccountId ?? accountId,
       idempotencyKey: 'test:${Ids.newId()}',
       status: status,
     );
@@ -277,6 +278,86 @@ void main() {
 
       expect(await services.transactions.totalSpent('2026-07'), 10000);
     });
+  });
+
+  group('reports aggregation', () {
+    test('watchDailySpend groups confirmed debits by local day', () async {
+      await addSpend(amountMinor: 3000, at: DateTime(2026, 7, 5, 9));
+      await addSpend(amountMinor: 2000, at: DateTime(2026, 7, 5, 18));
+      await addSpend(amountMinor: 4000, at: DateTime(2026, 7, 10));
+      // Excluded: not confirmed.
+      await addSpend(
+        amountMinor: 9999,
+        at: DateTime(2026, 7, 12),
+        status: TxStatus.needsReview,
+      );
+
+      final daily = await services.transactions
+          .watchDailySpend('2026-07')
+          .first;
+
+      expect(daily, hasLength(2));
+      expect(daily.first.date, DateTime(2026, 7, 5));
+      expect(daily.first.spentMinor, 5000);
+      expect(daily.last.date, DateTime(2026, 7, 10));
+      expect(daily.last.spentMinor, 4000);
+    });
+
+    test("transactionsOnDate returns only that day's transactions", () async {
+      await addSpend(amountMinor: 3000, at: DateTime(2026, 7, 5, 9));
+      await addSpend(amountMinor: 4000, at: DateTime(2026, 7, 6, 9));
+
+      final onDay = await services.transactions.transactionsOnDate(
+        DateTime(2026, 7, 5),
+      );
+
+      expect(onDay, hasLength(1));
+      expect(onDay.single.amountMinor, 3000);
+    });
+
+    test('spendTrend returns the trailing months oldest-first', () async {
+      await addSpend(amountMinor: 1000, at: DateTime(2026, 5, 10));
+      await addSpend(amountMinor: 2000, at: DateTime(2026, 6, 10));
+      await addSpend(amountMinor: 3000, at: DateTime(2026, 7, 10));
+
+      final trend = await services.transactions.spendTrend(
+        '2026-07',
+        months: 3,
+      );
+
+      expect(trend.map((m) => m.period).toList(), [
+        '2026-05',
+        '2026-06',
+        '2026-07',
+      ]);
+      expect(trend.map((m) => m.spentMinor).toList(), [1000, 2000, 3000]);
+    });
+
+    test(
+      'watchSpendByAccount groups confirmed debits by account, largest first',
+      () async {
+        final secondAccount = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+        await addSpend(amountMinor: 2000, at: DateTime(2026, 7, 5));
+        await addSpend(
+          amountMinor: 6000,
+          at: DateTime(2026, 7, 6),
+          txAccountId: secondAccount.id,
+        );
+
+        final byAccount = await services.transactions
+            .watchSpendByAccount('2026-07')
+            .first;
+
+        expect(byAccount, hasLength(2));
+        expect(byAccount.first.accountName, 'Cash');
+        expect(byAccount.first.spentMinor, 6000);
+        expect(byAccount.last.accountName, 'Airtel Money');
+        expect(byAccount.last.spentMinor, 2000);
+      },
+    );
   });
 
   group('month boundaries', () {

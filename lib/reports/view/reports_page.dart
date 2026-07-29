@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/reports/cubit/cubit.dart';
+import 'package:intellispendiq/reports/widgets/widgets.dart';
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -23,6 +24,7 @@ class ReportsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ReportsCubit>();
+    final transactions = context.read<TransactionRepository>();
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -57,7 +59,7 @@ class ReportsView extends StatelessWidget {
                         ),
                       )
                     : ListView(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                         children: [
                           Card(
                             child: Padding(
@@ -79,12 +81,40 @@ class ReportsView extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          for (final row in state.rows)
-                            CategorySpendRow(
-                              spend: row,
-                              share: state.shareOf(row),
-                              barWidth: state.barWidthOf(row),
+                          _BreakdownSection(state: state, cubit: cubit),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Last 6 months',
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 12),
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: MonthTrendChart(trend: state.monthTrend),
                             ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Daily spend',
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 12),
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: SpendCalendarHeatmap(
+                                period: state.period,
+                                dailySpend: state.dailySpend,
+                                maxDailyMinor: state.maxDailyMinor,
+                                onDayTap: (day) => showDaySpendSheet(
+                                  context,
+                                  transactions,
+                                  day,
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
               ),
@@ -96,56 +126,79 @@ class ReportsView extends StatelessWidget {
   }
 }
 
-class CategorySpendRow extends StatelessWidget {
-  const CategorySpendRow({
-    required this.spend,
-    required this.share,
-    required this.barWidth,
-    super.key,
-  });
+class _BreakdownSection extends StatelessWidget {
+  const _BreakdownSection({required this.state, required this.cubit});
 
-  final CategorySpend spend;
-  final double share;
-  final double barWidth;
+  final ReportsState state;
+  final ReportsCubit cubit;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  spend.categoryName,
-                  style: theme.textTheme.bodyMedium,
+    final byCategory = state.breakdown == ReportsBreakdown.category;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SegmentedButton<ReportsBreakdown>(
+              segments: const [
+                ButtonSegment(
+                  value: ReportsBreakdown.category,
+                  label: Text('By category'),
                 ),
-              ),
-              Text(
-                Money.format(spend.spentMinor),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                ButtonSegment(
+                  value: ReportsBreakdown.account,
+                  label: Text('By account'),
                 ),
+              ],
+              selected: {state.breakdown},
+              onSelectionChanged: (values) =>
+                  cubit.breakdownChanged(values.first),
+            ),
+            const SizedBox(height: 16),
+            if (byCategory)
+              SpendDonutChart(
+                slices: [
+                  for (final row in state.rows)
+                    DonutSlice(
+                      label: row.categoryName,
+                      amountMinor: row.spentMinor,
+                    ),
+                ],
+              )
+            else
+              SpendDonutChart(
+                slices: [
+                  for (final row in state.accountRows)
+                    DonutSlice(
+                      label: row.accountName,
+                      amountMinor: row.spentMinor,
+                    ),
+                ],
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 44,
-                child: Text(
-                  '${(share * 100).round()}%',
-                  textAlign: TextAlign.end,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 8),
+            if (byCategory)
+              for (final row in state.rows)
+                SpendListRow(
+                  label: row.categoryName,
+                  amountMinor: row.spentMinor,
+                  share: state.shareOf(row),
+                  barWidth: state.barWidthOf(row),
+                )
+            else
+              for (final row in state.accountRows)
+                SpendListRow(
+                  label: row.accountName,
+                  amountMinor: row.spentMinor,
+                  share: state.accountShareOf(row),
+                  barWidth: state.accountBarWidthOf(row),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          LinearProgressIndicator(value: barWidth),
-        ],
+          ],
+        ),
       ),
     );
   }

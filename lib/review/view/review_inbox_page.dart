@@ -11,6 +11,10 @@ import 'package:intellispendiq/review/widgets/widgets.dart';
 class ReviewInboxPage extends StatelessWidget {
   const ReviewInboxPage({super.key});
 
+  static Route<void> route() {
+    return MaterialPageRoute<void>(builder: (_) => const ReviewInboxPage());
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(

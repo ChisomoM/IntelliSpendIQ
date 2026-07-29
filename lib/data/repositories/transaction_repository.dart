@@ -28,6 +28,48 @@ class CategorySpend extends Equatable {
   List<Object?> get props => [categoryId, categoryName, spentMinor];
 }
 
+/// Confirmed debit spend for one local calendar day, for the Reports
+/// calendar heatmap.
+class DailySpend extends Equatable {
+  const DailySpend({required this.date, required this.spentMinor});
+
+  /// Local midnight of the day this total covers.
+  final DateTime date;
+  final int spentMinor;
+
+  @override
+  List<Object?> get props => [date, spentMinor];
+}
+
+/// Confirmed debit spend for one month, for the Reports trend chart.
+class MonthSpend extends Equatable {
+  const MonthSpend({required this.period, required this.spentMinor});
+
+  /// Month key, `YYYY-MM`.
+  final String period;
+  final int spentMinor;
+
+  @override
+  List<Object?> get props => [period, spentMinor];
+}
+
+/// An account's spend within one period, for the Reports account
+/// breakdown.
+class AccountSpend extends Equatable {
+  const AccountSpend({
+    required this.accountId,
+    required this.accountName,
+    required this.spentMinor,
+  });
+
+  final String accountId;
+  final String accountName;
+  final int spentMinor;
+
+  @override
+  List<Object?> get props => [accountId, accountName, spentMinor];
+}
+
 class TransactionRepository {
   TransactionRepository(this._db, {required this.userId});
 
@@ -298,6 +340,120 @@ class TransactionRepository {
       );
     final row = await query.getSingle();
     return row.read(total) ?? 0;
+  }
+
+  /// Confirmed debit spend per local calendar day within a month, for
+  /// the Reports calendar heatmap. Bucketing happens in Dart rather
+  /// than SQL because `transactedAt` is stored in UTC — grouping by a
+  /// raw date substring would occasionally put a transaction on the
+  /// wrong side of midnight for the user's actual timezone.
+  Stream<List<DailySpend>> watchDailySpend(String period) {
+    final (from, to) = Iso.monthBoundsUtc(period);
+    final query = _db.select(_db.transactions)
+      ..where(
+        (t) =>
+            t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.direction.equals(TxDirection.debit.name) &
+            t.status.equals(TxStatus.confirmed.dbName) &
+            t.transactedAt.isBiggerOrEqualValue(from) &
+            t.transactedAt.isSmallerThanValue(to),
+      );
+    return query.watch().map((rows) {
+      final byDay = <DateTime, int>{};
+      for (final row in rows) {
+        final local = Iso.toDateTime(row.transactedAt).toLocal();
+        final day = DateTime(local.year, local.month, local.day);
+        byDay[day] = (byDay[day] ?? 0) + row.amountMinor;
+      }
+      return byDay.entries
+          .map((entry) => DailySpend(date: entry.key, spentMinor: entry.value))
+          .toList()
+        ..sort((a, b) => a.date.compareTo(b.date));
+    });
+  }
+
+  /// Confirmed transactions on one local calendar day, for the
+  /// calendar heatmap's day drill-down. The SQL bound is widened by a
+  /// day on each side to safely cover any timezone offset, then
+  /// narrowed to the exact local day here.
+  Future<List<Transaction>> transactionsOnDate(DateTime day) async {
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+    final sqlFrom = Iso.fromDateTime(start.subtract(const Duration(days: 1)));
+    final sqlTo = Iso.fromDateTime(end.add(const Duration(days: 1)));
+
+    final query = _db.select(_db.transactions)
+      ..where(
+        (t) =>
+            t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.transactedAt.isBiggerOrEqualValue(sqlFrom) &
+            t.transactedAt.isSmallerThanValue(sqlTo),
+      )
+      ..orderBy([(t) => OrderingTerm.desc(t.transactedAt)]);
+
+    final rows = await query.get();
+    return rows.map(_fromRow).where((tx) {
+      final local = tx.transactedAt.toLocal();
+      return !local.isBefore(start) && local.isBefore(end);
+    }).toList();
+  }
+
+  /// Confirmed debit total for each of the [months] ending with
+  /// [endPeriod], oldest first, for the Reports trend chart. A Future
+  /// rather than a Stream — same pattern as `countBySource` — since a
+  /// trend chart is fine recomputing on each Reports load or month
+  /// shift rather than staying live to the millisecond.
+  Future<List<MonthSpend>> spendTrend(
+    String endPeriod, {
+    int months = 6,
+  }) async {
+    final periods = [endPeriod];
+    for (var i = 1; i < months; i++) {
+      periods.add(Iso.previousMonthKey(periods.last));
+    }
+
+    final result = <MonthSpend>[];
+    for (final period in periods.reversed) {
+      result.add(
+        MonthSpend(period: period, spentMinor: await totalSpent(period)),
+      );
+    }
+    return result;
+  }
+
+  /// Confirmed debit spend per account for a month, for the Reports
+  /// account breakdown.
+  Stream<List<AccountSpend>> watchSpendByAccount(String period) {
+    final (from, to) = Iso.monthBoundsUtc(period);
+    final t = _db.transactions;
+    final a = _db.accounts;
+    final total = t.amountMinor.sum();
+    final query = _db.selectOnly(t)
+      ..addColumns([t.accountId, a.name, total])
+      ..join([innerJoin(a, a.id.equalsExp(t.accountId))])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.direction.equals(TxDirection.debit.name) &
+            t.status.equals(TxStatus.confirmed.dbName) &
+            t.transactedAt.isBiggerOrEqualValue(from) &
+            t.transactedAt.isSmallerThanValue(to),
+      )
+      ..groupBy([t.accountId])
+      ..orderBy([OrderingTerm.desc(total)]);
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => AccountSpend(
+              accountId: row.read(t.accountId)!,
+              accountName: row.read(a.name) ?? 'Unknown',
+              spentMinor: row.read(total) ?? 0,
+            ),
+          )
+          .toList(),
+    );
   }
 
   /// Capture health metric: how many of this month's captured

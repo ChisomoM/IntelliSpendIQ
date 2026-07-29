@@ -5,6 +5,7 @@ import 'package:intellispendiq/budgets/budgets.dart';
 import 'package:intellispendiq/chat/chat.dart';
 import 'package:intellispendiq/core/app_section.dart';
 import 'package:intellispendiq/core/deep_link.dart';
+import 'package:intellispendiq/dashboard/dashboard.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
@@ -37,14 +38,14 @@ class HomePage extends StatelessWidget {
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
 
-  /// Indexed by [AppSection], so the tab order has one definition.
+  /// Indexed by [AppSection.tabs], so the tab order has one definition.
+  /// Review, Assistant, and Settings are reached by push instead of a
+  /// nav slot — see [_openLink].
   static const List<Widget> _pages = [
+    DashboardPage(),
     TransactionsPage(),
-    ReviewInboxPage(),
     BudgetsPage(),
     ReportsPage(),
-    ChatPage(),
-    SettingsPage(),
   ];
 
   @override
@@ -62,14 +63,14 @@ class HomeView extends StatelessWidget {
         builder: (context, state) {
           return Scaffold(
             body: IndexedStack(index: state.tabIndex, children: _pages),
-            floatingActionButton: state.tabIndex == 0
+            floatingActionButton: state.tabIndex == AppSection.activity.tabIndex
                 ? const QuickAddButtons()
                 : null,
             bottomNavigationBar: NavigationBar(
               selectedIndex: state.tabIndex,
               onDestinationSelected: cubit.tabSelected,
               destinations: [
-                for (final section in AppSection.values)
+                for (final section in AppSection.tabs)
                   _destinationFor(section, state),
               ],
             ),
@@ -79,17 +80,19 @@ class HomeView extends StatelessWidget {
     );
   }
 
+  /// Only ever called with an [AppSection.tabs] member — Review,
+  /// Assistant, and Settings have no nav slot to build here.
   NavigationDestination _destinationFor(AppSection section, HomeState state) {
     return switch (section) {
+      AppSection.home => NavigationDestination(
+        icon: _reviewBadge(state, const Icon(Icons.dashboard_outlined)),
+        selectedIcon: _reviewBadge(state, const Icon(Icons.dashboard)),
+        label: 'Home',
+      ),
       AppSection.activity => const NavigationDestination(
         icon: Icon(Icons.receipt_long_outlined),
         selectedIcon: Icon(Icons.receipt_long),
         label: 'Activity',
-      ),
-      AppSection.review => NavigationDestination(
-        icon: _reviewBadge(state, const Icon(Icons.inbox_outlined)),
-        selectedIcon: _reviewBadge(state, const Icon(Icons.inbox)),
-        label: 'Review',
       ),
       AppSection.budgets => const NavigationDestination(
         icon: Icon(Icons.savings_outlined),
@@ -101,16 +104,8 @@ class HomeView extends StatelessWidget {
         selectedIcon: Icon(Icons.pie_chart),
         label: 'Reports',
       ),
-      AppSection.chat => const NavigationDestination(
-        icon: Icon(Icons.forum_outlined),
-        selectedIcon: Icon(Icons.forum),
-        label: 'Assistant',
-      ),
-      AppSection.settings => const NavigationDestination(
-        icon: Icon(Icons.settings_outlined),
-        selectedIcon: Icon(Icons.settings),
-        label: 'Settings',
-      ),
+      AppSection.review || AppSection.chat || AppSection.settings =>
+        throw UnimplementedError('${section.name} is not a nav tab'),
     };
   }
 
@@ -130,8 +125,16 @@ class HomeView extends StatelessWidget {
     deepLinks.consumed();
 
     switch (link) {
-      case SectionLink(:final section):
+      case SectionLink(:final section) when section.isTab:
         home.tabSelected(section.tabIndex);
+      case SectionLink(section: AppSection.review):
+        await Navigator.of(context).push<void>(ReviewInboxPage.route());
+      case SectionLink(section: AppSection.chat):
+        await Navigator.of(context).push<void>(ChatPage.route());
+      case SectionLink(section: AppSection.settings):
+        await Navigator.of(context).push<void>(SettingsPage.route());
+      case SectionLink():
+        break;
       case AddTransactionLink():
         await Navigator.of(context).push<void>(TransactionEntryPage.route());
       case VoiceEntryLink():
@@ -142,7 +145,7 @@ class HomeView extends StatelessWidget {
         // activity list rather than an empty form.
         if (!context.mounted) return;
         if (existing == null) {
-          home.tabSelected(AppSection.activity.tabIndex);
+          home.tabSelected(AppSection.home.tabIndex);
           return;
         }
         await Navigator.of(
