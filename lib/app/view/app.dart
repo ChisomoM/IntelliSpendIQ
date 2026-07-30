@@ -8,12 +8,14 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
 import 'package:intellispendiq/data/repositories/income_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
-import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
+import 'package:intellispendiq/domain/parsers/parser_registry.dart';
+import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
@@ -44,6 +46,10 @@ class App extends StatelessWidget {
         ),
         RepositoryProvider<BudgetRepository>.value(value: services.budgets),
         RepositoryProvider<IncomeRepository>.value(value: services.income),
+        RepositoryProvider<CustomSenderRepository>.value(
+          value: services.customSenders,
+        ),
+        RepositoryProvider<ParserRegistry>.value(value: services.registry),
         RepositoryProvider<SettingsRepository>.value(value: services.settings),
         RepositoryProvider<CaptureService>.value(
           value: services.captureService,

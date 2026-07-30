@@ -77,7 +77,7 @@ class DashboardView extends StatelessWidget {
               const SizedBox(height: 12),
               IncomeOverviewCard(
                 hasIncome: state.hasIncome,
-                incomeMinor: state.income?.amountMinor ?? 0,
+                incomeMinor: state.totalIncomeMinor,
                 totalSpent: state.totalSpent,
                 onTap: () => home.tabSelected(AppSection.budgets.tabIndex),
               ),

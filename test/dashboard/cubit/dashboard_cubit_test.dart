@@ -82,7 +82,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(cubit.state.hasIncome, isTrue);
-      expect(cubit.state.income!.amountMinor, 100000);
+      expect(cubit.state.totalIncomeMinor, 100000);
       expect(cubit.state.remainingMinor, 70000);
     });
 

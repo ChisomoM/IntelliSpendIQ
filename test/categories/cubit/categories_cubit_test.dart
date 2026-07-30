@@ -85,5 +85,45 @@ void main() {
       expect(cubit.state.status, CategoriesStatus.invalid);
       expect(cubit.state.categories, hasLength(10));
     });
+
+    test('add() nests a subcategory under a parent', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      final food = cubit.state.categories.firstWhere((c) => c.name == 'Food');
+
+      await cubit.add(name: 'Groceries', parentId: food.id);
+      await Future<void>.delayed(Duration.zero);
+
+      final groceries = cubit.state.categories.firstWhere(
+        (c) => c.name == 'Groceries',
+      );
+      expect(groceries.parentId, food.id);
+      expect(cubit.state.childrenOf(food.id).map((c) => c.name), [
+        'Groceries',
+      ]);
+      expect(
+        cubit.state.topLevel.map((c) => c.name),
+        isNot(contains('Groceries')),
+      );
+    });
+
+    test('rename() can move a category out from under its parent', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      final food = cubit.state.categories.firstWhere((c) => c.name == 'Food');
+      await cubit.add(name: 'Groceries', parentId: food.id);
+      await Future<void>.delayed(Duration.zero);
+      final groceries = cubit.state.categories.firstWhere(
+        (c) => c.name == 'Groceries',
+      );
+
+      await cubit.rename(groceries.id, name: 'Groceries');
+      await Future<void>.delayed(Duration.zero);
+
+      final updated = cubit.state.categories.firstWhere(
+        (c) => c.id == groceries.id,
+      );
+      expect(updated.parentId, isNull);
+    });
   });
 }

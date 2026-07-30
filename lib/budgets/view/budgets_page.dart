@@ -55,7 +55,12 @@ class BudgetsView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               IncomeSummaryCard(
-                income: state.income,
+                incomeSources: state.incomeSources,
+                totalSpent: state.totalSpent,
+              ),
+              const SizedBox(height: 12),
+              PlannedVsActualCard(
+                plannedMinor: state.totalPlannedMinor,
                 totalSpent: state.totalSpent,
               ),
               const SizedBox(height: 20),

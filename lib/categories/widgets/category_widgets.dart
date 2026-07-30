@@ -64,21 +64,30 @@ class CategoryTile extends StatelessWidget {
   }
 }
 
-/// Adds or renames a category. Renaming works for system categories
-/// too — only deletion is restricted for those.
+/// Adds or renames a category, and optionally nests it under a parent.
+/// Renaming works for system categories too — only deletion is
+/// restricted for those.
 class CategoryEditorSheet extends StatefulWidget {
-  const CategoryEditorSheet({this.existing, super.key});
+  const CategoryEditorSheet({this.existing, this.parentId, super.key});
 
   final Category? existing;
 
-  static Future<void> show(BuildContext context, {Category? existing}) {
+  /// Preselects a parent when adding a new subcategory directly under
+  /// it. Ignored when [existing] is set — its own current parent wins.
+  final String? parentId;
+
+  static Future<void> show(
+    BuildContext context, {
+    Category? existing,
+    String? parentId,
+  }) {
     final cubit = context.read<CategoriesCubit>();
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => BlocProvider.value(
         value: cubit,
-        child: CategoryEditorSheet(existing: existing),
+        child: CategoryEditorSheet(existing: existing, parentId: parentId),
       ),
     );
   }
@@ -94,6 +103,7 @@ class _CategoryEditorSheetState extends State<CategoryEditorSheet> {
   late final TextEditingController _iconController = TextEditingController(
     text: widget.existing?.icon ?? '',
   );
+  late String? _parentId = widget.existing?.parentId ?? widget.parentId;
   String? _error;
 
   @override
@@ -108,12 +118,17 @@ class _CategoryEditorSheetState extends State<CategoryEditorSheet> {
     final cubit = context.read<CategoriesCubit>();
     final existing = widget.existing;
     if (existing == null) {
-      await cubit.add(name: _nameController.text, icon: _iconController.text);
+      await cubit.add(
+        name: _nameController.text,
+        icon: _iconController.text,
+        parentId: _parentId,
+      );
     } else {
       await cubit.rename(
         existing.id,
         name: _nameController.text,
         icon: _iconController.text,
+        parentId: _parentId,
       );
     }
     if (!mounted) return;
@@ -128,6 +143,15 @@ class _CategoryEditorSheetState extends State<CategoryEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existing != null;
+    // A category can't be its own parent, and only top-level
+    // categories are offered as parents — one level of nesting keeps
+    // the picker simple and matches how the list renders.
+    final parentOptions = context
+        .read<CategoriesCubit>()
+        .state
+        .topLevel
+        .where((c) => c.id != widget.existing?.id)
+        .toList();
 
     return Padding(
       padding: EdgeInsets.only(
@@ -162,6 +186,25 @@ class _CategoryEditorSheetState extends State<CategoryEditorSheet> {
               hintText: 'Paste an emoji, e.g. 🎮',
             ),
           ),
+          const SizedBox(height: 16),
+          if (parentOptions.isNotEmpty)
+            DropdownButtonFormField<String?>(
+              initialValue: parentOptions.any((c) => c.id == _parentId)
+                  ? _parentId
+                  : null,
+              decoration: const InputDecoration(
+                labelText: 'Parent category (optional)',
+              ),
+              items: [
+                const DropdownMenuItem(child: Text('None — top level')),
+                for (final parent in parentOptions)
+                  DropdownMenuItem(
+                    value: parent.id,
+                    child: Text(parent.displayName),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _parentId = value),
+            ),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _save,

@@ -27,7 +27,11 @@ class CategoriesCubit extends Cubit<CategoriesState> {
     );
   }
 
-  Future<void> add({required String name, String? icon}) async {
+  Future<void> add({
+    required String name,
+    String? icon,
+    String? parentId,
+  }) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
       emit(
@@ -38,13 +42,18 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       );
       return;
     }
-    await _categories.create(trimmed, icon: _trimIcon(icon));
+    await _categories.create(
+      trimmed,
+      icon: _trimIcon(icon),
+      parentId: parentId,
+    );
   }
 
   Future<void> rename(
     String id, {
     required String name,
     String? icon,
+    String? parentId,
   }) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
@@ -62,6 +71,8 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       name: trimmed,
       icon: trimmedIcon,
       clearIcon: trimmedIcon == null,
+      parentId: parentId,
+      clearParent: parentId == null,
     );
   }
 

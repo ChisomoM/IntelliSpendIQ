@@ -53,32 +53,68 @@ void main() {
     });
 
     test(
-      'setIncome() surfaces the declared income and remaining amount',
+      'addIncome() surfaces the declared income and remaining amount',
       () async {
         final cubit = await cubitWith();
         addTearDown(cubit.close);
         await cubit.load();
         await addConfirmedSpend(30000);
 
-        await cubit.setIncome('500');
+        await cubit.addIncome('500');
         await Future<void>.delayed(Duration.zero);
 
         expect(cubit.state.hasIncome, isTrue);
-        expect(cubit.state.income!.amountMinor, 50000);
+        expect(cubit.state.totalIncomeMinor, 50000);
         expect(cubit.state.totalSpent, 30000);
         expect(cubit.state.remainingMinor, 20000);
       },
     );
 
-    test('setIncome() rejects a non-positive amount', () async {
+    test('addIncome() rejects a non-positive amount', () async {
       final cubit = await cubitWith();
       addTearDown(cubit.close);
       await cubit.load();
 
-      await cubit.setIncome('0');
+      await cubit.addIncome('0');
 
       expect(cubit.state.status, BudgetsStatus.invalid);
       expect(cubit.state.hasIncome, isFalse);
+    });
+
+    test(
+      'multiple income streams sum into totalIncomeMinor',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        await cubit.load();
+
+        await cubit.addIncome('500', label: 'Salary');
+        await Future<void>.delayed(Duration.zero);
+        await cubit.addIncome('150', label: 'Side hustle');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cubit.state.incomeSources, hasLength(2));
+        expect(cubit.state.totalIncomeMinor, 65000);
+      },
+    );
+
+    test('deleteIncome() removes a single stream', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await cubit.addIncome('500', label: 'Salary');
+      await Future<void>.delayed(Duration.zero);
+      await cubit.addIncome('150', label: 'Side hustle');
+      await Future<void>.delayed(Duration.zero);
+
+      final toDelete = cubit.state.incomeSources.firstWhere(
+        (i) => i.label == 'Side hustle',
+      );
+      await cubit.deleteIncome(toDelete.id);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.incomeSources, hasLength(1));
+      expect(cubit.state.incomeSources.single.label, 'Salary');
     });
 
     test(
@@ -87,7 +123,7 @@ void main() {
         final cubit = await cubitWith();
         addTearDown(cubit.close);
         await cubit.load();
-        await cubit.setIncome('500');
+        await cubit.addIncome('500');
         await Future<void>.delayed(Duration.zero);
 
         await addConfirmedSpend(10000);
@@ -101,5 +137,21 @@ void main() {
         expect(cubit.state.hasIncome, isTrue);
       },
     );
+  });
+
+  group('BudgetsCubit planned vs actual', () {
+    test('totalPlannedMinor sums every category budget', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      final foodId = (await services.categories.byName('Food'))!.id;
+      final transportId = (await services.categories.byName('Transport'))!.id;
+      await cubit.upsert(categoryId: foodId, amount: '1000');
+      await cubit.upsert(categoryId: transportId, amount: '300');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.totalPlannedMinor, 130000);
+    });
   });
 }

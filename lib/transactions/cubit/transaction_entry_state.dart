@@ -14,6 +14,7 @@ class TransactionEntryState extends Equatable {
     this.accountId,
     this.categories = const [],
     this.accounts = const [],
+    this.receiptPath,
     this.errorMessage,
   });
 
@@ -27,6 +28,9 @@ class TransactionEntryState extends Equatable {
   final DateTime transactedAt;
   final List<Category> categories;
   final List<Account> accounts;
+
+  /// App-local path to an attached receipt photo, if any.
+  final String? receiptPath;
   final String? errorMessage;
 
   bool get isSaving => status == TransactionEntryStatus.saving;
@@ -42,6 +46,8 @@ class TransactionEntryState extends Equatable {
     DateTime? transactedAt,
     List<Category>? categories,
     List<Account>? accounts,
+    String? receiptPath,
+    bool clearReceiptPath = false,
     String? errorMessage,
   }) {
     return TransactionEntryState(
@@ -55,6 +61,7 @@ class TransactionEntryState extends Equatable {
       transactedAt: transactedAt ?? this.transactedAt,
       categories: categories ?? this.categories,
       accounts: accounts ?? this.accounts,
+      receiptPath: clearReceiptPath ? null : (receiptPath ?? this.receiptPath),
       errorMessage: errorMessage,
     );
   }
@@ -71,6 +78,7 @@ class TransactionEntryState extends Equatable {
     transactedAt,
     categories,
     accounts,
+    receiptPath,
     errorMessage,
   ];
 }

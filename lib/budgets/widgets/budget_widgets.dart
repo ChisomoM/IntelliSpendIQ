@@ -5,6 +5,58 @@ import 'package:intellispendiq/budgets/cubit/cubit.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/domain/models/budget.dart';
 
+/// Sum of every category budget limit for the month next to total
+/// confirmed spend so far — a different comparison than income vs
+/// spend, since spend can fall outside any budgeted category and
+/// budgets can cover categories with no spend yet.
+class PlannedVsActualCard extends StatelessWidget {
+  const PlannedVsActualCard({
+    required this.plannedMinor,
+    required this.totalSpent,
+    super.key,
+  });
+
+  final int plannedMinor;
+  final int totalSpent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (plannedMinor == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final ratio = totalSpent / plannedMinor;
+    final over = totalSpent > plannedMinor;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Planned vs. actual', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: ratio.clamp(0.0, 1.0),
+              color: over ? theme.colorScheme.error : null,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${Money.format(totalSpent)} spent of ${Money.format(plannedMinor)} planned'
+              '${over ? ' · over by ${Money.format(totalSpent - plannedMinor)}' : ''}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: over ? theme.colorScheme.error : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class BudgetCard extends StatelessWidget {
   const BudgetCard({
     required this.budget,

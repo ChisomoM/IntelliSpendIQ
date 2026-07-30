@@ -101,6 +101,7 @@ class TransactionRepository {
     metadata: row.metadataJson == null
         ? const {}
         : jsonDecode(row.metadataJson!) as Map<String, Object?>,
+    receiptPath: row.receiptPath,
   );
 
   Future<Transaction?> byId(String id) async {
@@ -180,6 +181,7 @@ class TransactionRepository {
             metadataJson: Value(
               draft.metadata.isEmpty ? null : jsonEncode(draft.metadata),
             ),
+            receiptPath: Value(draft.receiptPath),
           ),
         );
     final row = await (_db.select(
@@ -246,6 +248,7 @@ class TransactionRepository {
               metadataJson: Value(
                 tx.metadata.isEmpty ? null : jsonEncode(tx.metadata),
               ),
+              receiptPath: Value(tx.receiptPath),
             ),
           );
       return true;
@@ -357,6 +360,19 @@ class TransactionRepository {
         duplicateOfId: duplicateOfId == null
             ? const Value.absent()
             : Value(duplicateOfId),
+        updatedAt: Value(Iso.nowUtc()),
+      ),
+    );
+  }
+
+  /// Sets or clears the receipt photo path. A dedicated method rather
+  /// than another optional [updateFields] argument, since "clear it"
+  /// and "leave it alone" both need to be expressible and a bare
+  /// nullable parameter can't distinguish them.
+  Future<void> setReceiptPath(String id, String? receiptPath) async {
+    await (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        receiptPath: Value(receiptPath),
         updatedAt: Value(Iso.nowUtc()),
       ),
     );

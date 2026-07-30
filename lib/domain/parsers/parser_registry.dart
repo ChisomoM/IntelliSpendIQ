@@ -12,14 +12,50 @@ class ParserRegistry {
 
   final List<ParserProvider> providers;
 
+  /// User-added sender IDs (normalized) mapped to an existing
+  /// provider's key, layered on top of each provider's built-in
+  /// [ParserProvider.senderIds] — for a bank or wallet whose alerts
+  /// arrive from a shortcode the built-in list doesn't recognize.
+  final Map<String, String> _customSenderProviderKeys = {};
+
+  /// Replaces the whole custom-sender map, e.g. loading it from
+  /// storage at startup.
+  void setCustomSenders(Map<String, String> senderIdToProviderKey) {
+    _customSenderProviderKeys
+      ..clear()
+      ..addEntries(
+        senderIdToProviderKey.entries.map(
+          (entry) => MapEntry(Ids.normalizeSender(entry.key), entry.value),
+        ),
+      );
+  }
+
+  void addCustomSender(String providerKey, String senderId) {
+    _customSenderProviderKeys[Ids.normalizeSender(senderId)] = providerKey;
+  }
+
+  void removeCustomSender(String senderId) {
+    _customSenderProviderKeys.remove(Ids.normalizeSender(senderId));
+  }
+
   /// All sender IDs the registry knows, normalized. Used to filter the
   /// inbox backfill to known senders only.
-  Set<String> get knownSenderIds =>
-      providers.expand((p) => p.senderIds).toSet();
+  Set<String> get knownSenderIds => {
+    ...providers.expand((p) => p.senderIds),
+    ..._customSenderProviderKeys.keys,
+  };
 
   ParserProvider? findBySender(String? sender) {
     if (sender == null) return null;
     final normalized = Ids.normalizeSender(sender);
+
+    final customProviderKey = _customSenderProviderKeys[normalized];
+    if (customProviderKey != null) {
+      for (final provider in providers) {
+        if (provider.key == customProviderKey) return provider;
+      }
+    }
+
     for (final provider in providers) {
       if (provider.senderIds.contains(normalized)) return provider;
     }

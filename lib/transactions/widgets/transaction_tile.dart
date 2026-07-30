@@ -32,12 +32,26 @@ class TransactionTile extends StatelessWidget {
           size: 20,
         ),
       ),
-      title: Text(
-        transaction.merchant?.isNotEmpty ?? false
-            ? transaction.merchant!
-            : 'Unknown',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              transaction.merchant?.isNotEmpty ?? false
+                  ? transaction.merchant!
+                  : 'Unknown',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (transaction.receiptPath != null) ...[
+            const SizedBox(width: 6),
+            Icon(
+              Icons.attach_file,
+              size: 14,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ],
       ),
       subtitle: Text(_dateFormat.format(transaction.transactedAt.toLocal())),
       trailing: Column(

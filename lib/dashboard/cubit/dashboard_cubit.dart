@@ -32,7 +32,7 @@ class DashboardCubit extends Cubit<DashboardState> {
   final TransactionRepository _transactions;
   final IncomeRepository _income;
   final RawCaptureRepository _rawCaptures;
-  StreamSubscription<MonthlyIncome?>? _incomeSubscription;
+  StreamSubscription<List<MonthlyIncome>>? _incomeSubscription;
   StreamSubscription<List<CategorySpend>>? _categorySubscription;
   StreamSubscription<List<Transaction>>? _recentSubscription;
   StreamSubscription<int>? _reviewSubscription;
@@ -83,14 +83,13 @@ class DashboardCubit extends Cubit<DashboardState> {
     );
   }
 
-  Future<void> _onIncome(MonthlyIncome? income) async {
+  Future<void> _onIncome(List<MonthlyIncome> incomeSources) async {
     final totalSpent = await _transactions.totalSpent(state.period);
     if (isClosed) return;
     emit(
       state.copyWith(
         status: DashboardStatus.loaded,
-        income: income,
-        clearIncome: income == null,
+        incomeSources: incomeSources,
         totalSpent: totalSpent,
       ),
     );

@@ -1563,6 +1563,17 @@ class $TransactionsTable extends Transactions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _receiptPathMeta = const VerificationMeta(
+    'receiptPath',
+  );
+  @override
+  late final GeneratedColumn<String> receiptPath = GeneratedColumn<String>(
+    'receipt_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1587,6 +1598,7 @@ class $TransactionsTable extends Transactions
     paymentMethod,
     externalRef,
     metadataJson,
+    receiptPath,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1778,6 +1790,15 @@ class $TransactionsTable extends Transactions
         ),
       );
     }
+    if (data.containsKey('receipt_path')) {
+      context.handle(
+        _receiptPathMeta,
+        receiptPath.isAcceptableOrUnknown(
+          data['receipt_path']!,
+          _receiptPathMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1875,6 +1896,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.string,
         data['${effectivePrefix}metadata_json'],
       ),
+      receiptPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receipt_path'],
+      ),
     );
   }
 
@@ -1919,6 +1944,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   /// Provider TID / bank reference.
   final String? externalRef;
   final String? metadataJson;
+
+  /// Path to a receipt photo copied into app-local storage, if attached.
+  final String? receiptPath;
   const TransactionRow({
     required this.id,
     required this.userId,
@@ -1942,6 +1970,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     this.paymentMethod,
     this.externalRef,
     this.metadataJson,
+    this.receiptPath,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1987,6 +2016,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     }
     if (!nullToAbsent || metadataJson != null) {
       map['metadata_json'] = Variable<String>(metadataJson);
+    }
+    if (!nullToAbsent || receiptPath != null) {
+      map['receipt_path'] = Variable<String>(receiptPath);
     }
     return map;
   }
@@ -2035,6 +2067,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       metadataJson: metadataJson == null && nullToAbsent
           ? const Value.absent()
           : Value(metadataJson),
+      receiptPath: receiptPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiptPath),
     );
   }
 
@@ -2066,6 +2101,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       paymentMethod: serializer.fromJson<String?>(json['paymentMethod']),
       externalRef: serializer.fromJson<String?>(json['externalRef']),
       metadataJson: serializer.fromJson<String?>(json['metadataJson']),
+      receiptPath: serializer.fromJson<String?>(json['receiptPath']),
     );
   }
   @override
@@ -2094,6 +2130,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       'paymentMethod': serializer.toJson<String?>(paymentMethod),
       'externalRef': serializer.toJson<String?>(externalRef),
       'metadataJson': serializer.toJson<String?>(metadataJson),
+      'receiptPath': serializer.toJson<String?>(receiptPath),
     };
   }
 
@@ -2120,6 +2157,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     Value<String?> paymentMethod = const Value.absent(),
     Value<String?> externalRef = const Value.absent(),
     Value<String?> metadataJson = const Value.absent(),
+    Value<String?> receiptPath = const Value.absent(),
   }) => TransactionRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -2147,6 +2185,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
         : this.paymentMethod,
     externalRef: externalRef.present ? externalRef.value : this.externalRef,
     metadataJson: metadataJson.present ? metadataJson.value : this.metadataJson,
+    receiptPath: receiptPath.present ? receiptPath.value : this.receiptPath,
   );
   TransactionRow copyWithCompanion(TransactionsCompanion data) {
     return TransactionRow(
@@ -2194,6 +2233,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       metadataJson: data.metadataJson.present
           ? data.metadataJson.value
           : this.metadataJson,
+      receiptPath: data.receiptPath.present
+          ? data.receiptPath.value
+          : this.receiptPath,
     );
   }
 
@@ -2221,7 +2263,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           ..write('duplicateOfId: $duplicateOfId, ')
           ..write('paymentMethod: $paymentMethod, ')
           ..write('externalRef: $externalRef, ')
-          ..write('metadataJson: $metadataJson')
+          ..write('metadataJson: $metadataJson, ')
+          ..write('receiptPath: $receiptPath')
           ..write(')'))
         .toString();
   }
@@ -2250,6 +2293,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     paymentMethod,
     externalRef,
     metadataJson,
+    receiptPath,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2276,7 +2320,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           other.duplicateOfId == this.duplicateOfId &&
           other.paymentMethod == this.paymentMethod &&
           other.externalRef == this.externalRef &&
-          other.metadataJson == this.metadataJson);
+          other.metadataJson == this.metadataJson &&
+          other.receiptPath == this.receiptPath);
 }
 
 class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
@@ -2302,6 +2347,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
   final Value<String?> paymentMethod;
   final Value<String?> externalRef;
   final Value<String?> metadataJson;
+  final Value<String?> receiptPath;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.id = const Value.absent(),
@@ -2326,6 +2372,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.paymentMethod = const Value.absent(),
     this.externalRef = const Value.absent(),
     this.metadataJson = const Value.absent(),
+    this.receiptPath = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -2351,6 +2398,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.paymentMethod = const Value.absent(),
     this.externalRef = const Value.absent(),
     this.metadataJson = const Value.absent(),
+    this.receiptPath = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -2386,6 +2434,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Expression<String>? paymentMethod,
     Expression<String>? externalRef,
     Expression<String>? metadataJson,
+    Expression<String>? receiptPath,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2411,6 +2460,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       if (paymentMethod != null) 'payment_method': paymentMethod,
       if (externalRef != null) 'external_ref': externalRef,
       if (metadataJson != null) 'metadata_json': metadataJson,
+      if (receiptPath != null) 'receipt_path': receiptPath,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2438,6 +2488,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Value<String?>? paymentMethod,
     Value<String?>? externalRef,
     Value<String?>? metadataJson,
+    Value<String?>? receiptPath,
     Value<int>? rowid,
   }) {
     return TransactionsCompanion(
@@ -2463,6 +2514,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       externalRef: externalRef ?? this.externalRef,
       metadataJson: metadataJson ?? this.metadataJson,
+      receiptPath: receiptPath ?? this.receiptPath,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2536,6 +2588,9 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     if (metadataJson.present) {
       map['metadata_json'] = Variable<String>(metadataJson.value);
     }
+    if (receiptPath.present) {
+      map['receipt_path'] = Variable<String>(receiptPath.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2567,6 +2622,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
           ..write('paymentMethod: $paymentMethod, ')
           ..write('externalRef: $externalRef, ')
           ..write('metadataJson: $metadataJson, ')
+          ..write('receiptPath: $receiptPath, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3224,6 +3280,15 @@ class $MonthlyIncomesTable extends MonthlyIncomes
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3233,6 +3298,7 @@ class $MonthlyIncomesTable extends MonthlyIncomes
     deletedAt,
     period,
     amountMinor,
+    label,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3300,6 +3366,12 @@ class $MonthlyIncomesTable extends MonthlyIncomes
     } else if (isInserting) {
       context.missing(_amountMinorMeta);
     }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    }
     return context;
   }
 
@@ -3307,7 +3379,7 @@ class $MonthlyIncomesTable extends MonthlyIncomes
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
   List<Set<GeneratedColumn>> get uniqueKeys => [
-    {userId, period},
+    {userId, period, label},
   ];
   @override
   MonthlyIncomeRow map(Map<String, dynamic> data, {String? tablePrefix}) {
@@ -3341,6 +3413,10 @@ class $MonthlyIncomesTable extends MonthlyIncomes
         DriftSqlType.int,
         data['${effectivePrefix}amount_minor'],
       )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      ),
     );
   }
 
@@ -3363,6 +3439,11 @@ class MonthlyIncomeRow extends DataClass
 
   /// Declared income for the month, in ngwee.
   final int amountMinor;
+
+  /// Names one income stream among possibly several for the same
+  /// month, e.g. "Salary" vs "Side hustle". Null is the original
+  /// single-figure shape from before multiple streams existed.
+  final String? label;
   const MonthlyIncomeRow({
     required this.id,
     required this.userId,
@@ -3371,6 +3452,7 @@ class MonthlyIncomeRow extends DataClass
     this.deletedAt,
     required this.period,
     required this.amountMinor,
+    this.label,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3384,6 +3466,9 @@ class MonthlyIncomeRow extends DataClass
     }
     map['period'] = Variable<String>(period);
     map['amount_minor'] = Variable<int>(amountMinor);
+    if (!nullToAbsent || label != null) {
+      map['label'] = Variable<String>(label);
+    }
     return map;
   }
 
@@ -3398,6 +3483,9 @@ class MonthlyIncomeRow extends DataClass
           : Value(deletedAt),
       period: Value(period),
       amountMinor: Value(amountMinor),
+      label: label == null && nullToAbsent
+          ? const Value.absent()
+          : Value(label),
     );
   }
 
@@ -3414,6 +3502,7 @@ class MonthlyIncomeRow extends DataClass
       deletedAt: serializer.fromJson<String?>(json['deletedAt']),
       period: serializer.fromJson<String>(json['period']),
       amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      label: serializer.fromJson<String?>(json['label']),
     );
   }
   @override
@@ -3427,6 +3516,7 @@ class MonthlyIncomeRow extends DataClass
       'deletedAt': serializer.toJson<String?>(deletedAt),
       'period': serializer.toJson<String>(period),
       'amountMinor': serializer.toJson<int>(amountMinor),
+      'label': serializer.toJson<String?>(label),
     };
   }
 
@@ -3438,6 +3528,7 @@ class MonthlyIncomeRow extends DataClass
     Value<String?> deletedAt = const Value.absent(),
     String? period,
     int? amountMinor,
+    Value<String?> label = const Value.absent(),
   }) => MonthlyIncomeRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -3446,6 +3537,7 @@ class MonthlyIncomeRow extends DataClass
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     period: period ?? this.period,
     amountMinor: amountMinor ?? this.amountMinor,
+    label: label.present ? label.value : this.label,
   );
   MonthlyIncomeRow copyWithCompanion(MonthlyIncomesCompanion data) {
     return MonthlyIncomeRow(
@@ -3458,6 +3550,7 @@ class MonthlyIncomeRow extends DataClass
       amountMinor: data.amountMinor.present
           ? data.amountMinor.value
           : this.amountMinor,
+      label: data.label.present ? data.label.value : this.label,
     );
   }
 
@@ -3470,7 +3563,8 @@ class MonthlyIncomeRow extends DataClass
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('period: $period, ')
-          ..write('amountMinor: $amountMinor')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('label: $label')
           ..write(')'))
         .toString();
   }
@@ -3484,6 +3578,7 @@ class MonthlyIncomeRow extends DataClass
     deletedAt,
     period,
     amountMinor,
+    label,
   );
   @override
   bool operator ==(Object other) =>
@@ -3495,7 +3590,8 @@ class MonthlyIncomeRow extends DataClass
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
           other.period == this.period &&
-          other.amountMinor == this.amountMinor);
+          other.amountMinor == this.amountMinor &&
+          other.label == this.label);
 }
 
 class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
@@ -3506,6 +3602,7 @@ class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
   final Value<String?> deletedAt;
   final Value<String> period;
   final Value<int> amountMinor;
+  final Value<String?> label;
   final Value<int> rowid;
   const MonthlyIncomesCompanion({
     this.id = const Value.absent(),
@@ -3515,6 +3612,7 @@ class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
     this.deletedAt = const Value.absent(),
     this.period = const Value.absent(),
     this.amountMinor = const Value.absent(),
+    this.label = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MonthlyIncomesCompanion.insert({
@@ -3525,6 +3623,7 @@ class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
     this.deletedAt = const Value.absent(),
     required String period,
     required int amountMinor,
+    this.label = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -3540,6 +3639,7 @@ class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
     Expression<String>? deletedAt,
     Expression<String>? period,
     Expression<int>? amountMinor,
+    Expression<String>? label,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3550,6 +3650,7 @@ class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (period != null) 'period': period,
       if (amountMinor != null) 'amount_minor': amountMinor,
+      if (label != null) 'label': label,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3562,6 +3663,7 @@ class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
     Value<String?>? deletedAt,
     Value<String>? period,
     Value<int>? amountMinor,
+    Value<String?>? label,
     Value<int>? rowid,
   }) {
     return MonthlyIncomesCompanion(
@@ -3572,6 +3674,7 @@ class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
       deletedAt: deletedAt ?? this.deletedAt,
       period: period ?? this.period,
       amountMinor: amountMinor ?? this.amountMinor,
+      label: label ?? this.label,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3600,6 +3703,9 @@ class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
     if (amountMinor.present) {
       map['amount_minor'] = Variable<int>(amountMinor.value);
     }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3616,6 +3722,7 @@ class MonthlyIncomesCompanion extends UpdateCompanion<MonthlyIncomeRow> {
           ..write('deletedAt: $deletedAt, ')
           ..write('period: $period, ')
           ..write('amountMinor: $amountMinor, ')
+          ..write('label: $label, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4772,6 +4879,483 @@ class SettingsCompanion extends UpdateCompanion<SettingRow> {
   }
 }
 
+class $CustomSenderIdsTable extends CustomSenderIds
+    with TableInfo<$CustomSenderIdsTable, CustomSenderRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CustomSenderIdsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _providerKeyMeta = const VerificationMeta(
+    'providerKey',
+  );
+  @override
+  late final GeneratedColumn<String> providerKey = GeneratedColumn<String>(
+    'provider_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _senderIdMeta = const VerificationMeta(
+    'senderId',
+  );
+  @override
+  late final GeneratedColumn<String> senderId = GeneratedColumn<String>(
+    'sender_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    providerKey,
+    senderId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'custom_sender_ids';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CustomSenderRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('provider_key')) {
+      context.handle(
+        _providerKeyMeta,
+        providerKey.isAcceptableOrUnknown(
+          data['provider_key']!,
+          _providerKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_providerKeyMeta);
+    }
+    if (data.containsKey('sender_id')) {
+      context.handle(
+        _senderIdMeta,
+        senderId.isAcceptableOrUnknown(data['sender_id']!, _senderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_senderIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {userId, senderId},
+  ];
+  @override
+  CustomSenderRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CustomSenderRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      providerKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider_key'],
+      )!,
+      senderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sender_id'],
+      )!,
+    );
+  }
+
+  @override
+  $CustomSenderIdsTable createAlias(String alias) {
+    return $CustomSenderIdsTable(attachedDatabase, alias);
+  }
+}
+
+class CustomSenderRow extends DataClass implements Insertable<CustomSenderRow> {
+  final String id;
+  final String userId;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+
+  /// Which provider parser this sender's messages should route to,
+  /// e.g. `airtel_money` | `stan_chart`.
+  final String providerKey;
+
+  /// Normalized via [Ids.normalizeSender] before storage.
+  final String senderId;
+  const CustomSenderRow({
+    required this.id,
+    required this.userId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.providerKey,
+    required this.senderId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<String>(deletedAt);
+    }
+    map['provider_key'] = Variable<String>(providerKey);
+    map['sender_id'] = Variable<String>(senderId);
+    return map;
+  }
+
+  CustomSenderIdsCompanion toCompanion(bool nullToAbsent) {
+    return CustomSenderIdsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      providerKey: Value(providerKey),
+      senderId: Value(senderId),
+    );
+  }
+
+  factory CustomSenderRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CustomSenderRow(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      deletedAt: serializer.fromJson<String?>(json['deletedAt']),
+      providerKey: serializer.fromJson<String>(json['providerKey']),
+      senderId: serializer.fromJson<String>(json['senderId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'deletedAt': serializer.toJson<String?>(deletedAt),
+      'providerKey': serializer.toJson<String>(providerKey),
+      'senderId': serializer.toJson<String>(senderId),
+    };
+  }
+
+  CustomSenderRow copyWith({
+    String? id,
+    String? userId,
+    String? createdAt,
+    String? updatedAt,
+    Value<String?> deletedAt = const Value.absent(),
+    String? providerKey,
+    String? senderId,
+  }) => CustomSenderRow(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    providerKey: providerKey ?? this.providerKey,
+    senderId: senderId ?? this.senderId,
+  );
+  CustomSenderRow copyWithCompanion(CustomSenderIdsCompanion data) {
+    return CustomSenderRow(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      providerKey: data.providerKey.present
+          ? data.providerKey.value
+          : this.providerKey,
+      senderId: data.senderId.present ? data.senderId.value : this.senderId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomSenderRow(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('providerKey: $providerKey, ')
+          ..write('senderId: $senderId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    providerKey,
+    senderId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CustomSenderRow &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.providerKey == this.providerKey &&
+          other.senderId == this.senderId);
+}
+
+class CustomSenderIdsCompanion extends UpdateCompanion<CustomSenderRow> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<String?> deletedAt;
+  final Value<String> providerKey;
+  final Value<String> senderId;
+  final Value<int> rowid;
+  const CustomSenderIdsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.providerKey = const Value.absent(),
+    this.senderId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CustomSenderIdsCompanion.insert({
+    required String id,
+    required String userId,
+    required String createdAt,
+    required String updatedAt,
+    this.deletedAt = const Value.absent(),
+    required String providerKey,
+    required String senderId,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       providerKey = Value(providerKey),
+       senderId = Value(senderId);
+  static Insertable<CustomSenderRow> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
+    Expression<String>? providerKey,
+    Expression<String>? senderId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (providerKey != null) 'provider_key': providerKey,
+      if (senderId != null) 'sender_id': senderId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CustomSenderIdsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<String?>? deletedAt,
+    Value<String>? providerKey,
+    Value<String>? senderId,
+    Value<int>? rowid,
+  }) {
+    return CustomSenderIdsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      providerKey: providerKey ?? this.providerKey,
+      senderId: senderId ?? this.senderId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (providerKey.present) {
+      map['provider_key'] = Variable<String>(providerKey.value);
+    }
+    if (senderId.present) {
+      map['sender_id'] = Variable<String>(senderId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomSenderIdsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('providerKey: $providerKey, ')
+          ..write('senderId: $senderId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4782,6 +5366,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MonthlyIncomesTable monthlyIncomes = $MonthlyIncomesTable(this);
   late final $RawCapturesTable rawCaptures = $RawCapturesTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
+  late final $CustomSenderIdsTable customSenderIds = $CustomSenderIdsTable(
+    this,
+  );
   late final Index idxTxUserDate = Index(
     'idx_tx_user_date',
     'CREATE INDEX idx_tx_user_date ON transactions (user_id, transacted_at)',
@@ -4814,6 +5401,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     monthlyIncomes,
     rawCaptures,
     settings,
+    customSenderIds,
     idxTxUserDate,
     idxTxUserStatus,
     idxTxFuzzy,
@@ -5475,6 +6063,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<String?> paymentMethod,
       Value<String?> externalRef,
       Value<String?> metadataJson,
+      Value<String?> receiptPath,
       Value<int> rowid,
     });
 typedef $$TransactionsTableUpdateCompanionBuilder =
@@ -5501,6 +6090,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<String?> paymentMethod,
       Value<String?> externalRef,
       Value<String?> metadataJson,
+      Value<String?> receiptPath,
       Value<int> rowid,
     });
 
@@ -5620,6 +6210,11 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get metadataJson => $composableBuilder(
     column: $table.metadataJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiptPath => $composableBuilder(
+    column: $table.receiptPath,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5742,6 +6337,11 @@ class $$TransactionsTableOrderingComposer
     column: $table.metadataJson,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get receiptPath => $composableBuilder(
+    column: $table.receiptPath,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -5840,6 +6440,11 @@ class $$TransactionsTableAnnotationComposer
     column: $table.metadataJson,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get receiptPath => $composableBuilder(
+    column: $table.receiptPath,
+    builder: (column) => column,
+  );
 }
 
 class $$TransactionsTableTableManager
@@ -5895,6 +6500,7 @@ class $$TransactionsTableTableManager
                 Value<String?> paymentMethod = const Value.absent(),
                 Value<String?> externalRef = const Value.absent(),
                 Value<String?> metadataJson = const Value.absent(),
+                Value<String?> receiptPath = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion(
                 id: id,
@@ -5919,6 +6525,7 @@ class $$TransactionsTableTableManager
                 paymentMethod: paymentMethod,
                 externalRef: externalRef,
                 metadataJson: metadataJson,
+                receiptPath: receiptPath,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5945,6 +6552,7 @@ class $$TransactionsTableTableManager
                 Value<String?> paymentMethod = const Value.absent(),
                 Value<String?> externalRef = const Value.absent(),
                 Value<String?> metadataJson = const Value.absent(),
+                Value<String?> receiptPath = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion.insert(
                 id: id,
@@ -5969,6 +6577,7 @@ class $$TransactionsTableTableManager
                 paymentMethod: paymentMethod,
                 externalRef: externalRef,
                 metadataJson: metadataJson,
+                receiptPath: receiptPath,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -6279,6 +6888,7 @@ typedef $$MonthlyIncomesTableCreateCompanionBuilder =
       Value<String?> deletedAt,
       required String period,
       required int amountMinor,
+      Value<String?> label,
       Value<int> rowid,
     });
 typedef $$MonthlyIncomesTableUpdateCompanionBuilder =
@@ -6290,6 +6900,7 @@ typedef $$MonthlyIncomesTableUpdateCompanionBuilder =
       Value<String?> deletedAt,
       Value<String> period,
       Value<int> amountMinor,
+      Value<String?> label,
       Value<int> rowid,
     });
 
@@ -6334,6 +6945,11 @@ class $$MonthlyIncomesTableFilterComposer
 
   ColumnFilters<int> get amountMinor => $composableBuilder(
     column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6381,6 +6997,11 @@ class $$MonthlyIncomesTableOrderingComposer
     column: $table.amountMinor,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$MonthlyIncomesTableAnnotationComposer
@@ -6414,6 +7035,9 @@ class $$MonthlyIncomesTableAnnotationComposer
     column: $table.amountMinor,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
 }
 
 class $$MonthlyIncomesTableTableManager
@@ -6460,6 +7084,7 @@ class $$MonthlyIncomesTableTableManager
                 Value<String?> deletedAt = const Value.absent(),
                 Value<String> period = const Value.absent(),
                 Value<int> amountMinor = const Value.absent(),
+                Value<String?> label = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MonthlyIncomesCompanion(
                 id: id,
@@ -6469,6 +7094,7 @@ class $$MonthlyIncomesTableTableManager
                 deletedAt: deletedAt,
                 period: period,
                 amountMinor: amountMinor,
+                label: label,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6480,6 +7106,7 @@ class $$MonthlyIncomesTableTableManager
                 Value<String?> deletedAt = const Value.absent(),
                 required String period,
                 required int amountMinor,
+                Value<String?> label = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MonthlyIncomesCompanion.insert(
                 id: id,
@@ -6489,6 +7116,7 @@ class $$MonthlyIncomesTableTableManager
                 deletedAt: deletedAt,
                 period: period,
                 amountMinor: amountMinor,
+                label: label,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7075,6 +7703,252 @@ typedef $$SettingsTableProcessedTableManager =
       SettingRow,
       PrefetchHooks Function()
     >;
+typedef $$CustomSenderIdsTableCreateCompanionBuilder =
+    CustomSenderIdsCompanion Function({
+      required String id,
+      required String userId,
+      required String createdAt,
+      required String updatedAt,
+      Value<String?> deletedAt,
+      required String providerKey,
+      required String senderId,
+      Value<int> rowid,
+    });
+typedef $$CustomSenderIdsTableUpdateCompanionBuilder =
+    CustomSenderIdsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<String> providerKey,
+      Value<String> senderId,
+      Value<int> rowid,
+    });
+
+class $$CustomSenderIdsTableFilterComposer
+    extends Composer<_$AppDatabase, $CustomSenderIdsTable> {
+  $$CustomSenderIdsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get providerKey => $composableBuilder(
+    column: $table.providerKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get senderId => $composableBuilder(
+    column: $table.senderId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CustomSenderIdsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CustomSenderIdsTable> {
+  $$CustomSenderIdsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get providerKey => $composableBuilder(
+    column: $table.providerKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get senderId => $composableBuilder(
+    column: $table.senderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CustomSenderIdsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CustomSenderIdsTable> {
+  $$CustomSenderIdsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get providerKey => $composableBuilder(
+    column: $table.providerKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get senderId =>
+      $composableBuilder(column: $table.senderId, builder: (column) => column);
+}
+
+class $$CustomSenderIdsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CustomSenderIdsTable,
+          CustomSenderRow,
+          $$CustomSenderIdsTableFilterComposer,
+          $$CustomSenderIdsTableOrderingComposer,
+          $$CustomSenderIdsTableAnnotationComposer,
+          $$CustomSenderIdsTableCreateCompanionBuilder,
+          $$CustomSenderIdsTableUpdateCompanionBuilder,
+          (
+            CustomSenderRow,
+            BaseReferences<
+              _$AppDatabase,
+              $CustomSenderIdsTable,
+              CustomSenderRow
+            >,
+          ),
+          CustomSenderRow,
+          PrefetchHooks Function()
+        > {
+  $$CustomSenderIdsTableTableManager(
+    _$AppDatabase db,
+    $CustomSenderIdsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CustomSenderIdsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CustomSenderIdsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CustomSenderIdsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<String> providerKey = const Value.absent(),
+                Value<String> senderId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CustomSenderIdsCompanion(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                providerKey: providerKey,
+                senderId: senderId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String createdAt,
+                required String updatedAt,
+                Value<String?> deletedAt = const Value.absent(),
+                required String providerKey,
+                required String senderId,
+                Value<int> rowid = const Value.absent(),
+              }) => CustomSenderIdsCompanion.insert(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                providerKey: providerKey,
+                senderId: senderId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CustomSenderIdsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CustomSenderIdsTable,
+      CustomSenderRow,
+      $$CustomSenderIdsTableFilterComposer,
+      $$CustomSenderIdsTableOrderingComposer,
+      $$CustomSenderIdsTableAnnotationComposer,
+      $$CustomSenderIdsTableCreateCompanionBuilder,
+      $$CustomSenderIdsTableUpdateCompanionBuilder,
+      (
+        CustomSenderRow,
+        BaseReferences<_$AppDatabase, $CustomSenderIdsTable, CustomSenderRow>,
+      ),
+      CustomSenderRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7093,4 +7967,6 @@ class $AppDatabaseManager {
       $$RawCapturesTableTableManager(_db, _db.rawCaptures);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
+  $$CustomSenderIdsTableTableManager get customSenderIds =>
+      $$CustomSenderIdsTableTableManager(_db, _db.customSenderIds);
 }

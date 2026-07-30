@@ -302,12 +302,62 @@ void main() {
       await services.income.upsert(period: period, amountMinor: 650000);
 
       final income = await services.income.getForPeriod(period);
-      expect(income!.amountMinor, 650000);
+      expect(income.single.amountMinor, 650000);
     });
 
-    test('no income set for a period returns null', () async {
-      expect(await services.income.getForPeriod('2026-08'), isNull);
+    test('no income set for a period returns an empty list', () async {
+      expect(await services.income.getForPeriod('2026-08'), isEmpty);
     });
+
+    test(
+      'different labels create separate streams for the same month',
+      () async {
+        const period = '2026-07';
+        await services.income.upsert(
+          period: period,
+          amountMinor: 500000,
+          label: 'Salary',
+        );
+        await services.income.upsert(
+          period: period,
+          amountMinor: 150000,
+          label: 'Side hustle',
+        );
+
+        final income = await services.income.getForPeriod(period);
+        expect(income, hasLength(2));
+        expect(
+          income.map((i) => i.amountMinor).reduce((a, b) => a + b),
+          650000,
+        );
+      },
+    );
+
+    test(
+      'deleteSource removes a single stream without touching others',
+      () async {
+        const period = '2026-07';
+        await services.income.upsert(
+          period: period,
+          amountMinor: 500000,
+          label: 'Salary',
+        );
+        await services.income.upsert(
+          period: period,
+          amountMinor: 150000,
+          label: 'Side hustle',
+        );
+        final toDelete = (await services.income.getForPeriod(
+          period,
+        )).firstWhere((i) => i.label == 'Side hustle');
+
+        await services.income.deleteSource(toDelete.id);
+
+        final remaining = await services.income.getForPeriod(period);
+        expect(remaining, hasLength(1));
+        expect(remaining.single.label, 'Salary');
+      },
+    );
 
     test('totalSpent sums confirmed debits across every category', () async {
       final transportId = (await services.categories.byName('Transport'))!.id;

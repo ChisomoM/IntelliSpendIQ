@@ -86,7 +86,11 @@ class CategoryRepository {
     return row == null ? null : _fromRow(row);
   }
 
-  Future<Category> create(String name, {String? icon}) async {
+  Future<Category> create(
+    String name, {
+    String? icon,
+    String? parentId,
+  }) async {
     final now = Iso.nowUtc();
     final id = Ids.newId();
     await _db
@@ -99,6 +103,7 @@ class CategoryRepository {
             updatedAt: now,
             name: name,
             icon: Value(icon),
+            parentId: Value(parentId),
             sortOrder: const Value(1000),
           ),
         );
@@ -108,14 +113,17 @@ class CategoryRepository {
     return _fromRow(row);
   }
 
-  /// Renames a category or changes its icon. Allowed for system
-  /// categories too — only deletion is restricted for those. Pass
-  /// [clearIcon] to remove an icon rather than leaving it untouched.
+  /// Renames a category, changes its icon, or moves it under a parent
+  /// (or out from under one). Allowed for system categories too — only
+  /// deletion is restricted for those. Pass [clearIcon]/[clearParent]
+  /// to remove that field rather than leaving it untouched.
   Future<void> update(
     String id, {
     String? name,
     String? icon,
     bool clearIcon = false,
+    String? parentId,
+    bool clearParent = false,
   }) async {
     await (_db.update(_db.categories)..where((c) => c.id.equals(id))).write(
       CategoriesCompanion(
@@ -123,6 +131,9 @@ class CategoryRepository {
         icon: clearIcon
             ? const Value(null)
             : (icon == null ? const Value.absent() : Value(icon)),
+        parentId: clearParent
+            ? const Value(null)
+            : (parentId == null ? const Value.absent() : Value(parentId)),
         updatedAt: Value(Iso.nowUtc()),
       ),
     );

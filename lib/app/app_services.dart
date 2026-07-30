@@ -5,6 +5,7 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
 import 'package:intellispendiq/data/repositories/income_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
@@ -40,6 +41,7 @@ class AppServices {
     required this.budgets,
     required this.income,
     required this.settings,
+    required this.customSenders,
     required this.appLock,
     required this.registry,
     required this.captureService,
@@ -110,13 +112,18 @@ class AppServices {
     final budgets = BudgetRepository(db, userId: userId);
     final income = IncomeRepository(db, userId: userId);
     final settings = SettingsRepository(db);
+    final customSenders = CustomSenderRepository(db, userId: userId);
 
     // Day-one seeds (plan §6.2): categories and the default Airtel Money
     // account. Both are no-ops after the first launch.
     await categories.ensureSeeds();
     await accounts.ensureDefaultAccount();
 
-    final registry = ParserRegistry();
+    final registry = ParserRegistry()
+      ..setCustomSenders({
+        for (final sender in await customSenders.getAll())
+          sender.senderId: sender.providerKey,
+      });
     final captureService = CaptureService(
       registry: registry,
       rawCaptures: rawCaptures,
@@ -155,6 +162,7 @@ class AppServices {
       budgets: budgets,
       income: income,
       settings: settings,
+      customSenders: customSenders,
       appLock: AppLockRepository(
         secureStore: store,
         settings: settings,
@@ -195,6 +203,7 @@ class AppServices {
   final BudgetRepository budgets;
   final IncomeRepository income;
   final SettingsRepository settings;
+  final CustomSenderRepository customSenders;
   final AppLockRepository appLock;
   final ParserRegistry registry;
   final CaptureService captureService;

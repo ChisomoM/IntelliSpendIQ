@@ -45,11 +45,36 @@ class CategoriesView extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return ListView.separated(
-            itemCount: state.categories.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) =>
-                CategoryTile(category: state.categories[index]),
+          final topLevel = state.topLevel;
+          return ListView.builder(
+            itemCount: topLevel.length,
+            itemBuilder: (context, index) {
+              final parent = topLevel[index];
+              final children = state.childrenOf(parent.id);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(height: 1),
+                  CategoryTile(category: parent),
+                  for (final child in children)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 32),
+                      child: CategoryTile(category: child),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 32),
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add subcategory'),
+                      onPressed: () => CategoryEditorSheet.show(
+                        context,
+                        parentId: parent.id,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

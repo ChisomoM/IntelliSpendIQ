@@ -80,5 +80,27 @@ void main() {
       expect(cubit.state.status, AccountsStatus.invalid);
       expect(cubit.state.accounts, hasLength(1));
     });
+
+    test('updateBalance() sets the account balance by hand', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      final account = cubit.state.accounts.single;
+
+      await cubit.updateBalance(account.id, '250.00');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.accounts.single.balanceMinor, 25000);
+    });
+
+    test('updateBalance() rejects a negative amount', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      final account = cubit.state.accounts.single;
+
+      await cubit.updateBalance(account.id, '-5');
+
+      expect(cubit.state.status, AccountsStatus.invalid);
+      expect(cubit.state.accounts.single.balanceMinor, isNull);
+    });
   });
 }

@@ -79,6 +79,9 @@ class Transactions extends SyncedTable {
   /// Provider TID / bank reference.
   TextColumn get externalRef => text().nullable()();
   TextColumn get metadataJson => text().nullable()();
+
+  /// Path to a receipt photo copied into app-local storage, if attached.
+  TextColumn get receiptPath => text().nullable()();
 }
 
 @DataClassName('BudgetRow')
@@ -108,9 +111,32 @@ class MonthlyIncomes extends SyncedTable {
   /// Declared income for the month, in ngwee.
   IntColumn get amountMinor => integer()();
 
+  /// Names one income stream among possibly several for the same
+  /// month, e.g. "Salary" vs "Side hustle". Null is the original
+  /// single-figure shape from before multiple streams existed.
+  TextColumn get label => text().nullable()();
+
   @override
   List<Set<Column<Object>>> get uniqueKeys => [
-    {userId, period},
+    {userId, period, label},
+  ];
+}
+
+/// A user-added SMS sender ID routed to an existing provider parser —
+/// e.g. a bank that sends alerts from a shortcode the built-in parser
+/// doesn't already recognize.
+@DataClassName('CustomSenderRow')
+class CustomSenderIds extends SyncedTable {
+  /// Which provider parser this sender's messages should route to,
+  /// e.g. `airtel_money` | `stan_chart`.
+  TextColumn get providerKey => text()();
+
+  /// Normalized via `Ids.normalizeSender` before storage.
+  TextColumn get senderId => text()();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, senderId},
   ];
 }
 

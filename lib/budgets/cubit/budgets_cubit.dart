@@ -37,7 +37,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
   final TransactionRepository _transactions;
   final IncomeRepository _income;
   StreamSubscription<List<Budget>>? _subscription;
-  StreamSubscription<MonthlyIncome?>? _incomeSubscription;
+  StreamSubscription<List<MonthlyIncome>>? _incomeSubscription;
 
   /// Fire-and-forget entry point for widget construction.
   void loadUnawaited() => unawaited(load());
@@ -78,14 +78,13 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     );
   }
 
-  Future<void> _onIncome(MonthlyIncome? income) async {
+  Future<void> _onIncome(List<MonthlyIncome> incomeSources) async {
     final totalSpent = await _transactions.totalSpent(state.period);
     if (isClosed) return;
     emit(
       state.copyWith(
         status: BudgetsStatus.loaded,
-        income: income,
-        clearIncome: income == null,
+        incomeSources: incomeSources,
         totalSpent: totalSpent,
       ),
     );
@@ -114,19 +113,45 @@ class BudgetsCubit extends Cubit<BudgetsState> {
 
   Future<void> delete(String budgetId) => _budgets.delete(budgetId);
 
-  Future<void> setIncome(String amount) async {
+  /// Adds a new income stream for the month, or updates the existing
+  /// stream with the same [label] if there already is one.
+  Future<void> addIncome(String amount, {String? label}) async {
     final amountMinor = Money.tryParseToMinor(amount);
     if (amountMinor == null || amountMinor <= 0) {
       emit(
         state.copyWith(
           status: BudgetsStatus.invalid,
-          errorMessage: 'Enter your income for the month, e.g. 5000',
+          errorMessage: 'Enter an income amount, e.g. 5000',
         ),
       );
       return;
     }
-    await _income.upsert(period: state.period, amountMinor: amountMinor);
+    await _income.upsert(
+      period: state.period,
+      amountMinor: amountMinor,
+      label: label,
+    );
   }
+
+  Future<void> updateIncome(
+    String id,
+    String amount, {
+    String? label,
+  }) async {
+    final amountMinor = Money.tryParseToMinor(amount);
+    if (amountMinor == null || amountMinor <= 0) {
+      emit(
+        state.copyWith(
+          status: BudgetsStatus.invalid,
+          errorMessage: 'Enter an income amount, e.g. 5000',
+        ),
+      );
+      return;
+    }
+    await _income.updateSource(id, amountMinor: amountMinor, label: label);
+  }
+
+  Future<void> deleteIncome(String id) => _income.deleteSource(id);
 
   @override
   Future<void> close() async {

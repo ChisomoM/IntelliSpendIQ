@@ -304,12 +304,14 @@ class BackupService {
     'id': income.id,
     'period': income.period,
     'amountMinor': income.amountMinor,
+    'label': income.label,
   };
 
   MonthlyIncome _incomeFromJson(Map<String, Object?> json) => MonthlyIncome(
     id: json['id']! as String,
     period: json['period']! as String,
     amountMinor: json['amountMinor']! as int,
+    label: json['label'] as String?,
   );
 
   Map<String, Object?> _transactionToJson(Transaction tx) => {

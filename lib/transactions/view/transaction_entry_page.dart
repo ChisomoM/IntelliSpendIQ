@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -230,6 +233,8 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
                   maxLines: 3,
                   onChanged: cubit.descriptionChanged,
                 ),
+                const SizedBox(height: 16),
+                _ReceiptField(receiptPath: state.receiptPath),
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: state.isSaving ? null : cubit.submit,
@@ -246,6 +251,69 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// Attaches, previews, or removes a receipt photo. The picked file is
+/// copied into app-local storage by the cubit, so it survives the
+/// user deleting it from wherever it was picked.
+class _ReceiptField extends StatelessWidget {
+  const _ReceiptField({required this.receiptPath});
+
+  final String? receiptPath;
+
+  Future<void> _pick(BuildContext context) async {
+    final cubit = context.read<TransactionEntryCubit>();
+    final result = await FilePicker.pickFiles(type: FileType.image);
+    final path = result?.files.single.path;
+    if (path != null) await cubit.attachReceipt(path);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (receiptPath == null) {
+      return OutlinedButton.icon(
+        onPressed: () => _pick(context),
+        icon: const Icon(Icons.add_a_photo_outlined),
+        label: const Text('Attach a receipt'),
+      );
+    }
+
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(
+            File(receiptPath!),
+            width: 56,
+            height: 56,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => Container(
+              width: 56,
+              height: 56,
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: const Icon(Icons.broken_image_outlined),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text('Receipt attached', style: theme.textTheme.bodyMedium),
+        ),
+        TextButton(
+          onPressed: () => _pick(context),
+          child: const Text('Replace'),
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline),
+          tooltip: 'Remove receipt',
+          onPressed: () =>
+              context.read<TransactionEntryCubit>().removeReceipt(),
+        ),
+      ],
     );
   }
 }

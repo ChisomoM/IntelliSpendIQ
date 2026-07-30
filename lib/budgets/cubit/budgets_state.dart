@@ -9,7 +9,7 @@ class BudgetsState extends Equatable {
     this.budgets = const [],
     this.categories = const [],
     this.spentByCategory = const {},
-    this.income,
+    this.incomeSources = const [],
     this.totalSpent = 0,
     this.errorMessage,
   });
@@ -24,20 +24,32 @@ class BudgetsState extends Equatable {
   /// Confirmed debit spend per category for [period], in ngwee.
   final Map<String, int> spentByCategory;
 
-  /// Declared income for [period], or null if none has been set yet.
-  final MonthlyIncome? income;
+  /// Every declared income stream for [period] — a month can have more
+  /// than one, e.g. "Salary" and "Side hustle".
+  final List<MonthlyIncome> incomeSources;
 
   /// Confirmed debit spend across every category for [period], in
-  /// ngwee — tracked against [income] rather than a per-category limit.
+  /// ngwee — tracked against [totalIncomeMinor] rather than a
+  /// per-category limit.
   final int totalSpent;
   final String? errorMessage;
 
   bool get isEmpty => status == BudgetsStatus.loaded && budgets.isEmpty;
 
-  bool get hasIncome => income != null;
+  bool get hasIncome => incomeSources.isNotEmpty;
+
+  /// Every income stream summed, in ngwee.
+  int get totalIncomeMinor =>
+      incomeSources.fold(0, (sum, income) => sum + income.amountMinor);
 
   /// Income minus total spend, in ngwee. Zero when no income is set.
-  int get remainingMinor => (income?.amountMinor ?? 0) - totalSpent;
+  int get remainingMinor => totalIncomeMinor - totalSpent;
+
+  /// Every category budget limit summed, in ngwee — the "planned"
+  /// figure to compare against [totalSpent], independent of whether
+  /// every dollar spent actually falls inside a budgeted category.
+  int get totalPlannedMinor =>
+      budgets.fold(0, (sum, budget) => sum + budget.amountMinor);
 
   int spentFor(String categoryId) => spentByCategory[categoryId] ?? 0;
 
@@ -54,8 +66,7 @@ class BudgetsState extends Equatable {
     List<Budget>? budgets,
     List<Category>? categories,
     Map<String, int>? spentByCategory,
-    MonthlyIncome? income,
-    bool clearIncome = false,
+    List<MonthlyIncome>? incomeSources,
     int? totalSpent,
     String? errorMessage,
   }) {
@@ -65,7 +76,7 @@ class BudgetsState extends Equatable {
       budgets: budgets ?? this.budgets,
       categories: categories ?? this.categories,
       spentByCategory: spentByCategory ?? this.spentByCategory,
-      income: clearIncome ? null : (income ?? this.income),
+      incomeSources: incomeSources ?? this.incomeSources,
       totalSpent: totalSpent ?? this.totalSpent,
       errorMessage: errorMessage,
     );
@@ -78,7 +89,7 @@ class BudgetsState extends Equatable {
     budgets,
     categories,
     spentByCategory,
-    income,
+    incomeSources,
     totalSpent,
     errorMessage,
   ];

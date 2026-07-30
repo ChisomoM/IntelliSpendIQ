@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -39,6 +40,24 @@ class AccountsCubit extends Cubit<AccountsState> {
       return;
     }
     await _accounts.create(name: trimmed, type: type);
+  }
+
+  /// Sets an account's balance by hand — the same field SMS parsing
+  /// keeps updated automatically, informational only rather than the
+  /// source of truth for spend totals, but just as editable by a user
+  /// who wants it to reflect what they see in their own banking app.
+  Future<void> updateBalance(String id, String amount) async {
+    final amountMinor = Money.tryParseToMinor(amount);
+    if (amountMinor == null || amountMinor < 0) {
+      emit(
+        state.copyWith(
+          status: AccountsStatus.invalid,
+          errorMessage: 'Enter a balance like 250.00',
+        ),
+      );
+      return;
+    }
+    await _accounts.updateBalance(id, amountMinor);
   }
 
   /// Refuses to delete the last account so the app is never left with

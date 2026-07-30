@@ -10,6 +10,7 @@ import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
+import 'package:intellispendiq/senders/senders.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -62,15 +63,25 @@ class SettingsView extends StatelessWidget {
             onTap: () =>
                 Navigator.of(context).push<void>(CategoriesPage.route()),
           ),
+          ListTile(
+            leading: const Icon(Icons.sms_outlined),
+            title: const Text('Message senders'),
+            subtitle: const Text(
+              "Recognize another bank or wallet's SMS alerts",
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () =>
+                Navigator.of(context).push<void>(CustomSendersPage.route()),
+          ),
           const Divider(height: 32),
           const _SectionHeader('Data'),
           const _DataSection(),
           const Divider(height: 32),
           const _SectionHeader('Security'),
           const _AppLockSection(),
-          Divider(height: 32),
-          _SectionHeader('AI'),
-          _AnthropicApiKeySection(),
+          const Divider(height: 32),
+          const _SectionHeader('AI'),
+          const _AnthropicApiKeySection(),
         ],
       ),
     );
@@ -416,7 +427,10 @@ class _AnthropicApiKeySection extends StatelessWidget {
                     ? 'Configured — used for voice and assistant'
                     : 'Paste in secrets.json, or here',
               ),
-              onTap: () => _editKey(context, configured: state.anthropicApiKeyConfigured),
+              onTap: () => _editKey(
+                context,
+                configured: state.anthropicApiKeyConfigured,
+              ),
             ),
             if (state.anthropicApiKeyConfigured)
               ListTile(
@@ -499,9 +513,7 @@ class _AnthropicApiKeySection extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              value.trim().isEmpty
-                  ? 'API key removed'
-                  : 'API key saved',
+              value.trim().isEmpty ? 'API key removed' : 'API key saved',
             ),
           ),
         );

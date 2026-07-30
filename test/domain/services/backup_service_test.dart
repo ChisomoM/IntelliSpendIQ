@@ -136,7 +136,7 @@ void main() {
       expect(targetBudgets.single.amountMinor, 20000);
 
       final targetIncome = await target.income.getForPeriod('2026-07');
-      expect(targetIncome!.amountMinor, 500000);
+      expect(targetIncome.single.amountMinor, 500000);
 
       final targetTransactions = await target.transactions.getAllForExport();
       expect(targetTransactions, hasLength(2));

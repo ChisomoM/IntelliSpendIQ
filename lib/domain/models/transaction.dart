@@ -28,6 +28,7 @@ class Transaction extends Equatable {
     this.paymentMethod,
     this.externalRef,
     this.metadata = const {},
+    this.receiptPath,
   });
 
   final String id;
@@ -64,6 +65,9 @@ class Transaction extends Equatable {
   /// Decoded from the stored JSON blob, so callers never parse it.
   final Map<String, Object?> metadata;
 
+  /// Path to a receipt photo copied into app-local storage, if attached.
+  final String? receiptPath;
+
   @override
   List<Object?> get props => [
     id,
@@ -84,5 +88,6 @@ class Transaction extends Equatable {
     paymentMethod,
     externalRef,
     metadata,
+    receiptPath,
   ];
 }
