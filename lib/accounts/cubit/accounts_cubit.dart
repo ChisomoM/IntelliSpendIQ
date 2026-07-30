@@ -60,6 +60,8 @@ class AccountsCubit extends Cubit<AccountsState> {
     await _accounts.updateBalance(id, amountMinor);
   }
 
+  Future<void> setDefault(String id) => _accounts.setDefault(id);
+
   /// Refuses to delete the last account so the app is never left with
   /// nowhere to record a transaction against.
   Future<void> delete(String id) async {

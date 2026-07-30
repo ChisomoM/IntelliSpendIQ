@@ -4,7 +4,7 @@ import 'package:intellispendiq/chat/chat.dart';
 import 'package:intellispendiq/core/app_section.dart';
 import 'package:intellispendiq/dashboard/cubit/cubit.dart';
 import 'package:intellispendiq/dashboard/widgets/widgets.dart';
-import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/home/cubit/cubit.dart';
@@ -21,7 +21,7 @@ class DashboardPage extends StatelessWidget {
     return BlocProvider(
       create: (context) => DashboardCubit(
         transactions: context.read<TransactionRepository>(),
-        income: context.read<IncomeRepository>(),
+        categories: context.read<CategoryRepository>(),
         rawCaptures: context.read<RawCaptureRepository>(),
       )..loadUnawaited(),
       child: const DashboardView(),

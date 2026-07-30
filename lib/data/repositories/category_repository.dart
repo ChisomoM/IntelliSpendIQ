@@ -3,6 +3,7 @@ import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/enums.dart';
 
 class CategoryRepository {
   CategoryRepository(this._db, {required this.userId});
@@ -18,20 +19,24 @@ class CategoryRepository {
     parentId: row.parentId,
     isSystem: row.isSystem,
     sortOrder: row.sortOrder,
+    type: CategoryType.fromDbName(row.categoryType),
+    budgetedAmountMinor: row.budgetedAmountMinor,
   );
 
   /// Default system categories seeded on first launch (plan §6.2).
+  /// "Income" is the only seed on the income side — everything else
+  /// is an expense category.
   static const seedNames = [
-    ('Food', '🍲'),
-    ('Transport', '🚌'),
-    ('Airtime/Data', '📱'),
-    ('Transfers', '🔁'),
-    ('Shopping', '🛍️'),
-    ('Bills', '🧾'),
-    ('Income', '💰'),
-    ('Fees/Charges', '🏦'),
-    ('Uncategorized', '❓'),
-    ('Other', '📦'),
+    ('Food', '🍲', CategoryType.expense),
+    ('Transport', '🚌', CategoryType.expense),
+    ('Airtime/Data', '📱', CategoryType.expense),
+    ('Transfers', '🔁', CategoryType.expense),
+    ('Shopping', '🛍️', CategoryType.expense),
+    ('Bills', '🧾', CategoryType.expense),
+    ('Income', '💰', CategoryType.income),
+    ('Fees/Charges', '🏦', CategoryType.expense),
+    ('Uncategorized', '❓', CategoryType.expense),
+    ('Other', '📦', CategoryType.expense),
   ];
 
   Future<void> ensureSeeds() async {
@@ -53,6 +58,7 @@ class CategoryRepository {
             icon: Value(seed.$2),
             isSystem: const Value(true),
             sortOrder: Value(index),
+            categoryType: Value(seed.$3.dbName),
           ),
         );
       }
@@ -90,6 +96,8 @@ class CategoryRepository {
     String name, {
     String? icon,
     String? parentId,
+    CategoryType type = CategoryType.expense,
+    int? budgetedAmountMinor,
   }) async {
     final now = Iso.nowUtc();
     final id = Ids.newId();
@@ -105,6 +113,8 @@ class CategoryRepository {
             icon: Value(icon),
             parentId: Value(parentId),
             sortOrder: const Value(1000),
+            categoryType: Value(type.dbName),
+            budgetedAmountMinor: Value(budgetedAmountMinor),
           ),
         );
     final row = await (_db.select(
@@ -113,10 +123,11 @@ class CategoryRepository {
     return _fromRow(row);
   }
 
-  /// Renames a category, changes its icon, or moves it under a parent
-  /// (or out from under one). Allowed for system categories too — only
-  /// deletion is restricted for those. Pass [clearIcon]/[clearParent]
-  /// to remove that field rather than leaving it untouched.
+  /// Renames a category, changes its icon, moves it under a parent (or
+  /// out from under one), or sets its standing budget. Allowed for
+  /// system categories too — only deletion is restricted for those.
+  /// Pass [clearIcon]/[clearParent]/[clearBudget] to remove that field
+  /// rather than leaving it untouched.
   Future<void> update(
     String id, {
     String? name,
@@ -124,6 +135,9 @@ class CategoryRepository {
     bool clearIcon = false,
     String? parentId,
     bool clearParent = false,
+    CategoryType? type,
+    int? budgetedAmountMinor,
+    bool clearBudget = false,
   }) async {
     await (_db.update(_db.categories)..where((c) => c.id.equals(id))).write(
       CategoriesCompanion(
@@ -134,9 +148,58 @@ class CategoryRepository {
         parentId: clearParent
             ? const Value(null)
             : (parentId == null ? const Value.absent() : Value(parentId)),
+        categoryType: type == null ? const Value.absent() : Value(type.dbName),
+        budgetedAmountMinor: clearBudget
+            ? const Value(null)
+            : (budgetedAmountMinor == null
+                  ? const Value.absent()
+                  : Value(budgetedAmountMinor)),
         updatedAt: Value(Iso.nowUtc()),
       ),
     );
+  }
+
+  /// Moves budgeted amount from one category to another — both must
+  /// exist and [fromCategoryId] must have at least [amountMinor]
+  /// budgeted. Returns false without writing anything otherwise.
+  Future<bool> transferBudget({
+    required String fromCategoryId,
+    required String toCategoryId,
+    required int amountMinor,
+  }) async {
+    if (amountMinor <= 0) return false;
+    final from = await (_db.select(
+      _db.categories,
+    )..where((c) => c.id.equals(fromCategoryId))).getSingleOrNull();
+    final to = await (_db.select(
+      _db.categories,
+    )..where((c) => c.id.equals(toCategoryId))).getSingleOrNull();
+    if (from == null || to == null) return false;
+    final fromBudget = from.budgetedAmountMinor ?? 0;
+    if (fromBudget < amountMinor) return false;
+
+    final now = Iso.nowUtc();
+    await _db.transaction(() async {
+      await (_db.update(
+        _db.categories,
+      )..where((c) => c.id.equals(fromCategoryId))).write(
+        CategoriesCompanion(
+          budgetedAmountMinor: Value(fromBudget - amountMinor),
+          updatedAt: Value(now),
+        ),
+      );
+      await (_db.update(
+        _db.categories,
+      )..where((c) => c.id.equals(toCategoryId))).write(
+        CategoriesCompanion(
+          budgetedAmountMinor: Value(
+            (to.budgetedAmountMinor ?? 0) + amountMinor,
+          ),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+    return true;
   }
 
   /// Removes a user-created category. Refuses system categories (the
@@ -188,6 +251,8 @@ class CategoryRepository {
             parentId: Value(category.parentId),
             isSystem: Value(category.isSystem),
             sortOrder: Value(category.sortOrder),
+            categoryType: Value(category.type.dbName),
+            budgetedAmountMinor: Value(category.budgetedAmountMinor),
           ),
         );
     return true;

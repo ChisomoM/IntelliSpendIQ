@@ -22,6 +22,7 @@ class TransactionDraft extends Equatable {
     this.feeMinor,
     this.metadata = const {},
     this.receiptPath,
+    this.payeeId,
   });
 
   /// Absolute amount in minor units (ngwee). Always positive.
@@ -52,6 +53,10 @@ class TransactionDraft extends Equatable {
   /// Path to a receipt photo copied into app-local storage, if attached.
   final String? receiptPath;
 
+  /// Structured payee, when one was picked rather than left as free
+  /// text in [merchant]/[description].
+  final String? payeeId;
+
   TransactionDraft copyWith({
     int? amountMinor,
     TxDirection? direction,
@@ -79,6 +84,7 @@ class TransactionDraft extends Equatable {
       feeMinor: feeMinor,
       metadata: metadata,
       receiptPath: receiptPath,
+      payeeId: payeeId,
     );
   }
 
@@ -100,5 +106,6 @@ class TransactionDraft extends Equatable {
     feeMinor,
     metadata,
     receiptPath,
+    payeeId,
   ];
 }

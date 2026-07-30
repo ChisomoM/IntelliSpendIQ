@@ -18,9 +18,9 @@ BackupService _testBackupService(AppServices services) => BackupService(
   transactions: services.transactions,
   accounts: services.accounts,
   categories: services.categories,
-  budgets: services.budgets,
   overallBudgets: services.overallBudgets,
-  incomes: services.income,
+  payees: services.payees,
+  labels: services.labels,
   tempDirectory: () async => Directory.systemTemp,
 );
 
@@ -78,16 +78,16 @@ void main() {
       await addSpend(merchant: 'Shoprite');
       final pets = await source.categories.create('Pets', icon: '🐕');
       await addSpend(merchant: 'Vet', categoryId: pets.id);
-      await source.budgets.upsert(
-        categoryId: pets.id,
-        period: '2026-07',
-        amountMinor: 20000,
-      );
+      await source.categories.update(pets.id, budgetedAmountMinor: 20000);
       await source.overallBudgets.upsert(
         period: '2026-07',
         amountMinor: 800000,
       );
-      await source.income.upsert(period: '2026-07', amountMinor: 500000);
+      final salary = await source.categories.create(
+        'Salary',
+        type: CategoryType.income,
+        budgetedAmountMinor: 500000,
+      );
       final cash = await source.accounts.create(
         name: 'Cash',
         type: AccountType.cash,
@@ -97,7 +97,7 @@ void main() {
       addTearDown(file.delete);
       final document =
           jsonDecode(await file.readAsString()) as Map<String, Object?>;
-      expect(document['version'], 1);
+      expect(document['version'], 2);
 
       // A brand-new install: its own seeded categories and default
       // account already exist before the backup is ever touched.
@@ -107,9 +107,7 @@ void main() {
       final summary = await _testBackupService(target).importBackupJson(file);
 
       expect(summary.transactionsImported, 2);
-      expect(summary.budgetsImported, 1);
       expect(summary.overallBudgetsImported, 1);
-      expect(summary.incomesImported, 1);
       expect(
         summary.accountsImported,
         1,
@@ -117,8 +115,10 @@ void main() {
       );
       expect(
         summary.categoriesImported,
-        1,
-        reason: 'the ten seeds already exist on the target; only Pets is new',
+        2,
+        reason:
+            'the ten seeds already exist on the target; only Pets and '
+            'the Salary income category are new',
       );
 
       final targetCategories = await target.categories.getAll();
@@ -138,14 +138,18 @@ void main() {
       expect(targetAccounts.map((a) => a.name), contains('Cash'));
       expect(targetAccounts.map((a) => a.id), contains(cash.id));
 
-      final targetBudgets = await target.budgets.getForPeriod('2026-07');
-      expect(targetBudgets.single.amountMinor, 20000);
+      final targetPets = (await target.categories.getAll()).firstWhere(
+        (c) => c.id == pets.id,
+      );
+      expect(targetPets.budgetedAmountMinor, 20000);
 
       final targetOverall = await target.overallBudgets.getForPeriod('2026-07');
       expect(targetOverall!.amountMinor, 800000);
 
-      final targetIncome = await target.income.getForPeriod('2026-07');
-      expect(targetIncome.single.amountMinor, 500000);
+      final targetSalary = (await target.categories.getAll()).firstWhere(
+        (c) => c.id == salary.id,
+      );
+      expect(targetSalary.budgetedAmountMinor, 500000);
 
       final targetTransactions = await target.transactions.getAllForExport();
       expect(targetTransactions, hasLength(2));

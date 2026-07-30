@@ -15,17 +15,16 @@ void main() {
     services = await createTestServices();
     addTearDown(services.dispose);
     return BudgetsCubit(
-      budgets: services.budgets,
-      overallBudgets: services.overallBudgets,
       categories: services.categories,
+      overallBudgets: services.overallBudgets,
       transactions: services.transactions,
-      income: services.income,
       period: period,
     );
   }
 
-  Future<void> addConfirmedSpend(int amountMinor) async {
-    final foodCategoryId = (await services.categories.byName('Food'))!.id;
+  Future<void> addConfirmedSpend(int amountMinor, {String? categoryId}) async {
+    final foodCategoryId =
+        categoryId ?? (await services.categories.byName('Food'))!.id;
     final accountId = (await services.accounts.getDefault()).id;
     await services.transactions.insertDraft(
       TransactionDraft(
@@ -54,14 +53,18 @@ void main() {
     });
 
     test(
-      'addIncome() surfaces the declared income and remaining amount',
+      'a budgeted income category surfaces the declared income and remaining amount',
       () async {
         final cubit = await cubitWith();
         addTearDown(cubit.close);
         await cubit.load();
         await addConfirmedSpend(30000);
 
-        await cubit.addIncome('500');
+        await services.categories.create(
+          'Salary',
+          type: CategoryType.income,
+          budgetedAmountMinor: 50000,
+        );
         await Future<void>.delayed(Duration.zero);
 
         expect(cubit.state.hasIncome, isTrue);
@@ -71,52 +74,44 @@ void main() {
       },
     );
 
-    test('addIncome() rejects a non-positive amount', () async {
-      final cubit = await cubitWith();
-      addTearDown(cubit.close);
-      await cubit.load();
-
-      await cubit.addIncome('0');
-
-      expect(cubit.state.status, BudgetsStatus.invalid);
-      expect(cubit.state.hasIncome, isFalse);
-    });
-
     test(
-      'multiple income streams sum into totalIncomeMinor',
+      'multiple income categories sum into totalIncomeMinor',
       () async {
         final cubit = await cubitWith();
         addTearDown(cubit.close);
         await cubit.load();
 
-        await cubit.addIncome('500', label: 'Salary');
+        await services.categories.create(
+          'Salary',
+          type: CategoryType.income,
+          budgetedAmountMinor: 50000,
+        );
         await Future<void>.delayed(Duration.zero);
-        await cubit.addIncome('150', label: 'Side hustle');
+        await services.categories.create(
+          'Side hustle',
+          type: CategoryType.income,
+          budgetedAmountMinor: 15000,
+        );
         await Future<void>.delayed(Duration.zero);
 
-        expect(cubit.state.incomeSources, hasLength(2));
+        expect(cubit.state.budgetedIncomeCategories, hasLength(2));
         expect(cubit.state.totalIncomeMinor, 65000);
       },
     );
 
-    test('deleteIncome() removes a single stream', () async {
-      final cubit = await cubitWith();
-      addTearDown(cubit.close);
-      await cubit.load();
-      await cubit.addIncome('500', label: 'Salary');
-      await Future<void>.delayed(Duration.zero);
-      await cubit.addIncome('150', label: 'Side hustle');
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'an income category without a budget does not count as income',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        await cubit.load();
 
-      final toDelete = cubit.state.incomeSources.firstWhere(
-        (i) => i.label == 'Side hustle',
-      );
-      await cubit.deleteIncome(toDelete.id);
-      await Future<void>.delayed(Duration.zero);
+        // The seeded "Income" category has no budget by default.
+        await Future<void>.delayed(Duration.zero);
 
-      expect(cubit.state.incomeSources, hasLength(1));
-      expect(cubit.state.incomeSources.single.label, 'Salary');
-    });
+        expect(cubit.state.hasIncome, isFalse);
+      },
+    );
 
     test(
       'spending after income is set updates total spend on reload',
@@ -124,13 +119,14 @@ void main() {
         final cubit = await cubitWith();
         addTearDown(cubit.close);
         await cubit.load();
-        await cubit.addIncome('500');
+        await services.categories.create(
+          'Salary',
+          type: CategoryType.income,
+          budgetedAmountMinor: 50000,
+        );
         await Future<void>.delayed(Duration.zero);
 
         await addConfirmedSpend(10000);
-        // Budget/income streams only re-emit when a budget or income row
-        // changes, so a fresh load() picks up the new spend total, same
-        // as the existing per-category numbers.
         await cubit.load();
         await Future<void>.delayed(Duration.zero);
 
@@ -141,27 +137,33 @@ void main() {
   });
 
   group('BudgetsCubit overall vs category budgets', () {
-    test('totalPlannedMinor comes from overall budget, not categories', () async {
-      final cubit = await cubitWith();
-      addTearDown(cubit.close);
-      await cubit.load();
+    test(
+      'totalPlannedMinor comes from overall budget, not categories',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        await cubit.load();
 
-      final foodId = (await services.categories.byName('Food'))!.id;
-      final transportId = (await services.categories.byName('Transport'))!.id;
-      await cubit.upsert(categoryId: foodId, amount: '1000');
-      await cubit.upsert(categoryId: transportId, amount: '300');
-      await Future<void>.delayed(Duration.zero);
+        final foodId = (await services.categories.byName('Food'))!.id;
+        final transportId = (await services.categories.byName('Transport'))!.id;
+        await services.categories.update(foodId, budgetedAmountMinor: 100000);
+        await services.categories.update(
+          transportId,
+          budgetedAmountMinor: 30000,
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      expect(cubit.state.totalPlannedMinor, 0);
-      expect(cubit.state.totalAllocatedMinor, 130000);
+        expect(cubit.state.totalPlannedMinor, 0);
+        expect(cubit.state.totalAllocatedMinor, 130000);
 
-      await cubit.setOverallBudget('5000');
-      await Future<void>.delayed(Duration.zero);
+        await cubit.setOverallBudget('5000');
+        await Future<void>.delayed(Duration.zero);
 
-      expect(cubit.state.hasOverallBudget, isTrue);
-      expect(cubit.state.totalPlannedMinor, 500000);
-      expect(cubit.state.totalAllocatedMinor, 130000);
-    });
+        expect(cubit.state.hasOverallBudget, isTrue);
+        expect(cubit.state.totalPlannedMinor, 500000);
+        expect(cubit.state.totalAllocatedMinor, 130000);
+      },
+    );
 
     test('deleteOverallBudget clears the planned total', () async {
       final cubit = await cubitWith();
@@ -186,6 +188,56 @@ void main() {
 
       expect(cubit.state.status, BudgetsStatus.invalid);
       expect(cubit.state.hasOverallBudget, isFalse);
+    });
+  });
+
+  group('BudgetsCubit transferBudget', () {
+    test('moves budget between two expense categories', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      final foodId = (await services.categories.byName('Food'))!.id;
+      final transportId = (await services.categories.byName('Transport'))!.id;
+      await services.categories.update(foodId, budgetedAmountMinor: 100000);
+      await services.categories.update(
+        transportId,
+        budgetedAmountMinor: 20000,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.transferBudget(
+        fromCategoryId: foodId,
+        toCategoryId: transportId,
+        amount: '300',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final food = cubit.state.categories.firstWhere((c) => c.id == foodId);
+      final transport = cubit.state.categories.firstWhere(
+        (c) => c.id == transportId,
+      );
+      expect(food.budgetedAmountMinor, 70000);
+      expect(transport.budgetedAmountMinor, 50000);
+    });
+
+    test('refuses to transfer more than is budgeted', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      final foodId = (await services.categories.byName('Food'))!.id;
+      final transportId = (await services.categories.byName('Transport'))!.id;
+      await services.categories.update(foodId, budgetedAmountMinor: 10000);
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.transferBudget(
+        fromCategoryId: foodId,
+        toCategoryId: transportId,
+        amount: '300',
+      );
+
+      expect(cubit.state.status, BudgetsStatus.invalid);
     });
   });
 }

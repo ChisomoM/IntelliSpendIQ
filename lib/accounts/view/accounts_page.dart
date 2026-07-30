@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/accounts/cubit/cubit.dart';
 import 'package:intellispendiq/accounts/widgets/widgets.dart';
+import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 
 class AccountsPage extends StatelessWidget {
@@ -45,11 +46,72 @@ class AccountsView extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return ListView.separated(
-            itemCount: state.accounts.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) =>
-                AccountTile(account: state.accounts[index]),
+          final theme = Theme.of(context);
+          final byType = state.byType;
+
+          return ListView(
+            children: [
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.primaryContainer,
+                    ],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total balance',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      Money.format(state.totalBalanceMinor),
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              for (final entry in byType.entries) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          accountTypeLabel(entry.key),
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      ),
+                      Text(
+                        Money.format(
+                          entry.value.fold(
+                            0,
+                            (sum, a) => sum + (a.balanceMinor ?? 0),
+                          ),
+                        ),
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ],
+                  ),
+                ),
+                for (final account in entry.value)
+                  AccountTile(account: account),
+                const Divider(height: 1),
+              ],
+              const SizedBox(height: 80),
+            ],
           );
         },
       ),

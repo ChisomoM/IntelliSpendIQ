@@ -102,6 +102,7 @@ class TransactionRepository {
         ? const {}
         : jsonDecode(row.metadataJson!) as Map<String, Object?>,
     receiptPath: row.receiptPath,
+    payeeId: row.payeeId,
   );
 
   Future<Transaction?> byId(String id) async {
@@ -182,6 +183,7 @@ class TransactionRepository {
               draft.metadata.isEmpty ? null : jsonEncode(draft.metadata),
             ),
             receiptPath: Value(draft.receiptPath),
+            payeeId: Value(draft.payeeId),
           ),
         );
     final row = await (_db.select(
@@ -249,6 +251,7 @@ class TransactionRepository {
                 tx.metadata.isEmpty ? null : jsonEncode(tx.metadata),
               ),
               receiptPath: Value(tx.receiptPath),
+              payeeId: Value(tx.payeeId),
             ),
           );
       return true;
@@ -340,6 +343,8 @@ class TransactionRepository {
     DateTime? transactedAt,
     TxStatus? status,
     String? duplicateOfId,
+    String? payeeId,
+    bool clearPayee = false,
   }) async {
     await (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
@@ -360,6 +365,9 @@ class TransactionRepository {
         duplicateOfId: duplicateOfId == null
             ? const Value.absent()
             : Value(duplicateOfId),
+        payeeId: clearPayee
+            ? const Value(null)
+            : (payeeId == null ? const Value.absent() : Value(payeeId)),
         updatedAt: Value(Iso.nowUtc()),
       ),
     );
@@ -433,6 +441,28 @@ class TransactionRepository {
             t.deletedAt.isNull() &
             t.categoryId.equals(categoryId) &
             t.direction.equals(TxDirection.debit.name) &
+            t.status.equals(TxStatus.confirmed.dbName) &
+            t.transactedAt.isBiggerOrEqualValue(from) &
+            t.transactedAt.isSmallerThanValue(to),
+      );
+    final row = await query.getSingle();
+    return row.read(total) ?? 0;
+  }
+
+  /// Confirmed credit total for one income category in a month — the
+  /// credit-side mirror of [spentForCategory], for tracking actual
+  /// income received against an income category's planned figure.
+  Future<int> receivedForCategory(String categoryId, String period) async {
+    final (from, to) = Iso.monthBoundsUtc(period);
+    final t = _db.transactions;
+    final total = t.amountMinor.sum();
+    final query = _db.selectOnly(t)
+      ..addColumns([total])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.categoryId.equals(categoryId) &
+            t.direction.equals(TxDirection.credit.name) &
             t.status.equals(TxStatus.confirmed.dbName) &
             t.transactedAt.isBiggerOrEqualValue(from) &
             t.transactedAt.isSmallerThanValue(to),
@@ -596,5 +626,69 @@ class TransactionRepository {
       for (final row in rows)
         row.read(t.source) ?? 'unknown': row.read(count) ?? 0,
     };
+  }
+
+  /// Label ids attached to one transaction.
+  Future<List<String>> labelIdsFor(String transactionId) async {
+    final query = _db.select(_db.transactionLabels)
+      ..where((tl) => tl.transactionId.equals(transactionId));
+    return (await query.get()).map((row) => row.labelId).toList();
+  }
+
+  /// Watches label ids attached to one transaction.
+  Stream<List<String>> watchLabelIdsFor(String transactionId) {
+    final query = _db.select(_db.transactionLabels)
+      ..where((tl) => tl.transactionId.equals(transactionId));
+    return query.watch().map(
+      (rows) => rows.map((row) => row.labelId).toList(),
+    );
+  }
+
+  /// Replaces every label attached to [transactionId] with [labelIds].
+  Future<void> setLabels(String transactionId, List<String> labelIds) async {
+    await _db.transaction(() async {
+      await (_db.delete(
+        _db.transactionLabels,
+      )..where((tl) => tl.transactionId.equals(transactionId))).go();
+      for (final labelId in labelIds) {
+        await _db
+            .into(_db.transactionLabels)
+            .insert(
+              TransactionLabelsCompanion.insert(
+                transactionId: transactionId,
+                labelId: labelId,
+              ),
+            );
+      }
+    });
+  }
+
+  /// Every transaction-label link, unbounded — for backups.
+  Future<List<(String, String)>> getAllLabelLinksForExport() async {
+    final rows = await _db.select(_db.transactionLabels).get();
+    return rows.map((row) => (row.transactionId, row.labelId)).toList();
+  }
+
+  /// Re-links a transaction to a label from a backup. Returns false
+  /// without writing if the link already exists.
+  Future<bool> restoreLabelLink(String transactionId, String labelId) async {
+    final existing =
+        await (_db.select(_db.transactionLabels)..where(
+              (tl) =>
+                  tl.transactionId.equals(transactionId) &
+                  tl.labelId.equals(labelId),
+            ))
+            .getSingleOrNull();
+    if (existing != null) return false;
+
+    await _db
+        .into(_db.transactionLabels)
+        .insert(
+          TransactionLabelsCompanion.insert(
+            transactionId: transactionId,
+            labelId: labelId,
+          ),
+        );
+    return true;
   }
 }

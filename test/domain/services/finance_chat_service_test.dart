@@ -221,7 +221,6 @@ void main() {
                   input: const {
                     'category_name': 'Not A Real Category',
                     'amount': 500.0,
-                    'period': null,
                   },
                 ),
               ],
@@ -270,11 +269,7 @@ void main() {
               _toolUseBlock(
                 id: 'toolu_budget',
                 name: 'propose_set_budget',
-                input: const {
-                  'category_name': 'Food',
-                  'amount': 500.0,
-                  'period': '2026-07',
-                },
+                input: const {'category_name': 'Food', 'amount': 500.0},
               ),
             ],
             stopReason: 'tool_use',
@@ -293,7 +288,6 @@ void main() {
         userText: 'Set a 500 kwacha food budget for July',
       );
       final action = proposed.pending.single as ProposedBudget;
-      expect(action.period, '2026-07');
       expect(action.amountMinor, 50000);
 
       final confirmed = await services.financeChat.confirm(
@@ -302,9 +296,10 @@ void main() {
       );
       expect(confirmed.assistantText, 'Budget set.');
 
-      final budgets = await services.budgets.getForPeriod('2026-07');
-      expect(budgets, hasLength(1));
-      expect(budgets.single.amountMinor, 50000);
+      final food = (await services.categories.getAll()).firstWhere(
+        (c) => c.id == action.categoryId,
+      );
+      expect(food.budgetedAmountMinor, 50000);
     });
   });
 }

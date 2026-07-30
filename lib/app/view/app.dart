@@ -6,11 +6,11 @@ import 'package:intellispendiq/app/theme/theme.dart';
 import 'package:intellispendiq/auth/auth.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
-import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
-import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
+import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -45,11 +45,11 @@ class App extends StatelessWidget {
         RepositoryProvider<RawCaptureRepository>.value(
           value: services.rawCaptures,
         ),
-        RepositoryProvider<BudgetRepository>.value(value: services.budgets),
         RepositoryProvider<OverallBudgetRepository>.value(
           value: services.overallBudgets,
         ),
-        RepositoryProvider<IncomeRepository>.value(value: services.income),
+        RepositoryProvider<PayeeRepository>.value(value: services.payees),
+        RepositoryProvider<LabelRepository>.value(value: services.labels),
         RepositoryProvider<CustomSenderRepository>.value(
           value: services.customSenders,
         ),

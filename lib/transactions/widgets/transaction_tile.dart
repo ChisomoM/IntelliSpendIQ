@@ -67,9 +67,11 @@ class TransactionTile extends StatelessWidget {
           ),
           if (transaction.status != TxStatus.confirmed)
             Text(
-              transaction.status == TxStatus.duplicateSuspect
-                  ? 'possible duplicate'
-                  : 'needs review',
+              switch (transaction.status) {
+                TxStatus.duplicateSuspect => 'possible duplicate',
+                TxStatus.planned => 'planned',
+                TxStatus.needsReview || TxStatus.confirmed => 'needs review',
+              },
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.error,
               ),

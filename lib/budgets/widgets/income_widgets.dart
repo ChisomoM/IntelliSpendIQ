@@ -1,27 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intellispendiq/budgets/cubit/cubit.dart';
+import 'package:intellispendiq/categories/widgets/widgets.dart';
 import 'package:intellispendiq/core/money.dart';
-import 'package:intellispendiq/domain/models/monthly_income.dart';
+import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/enums.dart';
 
-/// Every declared income stream for the month, summed against total
-/// confirmed spend so far, with each stream editable individually.
+/// Every income category with a planned amount, listed flat next to
+/// total confirmed spend so far — income categories don't track
+/// spent-vs-planned the way expense envelopes do, they're just a
+/// named figure, same as the reference this was modeled on.
 class IncomeSummaryCard extends StatelessWidget {
   const IncomeSummaryCard({
-    required this.incomeSources,
+    required this.incomeCategories,
     required this.totalSpent,
     super.key,
   });
 
-  final List<MonthlyIncome> incomeSources;
+  final List<Category> incomeCategories;
   final int totalSpent;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    if (incomeSources.isEmpty) {
+    if (incomeCategories.isEmpty) {
       return Card(
         child: ListTile(
           leading: const Icon(Icons.payments_outlined),
@@ -30,14 +31,16 @@ class IncomeSummaryCard extends StatelessWidget {
             'Track total spend against what you actually earn.',
           ),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => IncomeEditorSheet.show(context),
+          onTap: () => Navigator.of(context).push<String?>(
+            CategoryEditorPage.route(initialType: CategoryType.income),
+          ),
         ),
       );
     }
 
-    final total = incomeSources.fold(
+    final total = incomeCategories.fold(
       0,
-      (sum, income) => sum + income.amountMinor,
+      (sum, category) => sum + category.budgetedAmountMinor!,
     );
     final ratio = total == 0 ? 0.0 : totalSpent / total;
     final over = totalSpent > total;
@@ -55,8 +58,10 @@ class IncomeSummaryCard extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.add, size: 20),
-                  tooltip: 'Add income stream',
-                  onPressed: () => IncomeEditorSheet.show(context),
+                  tooltip: 'Add income category',
+                  onPressed: () => Navigator.of(context).push<String?>(
+                    CategoryEditorPage.route(initialType: CategoryType.income),
+                  ),
                 ),
               ],
             ),
@@ -74,12 +79,13 @@ class IncomeSummaryCard extends StatelessWidget {
               ),
             ),
             const Divider(height: 24),
-            for (final income in incomeSources)
+            for (final category in incomeCategories)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: InkWell(
-                  onTap: () =>
-                      IncomeEditorSheet.show(context, existing: income),
+                  onTap: () => Navigator.of(context).push<String?>(
+                    CategoryEditorPage.route(existing: category),
+                  ),
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -87,12 +93,12 @@ class IncomeSummaryCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            income.displayLabel,
+                            category.displayName,
                             style: theme.textTheme.bodyMedium,
                           ),
                         ),
                         Text(
-                          Money.format(income.amountMinor),
+                          Money.format(category.budgetedAmountMinor!),
                           style: theme.textTheme.bodyMedium,
                         ),
                         const SizedBox(width: 4),
@@ -108,135 +114,6 @@ class IncomeSummaryCard extends StatelessWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Adds a new income stream, or edits/deletes an existing one, for the
-/// month the enclosing [BudgetsCubit] is showing.
-class IncomeEditorSheet extends StatefulWidget {
-  const IncomeEditorSheet({this.existing, super.key});
-
-  final MonthlyIncome? existing;
-
-  static Future<void> show(BuildContext context, {MonthlyIncome? existing}) {
-    final cubit = context.read<BudgetsCubit>();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => BlocProvider.value(
-        value: cubit,
-        child: IncomeEditorSheet(existing: existing),
-      ),
-    );
-  }
-
-  @override
-  State<IncomeEditorSheet> createState() => _IncomeEditorSheetState();
-}
-
-class _IncomeEditorSheetState extends State<IncomeEditorSheet> {
-  late final TextEditingController _labelController = TextEditingController(
-    text: widget.existing?.label ?? '',
-  );
-  late final TextEditingController _amountController = TextEditingController(
-    text: widget.existing == null
-        ? ''
-        : (widget.existing!.amountMinor / 100).toStringAsFixed(2),
-  );
-  String? _error;
-
-  @override
-  void dispose() {
-    _labelController.dispose();
-    _amountController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final navigator = Navigator.of(context);
-    final cubit = context.read<BudgetsCubit>();
-    final label = _labelController.text.trim().isEmpty
-        ? null
-        : _labelController.text.trim();
-    final existing = widget.existing;
-    if (existing == null) {
-      await cubit.addIncome(_amountController.text, label: label);
-    } else {
-      await cubit.updateIncome(
-        existing.id,
-        _amountController.text,
-        label: label,
-      );
-    }
-    if (!mounted) return;
-    final state = context.read<BudgetsCubit>().state;
-    if (state.status == BudgetsStatus.invalid) {
-      setState(() => _error = state.errorMessage);
-      return;
-    }
-    navigator.pop();
-  }
-
-  Future<void> _delete() async {
-    final navigator = Navigator.of(context);
-    await context.read<BudgetsCubit>().deleteIncome(widget.existing!.id);
-    navigator.pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isEditing = widget.existing != null;
-
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            isEditing ? 'Edit income stream' : 'Add income stream',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _labelController,
-            decoration: const InputDecoration(
-              labelText: 'Source (optional)',
-              hintText: 'e.g. Salary, Side hustle',
-            ),
-            textCapitalization: TextCapitalization.words,
-            autofocus: true,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _amountController,
-            decoration: InputDecoration(
-              labelText: 'Amount',
-              prefixText: 'ZMW ',
-              errorText: _error,
-            ),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              if (isEditing)
-                TextButton(onPressed: _delete, child: const Text('Delete')),
-              const Spacer(),
-              FilledButton(onPressed: _save, child: const Text('Save')),
-            ],
-          ),
-        ],
       ),
     );
   }

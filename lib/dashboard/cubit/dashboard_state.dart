@@ -6,7 +6,7 @@ class DashboardState extends Equatable {
   const DashboardState({
     required this.period,
     this.status = DashboardStatus.initial,
-    this.incomeSources = const [],
+    this.incomeCategories = const [],
     this.totalSpent = 0,
     this.topCategories = const [],
     this.recentTransactions = const [],
@@ -18,8 +18,8 @@ class DashboardState extends Equatable {
   final String period;
   final DashboardStatus status;
 
-  /// Every declared income stream for [period].
-  final List<MonthlyIncome> incomeSources;
+  /// Top-level income categories with a planned amount, for [period].
+  final List<Category> incomeCategories;
 
   /// Confirmed debit spend across every category for [period], in
   /// ngwee.
@@ -38,11 +38,13 @@ class DashboardState extends Equatable {
   /// Messages stored raw because no parser understood them.
   final int failedCaptureCount;
 
-  bool get hasIncome => incomeSources.isNotEmpty;
+  bool get hasIncome => incomeCategories.isNotEmpty;
 
-  /// Every income stream summed, in ngwee.
-  int get totalIncomeMinor =>
-      incomeSources.fold(0, (sum, income) => sum + income.amountMinor);
+  /// Every income category's planned amount summed, in ngwee.
+  int get totalIncomeMinor => incomeCategories.fold(
+    0,
+    (sum, category) => sum + category.budgetedAmountMinor!,
+  );
 
   /// Income minus total spend, in ngwee. Zero when no income is set.
   int get remainingMinor => totalIncomeMinor - totalSpent;
@@ -53,7 +55,7 @@ class DashboardState extends Equatable {
   DashboardState copyWith({
     String? period,
     DashboardStatus? status,
-    List<MonthlyIncome>? incomeSources,
+    List<Category>? incomeCategories,
     int? totalSpent,
     List<CategorySpend>? topCategories,
     List<Transaction>? recentTransactions,
@@ -63,7 +65,7 @@ class DashboardState extends Equatable {
     return DashboardState(
       period: period ?? this.period,
       status: status ?? this.status,
-      incomeSources: incomeSources ?? this.incomeSources,
+      incomeCategories: incomeCategories ?? this.incomeCategories,
       totalSpent: totalSpent ?? this.totalSpent,
       topCategories: topCategories ?? this.topCategories,
       recentTransactions: recentTransactions ?? this.recentTransactions,
@@ -76,7 +78,7 @@ class DashboardState extends Equatable {
   List<Object?> get props => [
     period,
     status,
-    incomeSources,
+    incomeCategories,
     totalSpent,
     topCategories,
     recentTransactions,

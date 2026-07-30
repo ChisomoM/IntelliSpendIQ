@@ -29,6 +29,7 @@ class Transaction extends Equatable {
     this.externalRef,
     this.metadata = const {},
     this.receiptPath,
+    this.payeeId,
   });
 
   final String id;
@@ -68,6 +69,10 @@ class Transaction extends Equatable {
   /// Path to a receipt photo copied into app-local storage, if attached.
   final String? receiptPath;
 
+  /// Structured payee, when one was picked rather than left as free
+  /// text in [merchant]/[description].
+  final String? payeeId;
+
   @override
   List<Object?> get props => [
     id,
@@ -89,5 +94,6 @@ class Transaction extends Equatable {
     externalRef,
     metadata,
     receiptPath,
+    payeeId,
   ];
 }

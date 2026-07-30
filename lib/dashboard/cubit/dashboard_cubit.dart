@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/time.dart';
-import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
-import 'package:intellispendiq/domain/models/monthly_income.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 
 part 'dashboard_state.dart';
@@ -21,19 +21,19 @@ part 'dashboard_state.dart';
 class DashboardCubit extends Cubit<DashboardState> {
   DashboardCubit({
     required TransactionRepository transactions,
-    required IncomeRepository income,
+    required CategoryRepository categories,
     required RawCaptureRepository rawCaptures,
     String? period,
   }) : _transactions = transactions,
-       _income = income,
+       _categories = categories,
        _rawCaptures = rawCaptures,
        super(DashboardState(period: period ?? Iso.monthKey(DateTime.now())));
 
   final TransactionRepository _transactions;
-  final IncomeRepository _income;
+  final CategoryRepository _categories;
   final RawCaptureRepository _rawCaptures;
-  StreamSubscription<List<MonthlyIncome>>? _incomeSubscription;
-  StreamSubscription<List<CategorySpend>>? _categorySubscription;
+  StreamSubscription<List<Category>>? _categoriesSubscription;
+  StreamSubscription<List<CategorySpend>>? _categorySpendSubscription;
   StreamSubscription<List<Transaction>>? _recentSubscription;
   StreamSubscription<int>? _reviewSubscription;
   StreamSubscription<int>? _failedSubscription;
@@ -43,15 +43,13 @@ class DashboardCubit extends Cubit<DashboardState> {
   Future<void> load() async {
     emit(state.copyWith(status: DashboardStatus.loading));
 
-    await _incomeSubscription?.cancel();
-    _incomeSubscription = _income
-        .watchForPeriod(state.period)
-        .listen(_onIncome);
+    await _categoriesSubscription?.cancel();
+    _categoriesSubscription = _categories.watchAll().listen(_onCategories);
 
-    await _categorySubscription?.cancel();
-    _categorySubscription = _transactions
+    await _categorySpendSubscription?.cancel();
+    _categorySpendSubscription = _transactions
         .watchSpendByCategory(state.period)
-        .listen(_onCategories);
+        .listen(_onCategorySpend);
 
     await _recentSubscription?.cancel();
     _recentSubscription = _transactions
@@ -83,19 +81,22 @@ class DashboardCubit extends Cubit<DashboardState> {
     );
   }
 
-  Future<void> _onIncome(List<MonthlyIncome> incomeSources) async {
+  Future<void> _onCategories(List<Category> categories) async {
+    final incomeCategories = categories
+        .where((c) => c.isIncome && c.parentId == null && c.hasBudget)
+        .toList();
     final totalSpent = await _transactions.totalSpent(state.period);
     if (isClosed) return;
     emit(
       state.copyWith(
         status: DashboardStatus.loaded,
-        incomeSources: incomeSources,
+        incomeCategories: incomeCategories,
         totalSpent: totalSpent,
       ),
     );
   }
 
-  Future<void> _onCategories(List<CategorySpend> rows) async {
+  Future<void> _onCategorySpend(List<CategorySpend> rows) async {
     final totalSpent = await _transactions.totalSpent(state.period);
     if (isClosed) return;
     emit(
@@ -109,8 +110,8 @@ class DashboardCubit extends Cubit<DashboardState> {
 
   @override
   Future<void> close() async {
-    await _incomeSubscription?.cancel();
-    await _categorySubscription?.cancel();
+    await _categoriesSubscription?.cancel();
+    await _categorySpendSubscription?.cancel();
     await _recentSubscription?.cancel();
     await _reviewSubscription?.cancel();
     await _failedSubscription?.cancel();

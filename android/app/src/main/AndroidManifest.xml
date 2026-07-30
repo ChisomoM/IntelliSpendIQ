@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Snapping a receipt photo directly, as an alternative to
+         picking an existing one. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <!-- Voice entry's speech-to-text may route through a paired
          headset. -->
     <uses-permission android:name="android.permission.BLUETOOTH"/>

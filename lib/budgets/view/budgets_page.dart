@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/budgets/cubit/cubit.dart';
 import 'package:intellispendiq/budgets/widgets/widgets.dart';
-import 'package:intellispendiq/data/repositories/budget_repository.dart';
+import 'package:intellispendiq/categories/widgets/widgets.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
-import 'package:intellispendiq/data/repositories/income_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/models/enums.dart';
 
 class BudgetsPage extends StatelessWidget {
   const BudgetsPage({super.key});
@@ -15,11 +15,9 @@ class BudgetsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => BudgetsCubit(
-        budgets: context.read<BudgetRepository>(),
-        overallBudgets: context.read<OverallBudgetRepository>(),
         categories: context.read<CategoryRepository>(),
+        overallBudgets: context.read<OverallBudgetRepository>(),
         transactions: context.read<TransactionRepository>(),
-        income: context.read<IncomeRepository>(),
       )..loadUnawaited(),
       child: const BudgetsView(),
     );
@@ -38,7 +36,9 @@ class BudgetsView extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Add category budget',
-            onPressed: () => BudgetEditorSheet.show(context),
+            onPressed: () => Navigator.of(context).push<String?>(
+              CategoryEditorPage.route(initialType: CategoryType.expense),
+            ),
           ),
         ],
       ),
@@ -57,7 +57,7 @@ class BudgetsView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               IncomeSummaryCard(
-                incomeSources: state.incomeSources,
+                incomeCategories: state.budgetedIncomeCategories,
                 totalSpent: state.totalSpent,
               ),
               const SizedBox(height: 12),
@@ -71,11 +71,10 @@ class BudgetsView extends StatelessWidget {
               if (state.isEmpty)
                 const NoBudgetsYet()
               else
-                for (final budget in state.budgets)
-                  BudgetCard(
-                    budget: budget,
-                    categoryName: state.categoryName(budget.categoryId),
-                    spentMinor: state.spentFor(budget.categoryId),
+                for (final category in state.budgetedExpenseCategories)
+                  ExpenseCategoryEnvelopeCard(
+                    category: category,
+                    spentMinor: state.spentFor(category.id),
                   ),
             ],
           );

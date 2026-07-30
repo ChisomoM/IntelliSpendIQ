@@ -16,7 +16,7 @@ void main() {
     addTearDown(services.dispose);
     return DashboardCubit(
       transactions: services.transactions,
-      income: services.income,
+      categories: services.categories,
       rawCaptures: services.rawCaptures,
       period: period,
     );
@@ -78,7 +78,11 @@ void main() {
       await addConfirmedSpend(30000);
       await Future<void>.delayed(Duration.zero);
 
-      await services.income.upsert(period: period, amountMinor: 100000);
+      await services.categories.create(
+        'Salary',
+        type: CategoryType.income,
+        budgetedAmountMinor: 100000,
+      );
       await Future<void>.delayed(Duration.zero);
 
       expect(cubit.state.hasIncome, isTrue);

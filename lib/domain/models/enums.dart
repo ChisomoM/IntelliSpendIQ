@@ -22,12 +22,17 @@ enum TxSource {
 enum TxStatus {
   confirmed,
   needsReview,
-  duplicateSuspect;
+  duplicateSuspect,
+
+  /// Recorded but not yet paid — "mark as paid" left unchecked.
+  /// Excluded from spend/income totals until confirmed.
+  planned;
 
   static const Map<TxStatus, String> _names = {
     confirmed: 'confirmed',
     needsReview: 'needs_review',
     duplicateSuspect: 'duplicate_suspect',
+    planned: 'planned',
   };
 
   String get dbName => _names[this]!;
@@ -82,5 +87,21 @@ enum AccountType {
   String get dbName => _names[this]!;
 
   static AccountType fromDbName(String name) =>
+      _names.entries.firstWhere((e) => e.value == name).key;
+}
+
+/// Whether a category tracks spending or income.
+enum CategoryType {
+  expense,
+  income;
+
+  static const Map<CategoryType, String> _names = {
+    expense: 'expense',
+    income: 'income',
+  };
+
+  String get dbName => _names[this]!;
+
+  static CategoryType fromDbName(String name) =>
       _names.entries.firstWhere((e) => e.value == name).key;
 }

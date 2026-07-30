@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/categories/cubit/cubit.dart';
+import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/enums.dart';
 
 class CategoryTile extends StatelessWidget {
   const CategoryTile({required this.category, super.key});
@@ -10,6 +14,13 @@ class CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final subtitleParts = [
+      if (category.isSystem) 'Default category',
+      if (category.hasBudget)
+        '${category.isIncome ? 'Planned' : 'Budget'}: '
+            '${Money.format(category.budgetedAmountMinor!)}',
+    ];
+
     return ListTile(
       leading: CircleAvatar(
         child: category.icon == null
@@ -17,15 +28,16 @@ class CategoryTile extends StatelessWidget {
             : Text(category.icon!),
       ),
       title: Text(category.name),
-      subtitle: category.isSystem ? const Text('Default category') : null,
+      subtitle: subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · ')),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Rename',
-            onPressed: () =>
-                CategoryEditorSheet.show(context, existing: category),
+            tooltip: 'Edit',
+            onPressed: () => Navigator.of(
+              context,
+            ).push<String?>(CategoryEditorPage.route(existing: category)),
           ),
           if (!category.isSystem)
             IconButton(
@@ -64,11 +76,23 @@ class CategoryTile extends StatelessWidget {
   }
 }
 
-/// Adds or renames a category, and optionally nests it under a parent.
-/// Renaming works for system categories too — only deletion is
-/// restricted for those.
-class CategoryEditorSheet extends StatefulWidget {
-  const CategoryEditorSheet({this.existing, this.parentId, super.key});
+/// Adds or renames a category — its type, icon, optional parent, and
+/// its standing budget all together, since a category is the budget
+/// line for it. Renaming works for system categories too — only
+/// deletion is restricted for those.
+///
+/// Pushed as a full page (not a bottom sheet reusing the caller's
+/// cubit), so it builds its own [CategoriesCubit] from the repository
+/// — the same pattern every other full-page editor in the app uses,
+/// since a pushed route sits outside the caller's provider subtree.
+class CategoryEditorPage extends StatelessWidget {
+  const CategoryEditorPage({
+    this.existing,
+    this.parentId,
+    this.initialType,
+    this.lockParent = false,
+    super.key,
+  });
 
   final Category? existing;
 
@@ -76,40 +100,90 @@ class CategoryEditorSheet extends StatefulWidget {
   /// it. Ignored when [existing] is set — its own current parent wins.
   final String? parentId;
 
-  static Future<void> show(
-    BuildContext context, {
+  /// The parent's type, when [lockParent] is set — the caller already
+  /// has the parent Category in hand, so this is passed through
+  /// rather than re-looked-up from a cubit that may not have loaded
+  /// yet.
+  final CategoryType? initialType;
+
+  /// True when opened as "add subcategory" — the parent (and its
+  /// type) are fixed rather than pickable.
+  final bool lockParent;
+
+  /// Resolves with the created or edited category's id when saved, or
+  /// null if the user backed out — lets a caller (like the expense
+  /// form's quick "add category" action) select what was just made.
+  static Route<String?> route({
     Category? existing,
     String? parentId,
+    CategoryType? initialType,
+    bool lockParent = false,
   }) {
-    final cubit = context.read<CategoriesCubit>();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => BlocProvider.value(
-        value: cubit,
-        child: CategoryEditorSheet(existing: existing, parentId: parentId),
+    return MaterialPageRoute<String?>(
+      builder: (_) => CategoryEditorPage(
+        existing: existing,
+        parentId: parentId,
+        initialType: initialType,
+        lockParent: lockParent,
       ),
     );
   }
 
   @override
-  State<CategoryEditorSheet> createState() => _CategoryEditorSheetState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => CategoriesCubit(
+        context.read<CategoryRepository>(),
+      )..loadUnawaited(),
+      child: _CategoryEditorView(
+        existing: existing,
+        parentId: parentId,
+        initialType: initialType,
+        lockParent: lockParent,
+      ),
+    );
+  }
 }
 
-class _CategoryEditorSheetState extends State<CategoryEditorSheet> {
+class _CategoryEditorView extends StatefulWidget {
+  const _CategoryEditorView({
+    this.existing,
+    this.parentId,
+    this.initialType,
+    this.lockParent = false,
+  });
+
+  final Category? existing;
+  final String? parentId;
+  final CategoryType? initialType;
+  final bool lockParent;
+
+  @override
+  State<_CategoryEditorView> createState() => _CategoryEditorViewState();
+}
+
+class _CategoryEditorViewState extends State<_CategoryEditorView> {
   late final TextEditingController _nameController = TextEditingController(
     text: widget.existing?.name ?? '',
   );
   late final TextEditingController _iconController = TextEditingController(
     text: widget.existing?.icon ?? '',
   );
+  late final TextEditingController _budgetController = TextEditingController(
+    text: widget.existing?.budgetedAmountMinor == null
+        ? ''
+        : (widget.existing!.budgetedAmountMinor! / 100).toStringAsFixed(2),
+  );
   late String? _parentId = widget.existing?.parentId ?? widget.parentId;
+  late CategoryType _type =
+      widget.existing?.type ?? widget.initialType ?? CategoryType.expense;
   String? _error;
 
   @override
   void dispose() {
     _nameController.dispose();
     _iconController.dispose();
+    _budgetController.dispose();
     super.dispose();
   }
 
@@ -117,18 +191,24 @@ class _CategoryEditorSheetState extends State<CategoryEditorSheet> {
     final navigator = Navigator.of(context);
     final cubit = context.read<CategoriesCubit>();
     final existing = widget.existing;
+    String? savedId = existing?.id;
     if (existing == null) {
-      await cubit.add(
+      final created = await cubit.add(
         name: _nameController.text,
         icon: _iconController.text,
         parentId: _parentId,
+        type: _type,
+        budgetedAmount: _budgetController.text,
       );
+      savedId = created?.id;
     } else {
       await cubit.rename(
         existing.id,
         name: _nameController.text,
         icon: _iconController.text,
         parentId: _parentId,
+        type: _type,
+        budgetedAmount: _budgetController.text,
       );
     }
     if (!mounted) return;
@@ -137,80 +217,111 @@ class _CategoryEditorSheetState extends State<CategoryEditorSheet> {
       setState(() => _error = state.errorMessage);
       return;
     }
-    navigator.pop();
+    navigator.pop(savedId);
   }
 
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existing != null;
-    // A category can't be its own parent, and only top-level
-    // categories are offered as parents — one level of nesting keeps
-    // the picker simple and matches how the list renders.
-    final parentOptions = context
-        .read<CategoriesCubit>()
-        .state
-        .topLevel
-        .where((c) => c.id != widget.existing?.id)
-        .toList();
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            isEditing ? 'Rename category' : 'Add category',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: 'Category name',
-              errorText: _error,
-            ),
-            textCapitalization: TextCapitalization.words,
-            autofocus: true,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _iconController,
-            decoration: const InputDecoration(
-              labelText: 'Icon (optional)',
-              hintText: 'Paste an emoji, e.g. 🎮',
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (parentOptions.isNotEmpty)
-            DropdownButtonFormField<String?>(
-              initialValue: parentOptions.any((c) => c.id == _parentId)
-                  ? _parentId
-                  : null,
-              decoration: const InputDecoration(
-                labelText: 'Parent category (optional)',
-              ),
-              items: [
-                const DropdownMenuItem(child: Text('None — top level')),
-                for (final parent in parentOptions)
-                  DropdownMenuItem(
-                    value: parent.id,
-                    child: Text(parent.displayName),
-                  ),
-              ],
-              onChanged: (value) => setState(() => _parentId = value),
-            ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _save,
-            child: Text(isEditing ? 'Save' : 'Add category'),
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isEditing ? 'Edit category' : 'Add category'),
+        actions: [
+          TextButton(onPressed: _save, child: const Text('SAVE')),
         ],
+      ),
+      body: BlocBuilder<CategoriesCubit, CategoriesState>(
+        builder: (context, state) {
+          // A category can't be its own parent, and only top-level
+          // categories are offered as parents — one level of nesting
+          // keeps the picker simple and matches how the list renders.
+          final parentOptions = state.topLevel
+              .where((c) => c.id != widget.existing?.id)
+              .toList();
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (!widget.lockParent) ...[
+                Text(
+                  'Category type',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<CategoryType>(
+                  segments: const [
+                    ButtonSegment(
+                      value: CategoryType.expense,
+                      label: Text('Expense'),
+                    ),
+                    ButtonSegment(
+                      value: CategoryType.income,
+                      label: Text('Income'),
+                    ),
+                  ],
+                  selected: {_type},
+                  onSelectionChanged: (values) =>
+                      setState(() => _type = values.first),
+                ),
+                const SizedBox(height: 16),
+              ],
+              TextField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  labelText: 'Name',
+                  errorText: _error,
+                ),
+                textCapitalization: TextCapitalization.words,
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _iconController,
+                decoration: const InputDecoration(
+                  labelText: 'Icon (optional)',
+                  hintText: 'Paste an emoji, e.g. 🎮',
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _budgetController,
+                decoration: InputDecoration(
+                  labelText: _type == CategoryType.income
+                      ? 'Planned amount (optional)'
+                      : 'Budgeted amount (optional)',
+                  prefixText: 'ZMW ',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
+                ],
+              ),
+              if (!widget.lockParent && parentOptions.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String?>(
+                  initialValue: parentOptions.any((c) => c.id == _parentId)
+                      ? _parentId
+                      : null,
+                  decoration: const InputDecoration(
+                    labelText: 'Parent category (optional)',
+                  ),
+                  items: [
+                    const DropdownMenuItem(child: Text('None — top level')),
+                    for (final parent in parentOptions)
+                      DropdownMenuItem(
+                        value: parent.id,
+                        child: Text(parent.displayName),
+                      ),
+                  ],
+                  onChanged: (value) => setState(() => _parentId = value),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -240,7 +351,9 @@ class NoCategoriesYet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: () => CategoryEditorSheet.show(context),
+              onPressed: () => Navigator.of(
+                context,
+              ).push<String?>(CategoryEditorPage.route()),
               child: const Text('Add category'),
             ),
           ],

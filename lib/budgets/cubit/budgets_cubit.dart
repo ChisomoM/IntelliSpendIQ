@@ -4,76 +4,58 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/core/time.dart';
-import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
-import 'package:intellispendiq/data/repositories/income_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
-import 'package:intellispendiq/domain/models/budget.dart';
 import 'package:intellispendiq/domain/models/category.dart';
-import 'package:intellispendiq/domain/models/monthly_income.dart';
 import 'package:intellispendiq/domain/models/overall_budget.dart';
 
 part 'budgets_state.dart';
 
-/// Overall monthly budget, per-category limits, and declared income —
-/// tracked against confirmed spend. All arithmetic is local SQL.
+/// Overall monthly budget and category-level budget envelopes,
+/// tracked against confirmed spend. Categories are the budget line —
+/// there is no separate per-category row, so editing a category's
+/// budget (via the Categories feature) is what updates the envelope
+/// this cubit shows. All arithmetic is local SQL.
 class BudgetsCubit extends Cubit<BudgetsState> {
   BudgetsCubit({
-    required BudgetRepository budgets,
-    required OverallBudgetRepository overallBudgets,
     required CategoryRepository categories,
+    required OverallBudgetRepository overallBudgets,
     required TransactionRepository transactions,
-    required IncomeRepository income,
     String? period,
-  }) : _budgets = budgets,
+  }) : _categories = categories,
        _overallBudgets = overallBudgets,
-       _categories = categories,
        _transactions = transactions,
-       _income = income,
-       super(
-         BudgetsState(period: period ?? Iso.monthKey(DateTime.now())),
-       );
+       super(BudgetsState(period: period ?? Iso.monthKey(DateTime.now())));
 
-  final BudgetRepository _budgets;
-  final OverallBudgetRepository _overallBudgets;
   final CategoryRepository _categories;
+  final OverallBudgetRepository _overallBudgets;
   final TransactionRepository _transactions;
-  final IncomeRepository _income;
-  StreamSubscription<List<Budget>>? _subscription;
+  StreamSubscription<List<Category>>? _subscription;
   StreamSubscription<OverallBudget?>? _overallSubscription;
-  StreamSubscription<List<MonthlyIncome>>? _incomeSubscription;
 
   /// Fire-and-forget entry point for widget construction.
   void loadUnawaited() => unawaited(load());
 
-  /// Carries last month's limits forward as editable defaults, then
-  /// starts watching this month.
   Future<void> load() async {
     emit(state.copyWith(status: BudgetsStatus.loading));
     await _overallBudgets.carryOverInto(state.period);
-    await _budgets.carryOverInto(state.period);
-    emit(state.copyWith(categories: await _categories.getAll()));
 
     await _subscription?.cancel();
-    _subscription = _budgets.watchForPeriod(state.period).listen(_onBudgets);
+    _subscription = _categories.watchAll().listen(_onCategories);
 
     await _overallSubscription?.cancel();
     _overallSubscription = _overallBudgets
         .watchForPeriod(state.period)
         .listen(_onOverallBudget);
-
-    await _incomeSubscription?.cancel();
-    _incomeSubscription = _income
-        .watchForPeriod(state.period)
-        .listen(_onIncome);
   }
 
-  Future<void> _onBudgets(List<Budget> budgets) async {
+  Future<void> _onCategories(List<Category> categories) async {
     final spent = <String, int>{};
-    for (final budget in budgets) {
-      spent[budget.categoryId] = await _transactions.spentForCategory(
-        budget.categoryId,
+    for (final category in categories) {
+      if (!category.isExpense || !category.hasBudget) continue;
+      spent[category.id] = await _transactions.spentForCategory(
+        category.id,
         state.period,
       );
     }
@@ -82,7 +64,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     emit(
       state.copyWith(
         status: BudgetsStatus.loaded,
-        budgets: budgets,
+        categories: categories,
         spentByCategory: spent,
         totalSpent: totalSpent,
       ),
@@ -101,41 +83,6 @@ class BudgetsCubit extends Cubit<BudgetsState> {
       ),
     );
   }
-
-  Future<void> _onIncome(List<MonthlyIncome> incomeSources) async {
-    final totalSpent = await _transactions.totalSpent(state.period);
-    if (isClosed) return;
-    emit(
-      state.copyWith(
-        status: BudgetsStatus.loaded,
-        incomeSources: incomeSources,
-        totalSpent: totalSpent,
-      ),
-    );
-  }
-
-  Future<void> upsert({
-    required String categoryId,
-    required String amount,
-  }) async {
-    final amountMinor = Money.tryParseToMinor(amount);
-    if (amountMinor == null || amountMinor <= 0) {
-      emit(
-        state.copyWith(
-          status: BudgetsStatus.invalid,
-          errorMessage: 'Enter a monthly limit like 1500',
-        ),
-      );
-      return;
-    }
-    await _budgets.upsert(
-      categoryId: categoryId,
-      period: state.period,
-      amountMinor: amountMinor,
-    );
-  }
-
-  Future<void> delete(String budgetId) => _budgets.delete(budgetId);
 
   Future<void> setOverallBudget(String amount) async {
     final amountMinor = Money.tryParseToMinor(amount);
@@ -160,51 +107,43 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     await _overallBudgets.delete(id);
   }
 
-  /// Adds a new income stream for the month, or updates the existing
-  /// stream with the same [label] if there already is one.
-  Future<void> addIncome(String amount, {String? label}) async {
-    final amountMinor = Money.tryParseToMinor(amount);
-    if (amountMinor == null || amountMinor <= 0) {
-      emit(
-        state.copyWith(
-          status: BudgetsStatus.invalid,
-          errorMessage: 'Enter an income amount, e.g. 5000',
-        ),
-      );
-      return;
-    }
-    await _income.upsert(
-      period: state.period,
-      amountMinor: amountMinor,
-      label: label,
-    );
-  }
-
-  Future<void> updateIncome(
-    String id,
-    String amount, {
-    String? label,
+  /// Moves budgeted amount from one category to another. Emits
+  /// [BudgetsStatus.invalid] if the source doesn't have enough
+  /// budgeted, or either category doesn't exist.
+  Future<void> transferBudget({
+    required String fromCategoryId,
+    required String toCategoryId,
+    required String amount,
   }) async {
     final amountMinor = Money.tryParseToMinor(amount);
     if (amountMinor == null || amountMinor <= 0) {
       emit(
         state.copyWith(
           status: BudgetsStatus.invalid,
-          errorMessage: 'Enter an income amount, e.g. 5000',
+          errorMessage: 'Enter an amount to transfer, e.g. 200',
         ),
       );
       return;
     }
-    await _income.updateSource(id, amountMinor: amountMinor, label: label);
+    final moved = await _categories.transferBudget(
+      fromCategoryId: fromCategoryId,
+      toCategoryId: toCategoryId,
+      amountMinor: amountMinor,
+    );
+    if (!moved) {
+      emit(
+        state.copyWith(
+          status: BudgetsStatus.invalid,
+          errorMessage: "That category doesn't have that much budgeted",
+        ),
+      );
+    }
   }
-
-  Future<void> deleteIncome(String id) => _income.deleteSource(id);
 
   @override
   Future<void> close() async {
     await _subscription?.cancel();
     await _overallSubscription?.cancel();
-    await _incomeSubscription?.cancel();
     return super.close();
   }
 }

@@ -56,12 +56,13 @@ class OverallBudgetRepository {
     required int amountMinor,
     bool carryOver = true,
   }) async {
-    final existing = await (_db.select(
-      _db.overallBudgets,
-    )..where(
-          (b) => b.userId.equals(userId) & b.period.equals(period),
-        ))
-        .getSingleOrNull();
+    final existing =
+        await (_db.select(
+              _db.overallBudgets,
+            )..where(
+              (b) => b.userId.equals(userId) & b.period.equals(period),
+            ))
+            .getSingleOrNull();
     final now = Iso.nowUtc();
     if (existing == null) {
       await _db

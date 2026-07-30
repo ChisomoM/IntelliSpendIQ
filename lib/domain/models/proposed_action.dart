@@ -76,28 +76,21 @@ class ProposedBudget extends ProposedAction {
     required this.categoryId,
     required this.categoryName,
     required this.amountMinor,
-    required this.period,
   });
 
   final String categoryId;
   final String categoryName;
-  final int amountMinor;
 
-  /// Month key, `YYYY-MM`.
-  final String period;
+  /// A standing monthly limit — categories are the budget line now,
+  /// not a per-period row.
+  final int amountMinor;
 
   @override
   String get title => '$categoryName: ${Money.format(amountMinor)} / month';
 
   @override
-  String get subtitle => 'Budget for $period';
+  String get subtitle => 'Monthly budget';
 
   @override
-  List<Object?> get props => [
-    toolUseId,
-    categoryId,
-    categoryName,
-    amountMinor,
-    period,
-  ];
+  List<Object?> get props => [toolUseId, categoryId, categoryName, amountMinor];
 }

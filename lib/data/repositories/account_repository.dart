@@ -130,6 +130,31 @@ class AccountRepository {
     );
   }
 
+  /// Sets [id] as the default account, unsetting any other. A no-op
+  /// if [id] doesn't exist.
+  Future<void> setDefault(String id) async {
+    final target = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.id.equals(id))).getSingleOrNull();
+    if (target == null) return;
+
+    final now = Iso.nowUtc();
+    await _db.transaction(() async {
+      await (_db.update(_db.accounts)..where(
+            (a) => a.userId.equals(userId) & a.isDefault.equals(true),
+          ))
+          .write(
+            AccountsCompanion(
+              isDefault: const Value(false),
+              updatedAt: Value(now),
+            ),
+          );
+      await (_db.update(_db.accounts)..where((a) => a.id.equals(id))).write(
+        AccountsCompanion(isDefault: const Value(true), updatedAt: Value(now)),
+      );
+    });
+  }
+
   /// Adds a user-created account, e.g. a cash wallet or a second bank
   /// account not tied to any SMS parser.
   Future<Account> create({

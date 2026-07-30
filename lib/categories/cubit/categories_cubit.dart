@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/enums.dart';
 
 part 'categories_state.dart';
 
@@ -27,10 +29,52 @@ class CategoriesCubit extends Cubit<CategoriesState> {
     );
   }
 
-  Future<void> add({
+  /// Returns the created category, or null if validation failed
+  /// (check [CategoriesState.status] for why).
+  Future<Category?> add({
     required String name,
     String? icon,
     String? parentId,
+    CategoryType type = CategoryType.expense,
+    String? budgetedAmount,
+  }) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      emit(
+        state.copyWith(
+          status: CategoriesStatus.invalid,
+          errorMessage: 'Give the category a name',
+        ),
+      );
+      return null;
+    }
+    final budgetedAmountMinor = _parseBudget(budgetedAmount);
+    if (budgetedAmountMinor == null &&
+        (budgetedAmount?.trim().isNotEmpty ?? false)) {
+      emit(
+        state.copyWith(
+          status: CategoriesStatus.invalid,
+          errorMessage: 'Enter a budget like 1500, or leave it blank',
+        ),
+      );
+      return null;
+    }
+    return _categories.create(
+      trimmed,
+      icon: _trimIcon(icon),
+      parentId: parentId,
+      type: type,
+      budgetedAmountMinor: budgetedAmountMinor,
+    );
+  }
+
+  Future<void> rename(
+    String id, {
+    required String name,
+    String? icon,
+    String? parentId,
+    CategoryType? type,
+    String? budgetedAmount,
   }) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
@@ -42,25 +86,13 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       );
       return;
     }
-    await _categories.create(
-      trimmed,
-      icon: _trimIcon(icon),
-      parentId: parentId,
-    );
-  }
-
-  Future<void> rename(
-    String id, {
-    required String name,
-    String? icon,
-    String? parentId,
-  }) async {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) {
+    final budgetedAmountMinor = _parseBudget(budgetedAmount);
+    if (budgetedAmountMinor == null &&
+        (budgetedAmount?.trim().isNotEmpty ?? false)) {
       emit(
         state.copyWith(
           status: CategoriesStatus.invalid,
-          errorMessage: 'Give the category a name',
+          errorMessage: 'Enter a budget like 1500, or leave it blank',
         ),
       );
       return;
@@ -73,7 +105,16 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       clearIcon: trimmedIcon == null,
       parentId: parentId,
       clearParent: parentId == null,
+      type: type,
+      budgetedAmountMinor: budgetedAmountMinor,
+      clearBudget: budgetedAmountMinor == null,
     );
+  }
+
+  int? _parseBudget(String? amount) {
+    final trimmed = amount?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return Money.tryParseToMinor(trimmed);
   }
 
   Future<void> delete(String id) async {

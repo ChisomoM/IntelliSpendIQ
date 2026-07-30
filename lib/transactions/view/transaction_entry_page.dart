@@ -4,8 +4,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/label_repository.dart';
+import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -42,6 +46,8 @@ class TransactionEntryPage extends StatelessWidget {
         transactions: context.read<TransactionRepository>(),
         accounts: context.read<AccountRepository>(),
         categories: context.read<CategoryRepository>(),
+        payees: context.read<PayeeRepository>(),
+        labels: context.read<LabelRepository>(),
         rawCaptures: context.read<RawCaptureRepository>(),
         existing: existing,
         rawCaptureId: rawCaptureId,
@@ -100,6 +106,67 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
         date.day,
         time?.hour ?? current.hour,
         time?.minute ?? current.minute,
+      ),
+    );
+  }
+
+  Future<void> _addCategory(BuildContext context) async {
+    final cubit = context.read<TransactionEntryCubit>();
+    final direction = cubit.state.direction;
+    final id = await Navigator.of(context).push<String?>(
+      CategoryEditorPage.route(
+        initialType: direction == TxDirection.credit
+            ? CategoryType.income
+            : CategoryType.expense,
+      ),
+    );
+    if (id != null && context.mounted) {
+      await cubit.loadOptions();
+      cubit.categoryChanged(id);
+    }
+  }
+
+  Future<void> _addPayee(BuildContext context) async {
+    final cubit = context.read<TransactionEntryCubit>();
+    final name = await _promptForName(context, title: 'Add payee');
+    if (name != null && name.trim().isNotEmpty) {
+      await cubit.payeeAdded(name);
+    }
+  }
+
+  Future<void> _addLabel(BuildContext context) async {
+    final cubit = context.read<TransactionEntryCubit>();
+    final name = await _promptForName(context, title: 'Add label');
+    if (name != null && name.trim().isNotEmpty) {
+      await cubit.labelAdded(name);
+    }
+  }
+
+  Future<String?> _promptForName(
+    BuildContext context, {
+    required String title,
+  }) {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
   }
@@ -183,20 +250,36 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
                   onChanged: cubit.merchantChanged,
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue:
-                      state.categories.any((c) => c.id == state.categoryId)
-                      ? state.categoryId
-                      : null,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: [
-                    for (final category in state.categories)
-                      DropdownMenuItem(
-                        value: category.id,
-                        child: Text(category.displayName),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue:
+                            state.categories.any(
+                              (c) => c.id == state.categoryId,
+                            )
+                            ? state.categoryId
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Category',
+                        ),
+                        items: [
+                          for (final category in state.categories)
+                            DropdownMenuItem(
+                              value: category.id,
+                              child: Text(category.displayName),
+                            ),
+                        ],
+                        onChanged: cubit.categoryChanged,
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      tooltip: 'Add category',
+                      onPressed: () => _addCategory(context),
+                    ),
                   ],
-                  onChanged: cubit.categoryChanged,
                 ),
                 const SizedBox(height: 16),
                 if (state.accounts.isNotEmpty)
@@ -216,6 +299,39 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
                     onChanged: cubit.accountChanged,
                   ),
                 const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String?>(
+                        initialValue:
+                            state.payees.any(
+                              (p) => p.id == state.payeeId,
+                            )
+                            ? state.payeeId
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Payee (optional)',
+                        ),
+                        items: [
+                          const DropdownMenuItem(child: Text('None')),
+                          for (final payee in state.payees)
+                            DropdownMenuItem(
+                              value: payee.id,
+                              child: Text(payee.name),
+                            ),
+                        ],
+                        onChanged: cubit.payeeChanged,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      tooltip: 'Add payee',
+                      onPressed: () => _addPayee(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.event),
@@ -226,12 +342,44 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _pickDate(context, state.transactedAt),
                 ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Mark as paid'),
+                  subtitle: state.isPaid
+                      ? null
+                      : const Text(
+                          "Recorded as planned — won't count toward totals "
+                          'until paid',
+                        ),
+                  value: state.isPaid,
+                  onChanged: cubit.paidChanged,
+                ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _descriptionController,
                   decoration: const InputDecoration(labelText: 'Note'),
                   maxLines: 3,
                   onChanged: cubit.descriptionChanged,
+                ),
+                const SizedBox(height: 16),
+                Text('Labels', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final label in state.labels)
+                      FilterChip(
+                        label: Text(label.name),
+                        selected: state.labelIds.contains(label.id),
+                        onSelected: (_) => cubit.labelToggled(label.id),
+                      ),
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 18),
+                      label: const Text('Add label'),
+                      onPressed: () => _addLabel(context),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 _ReceiptField(receiptPath: state.receiptPath),
@@ -255,9 +403,10 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
   }
 }
 
-/// Attaches, previews, or removes a receipt photo. The picked file is
-/// copied into app-local storage by the cubit, so it survives the
-/// user deleting it from wherever it was picked.
+/// Attaches, previews, or removes a receipt photo — snapped with the
+/// camera or picked from the gallery. The chosen file is copied into
+/// app-local storage by the cubit, so it survives the user deleting
+/// it from wherever it was picked.
 class _ReceiptField extends StatelessWidget {
   const _ReceiptField({required this.receiptPath});
 
@@ -265,8 +414,36 @@ class _ReceiptField extends StatelessWidget {
 
   Future<void> _pick(BuildContext context) async {
     final cubit = context.read<TransactionEntryCubit>();
-    final result = await FilePicker.pickFiles(type: FileType.image);
-    final path = result?.files.single.path;
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take photo'),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    String? path;
+    if (source == ImageSource.camera) {
+      final photo = await ImagePicker().pickImage(source: ImageSource.camera);
+      path = photo?.path;
+    } else {
+      final result = await FilePicker.pickFiles(type: FileType.image);
+      path = result?.files.single.path;
+    }
     if (path != null) await cubit.attachReceipt(path);
   }
 

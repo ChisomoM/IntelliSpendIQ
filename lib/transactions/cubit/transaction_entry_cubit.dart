@@ -7,11 +7,15 @@ import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/label_repository.dart';
+import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/label.dart';
+import 'package:intellispendiq/domain/models/payee.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 import 'package:path/path.dart' as p;
@@ -26,6 +30,8 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     required TransactionRepository transactions,
     required AccountRepository accounts,
     required CategoryRepository categories,
+    required PayeeRepository payees,
+    required LabelRepository labels,
     required RawCaptureRepository rawCaptures,
     Transaction? existing,
     String? rawCaptureId,
@@ -33,6 +39,8 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   }) : _transactions = transactions,
        _accounts = accounts,
        _categories = categories,
+       _payees = payees,
+       _labels = labels,
        _rawCaptures = rawCaptures,
        _existing = existing,
        _rawCaptureId = rawCaptureId,
@@ -48,6 +56,8 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
                  direction: existing.direction,
                  categoryId: existing.categoryId,
                  accountId: existing.accountId,
+                 payeeId: existing.payeeId,
+                 isPaid: existing.status != TxStatus.planned,
                  transactedAt: existing.transactedAt.toLocal(),
                  receiptPath: existing.receiptPath,
                ),
@@ -56,6 +66,8 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   final TransactionRepository _transactions;
   final AccountRepository _accounts;
   final CategoryRepository _categories;
+  final PayeeRepository _payees;
+  final LabelRepository _labels;
   final RawCaptureRepository _rawCaptures;
   final Transaction? _existing;
   final String? _rawCaptureId;
@@ -70,6 +82,12 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   Future<void> loadOptions() async {
     final categories = await _categories.getAll();
     final accounts = await _accounts.getAll();
+    final payees = await _payees.getAll();
+    final labels = await _labels.getAll();
+    final existing = _existing;
+    final labelIds = existing == null
+        ? const <String>[]
+        : await _transactions.labelIdsFor(existing.id);
     final defaultAccount = accounts.isEmpty
         ? null
         : accounts.firstWhere(
@@ -80,6 +98,9 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
       state.copyWith(
         categories: categories,
         accounts: accounts,
+        payees: payees,
+        labels: labels,
+        labelIds: labelIds,
         accountId: state.accountId ?? defaultAccount?.id,
       ),
     );
@@ -101,6 +122,44 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   void accountChanged(String? value) => emit(state.copyWith(accountId: value));
 
   void dateChanged(DateTime value) => emit(state.copyWith(transactedAt: value));
+
+  void paidChanged(bool value) => emit(state.copyWith(isPaid: value));
+
+  void payeeChanged(String? value) =>
+      emit(state.copyWith(payeeId: value, clearPayee: value == null));
+
+  /// Finds or creates a payee by name, then selects it.
+  Future<void> payeeAdded(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final payee = await _payees.findOrCreate(trimmed);
+    emit(
+      state.copyWith(
+        payees: [...state.payees.where((p) => p.id != payee.id), payee],
+        payeeId: payee.id,
+      ),
+    );
+  }
+
+  void labelToggled(String labelId) {
+    final selected = state.labelIds.contains(labelId)
+        ? state.labelIds.where((id) => id != labelId).toList()
+        : [...state.labelIds, labelId];
+    emit(state.copyWith(labelIds: selected));
+  }
+
+  /// Finds or creates a label by name, then selects it.
+  Future<void> labelAdded(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final label = await _labels.findOrCreate(trimmed);
+    emit(
+      state.copyWith(
+        labels: [...state.labels.where((l) => l.id != label.id), label],
+        labelIds: [...state.labelIds.where((id) => id != label.id), label.id],
+      ),
+    );
+  }
 
   /// Copies the picked photo at [sourcePath] into app-local storage so
   /// it survives even if the user later deletes it from wherever they
@@ -133,8 +192,9 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     }
   }
 
-  /// Validates and writes. Editing marks the row confirmed, because a
-  /// human has now looked at it.
+  /// Validates and writes. "Mark as paid" decides between
+  /// [TxStatus.confirmed] and [TxStatus.planned]; editing an
+  /// already-planned entry can flip it either way.
   Future<void> submit() async {
     final amountMinor = Money.tryParseToMinor(state.amount);
     if (amountMinor == null || amountMinor <= 0) {
@@ -150,10 +210,13 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     emit(state.copyWith(status: TransactionEntryStatus.saving));
     final merchant = state.merchant.trim();
     final description = state.description.trim();
+    final status = state.isPaid ? TxStatus.confirmed : TxStatus.planned;
 
     try {
+      String transactionId;
       if (isEditing) {
         final existing = _existing!;
+        transactionId = existing.id;
         await _transactions.updateFields(
           existing.id,
           amountMinor: amountMinor,
@@ -161,7 +224,9 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
           description: description.isEmpty ? null : description,
           categoryId: state.categoryId,
           transactedAt: state.transactedAt,
-          status: TxStatus.confirmed,
+          status: status,
+          payeeId: state.payeeId,
+          clearPayee: state.payeeId == null,
         );
         if (state.receiptPath != existing.receiptPath) {
           await _transactions.setReceiptPath(existing.id, state.receiptPath);
@@ -179,12 +244,14 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
             categoryId: state.categoryId,
             confidence: 1,
             receiptPath: state.receiptPath,
+            payeeId: state.payeeId,
           ),
           accountId: accountId,
           idempotencyKey: 'manual:${Ids.newId()}',
-          status: TxStatus.confirmed,
+          status: status,
           rawCaptureId: _rawCaptureId,
         );
+        transactionId = transaction.id;
         if (_rawCaptureId != null) {
           await _rawCaptures.resolveManually(
             _rawCaptureId,
@@ -192,6 +259,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
           );
         }
       }
+      await _transactions.setLabels(transactionId, state.labelIds);
       emit(state.copyWith(status: TransactionEntryStatus.saved));
     } on Object catch (error) {
       emit(

@@ -40,6 +40,16 @@ class Categories extends SyncedTable {
   TextColumn get parentId => text().nullable()();
   BoolColumn get isSystem => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  /// `expense` | `income`.
+  TextColumn get categoryType =>
+      text().withDefault(const Constant('expense'))();
+
+  /// A standing monthly limit (expense) or planned figure (income), in
+  /// ngwee. Applies to whichever period is currently viewed — there is
+  /// no separate per-month row to carry forward, unlike the old
+  /// [Budgets] table this replaced.
+  IntColumn get budgetedAmountMinor => integer().nullable()();
 }
 
 @DataClassName('TransactionRow')
@@ -82,49 +92,41 @@ class Transactions extends SyncedTable {
 
   /// Path to a receipt photo copied into app-local storage, if attached.
   TextColumn get receiptPath => text().nullable()();
+
+  /// Structured payee, when one was picked rather than left as free
+  /// text in [merchant]/[description].
+  TextColumn get payeeId => text().nullable()();
 }
 
-@DataClassName('BudgetRow')
-class Budgets extends SyncedTable {
-  TextColumn get categoryId => text()();
-
-  /// Month key `YYYY-MM`.
-  TextColumn get period => text()();
-
-  /// Monthly limit in ngwee.
-  IntColumn get amountMinor => integer()();
-
-  /// Whether next month defaults from this budget.
-  BoolColumn get carryOver => boolean().withDefault(const Constant(true))();
-
-  @override
-  List<Set<Column<Object>>> get uniqueKeys => [
-    {userId, categoryId, period},
-  ];
+/// A structured payee, selectable on the expense form as an
+/// alternative to the free-text merchant field.
+@DataClassName('PayeeRow')
+class Payees extends SyncedTable {
+  TextColumn get name => text()();
 }
 
-@DataClassName('MonthlyIncomeRow')
-class MonthlyIncomes extends SyncedTable {
-  /// Month key `YYYY-MM`.
-  TextColumn get period => text()();
+/// A tag attachable to any number of transactions, for cross-cutting
+/// grouping beyond category (e.g. "Work trip", "Tax deductible").
+@DataClassName('LabelRow')
+class Labels extends SyncedTable {
+  TextColumn get name => text()();
+  TextColumn get color => text().nullable()();
+}
 
-  /// Declared income for the month, in ngwee.
-  IntColumn get amountMinor => integer()();
-
-  /// Names one income stream among possibly several for the same
-  /// month, e.g. "Salary" vs "Side hustle". Null is the original
-  /// single-figure shape from before multiple streams existed.
-  TextColumn get label => text().nullable()();
+/// Many-to-many link between transactions and labels. Not a
+/// [SyncedTable] — a join row has no lifecycle of its own beyond
+/// existing or not.
+class TransactionLabels extends Table {
+  TextColumn get transactionId => text()();
+  TextColumn get labelId => text()();
 
   @override
-  List<Set<Column<Object>>> get uniqueKeys => [
-    {userId, period, label},
-  ];
+  Set<Column<Object>> get primaryKey => {transactionId, labelId};
 }
 
 /// Overall monthly spending budget — independent of per-category
-/// [Budgets] rows. Category limits allocate under this total; they
-/// do not define it.
+/// budget envelopes on [Categories]. Category limits allocate under
+/// this total; they do not define it.
 @DataClassName('OverallBudgetRow')
 class OverallBudgets extends SyncedTable {
   /// Month key `YYYY-MM`.

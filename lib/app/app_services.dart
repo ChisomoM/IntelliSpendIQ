@@ -3,11 +3,11 @@ import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/db/connection.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
-import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
-import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
+import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -39,9 +39,9 @@ class AppServices {
     required this.categories,
     required this.transactions,
     required this.rawCaptures,
-    required this.budgets,
     required this.overallBudgets,
-    required this.income,
+    required this.payees,
+    required this.labels,
     required this.settings,
     required this.customSenders,
     required this.appLock,
@@ -111,9 +111,9 @@ class AppServices {
     final categories = CategoryRepository(db, userId: userId);
     final transactions = TransactionRepository(db, userId: userId);
     final rawCaptures = RawCaptureRepository(db, userId: userId);
-    final budgets = BudgetRepository(db, userId: userId);
     final overallBudgets = OverallBudgetRepository(db, userId: userId);
-    final income = IncomeRepository(db, userId: userId);
+    final payees = PayeeRepository(db, userId: userId);
+    final labels = LabelRepository(db, userId: userId);
     final settings = SettingsRepository(db);
     final customSenders = CustomSenderRepository(db, userId: userId);
 
@@ -143,15 +143,14 @@ class AppServices {
       transactions: transactions,
       accounts: accounts,
       categories: categories,
-      budgets: budgets,
     );
     final backupService = BackupService(
       transactions: transactions,
       accounts: accounts,
       categories: categories,
-      budgets: budgets,
       overallBudgets: overallBudgets,
-      incomes: income,
+      payees: payees,
+      labels: labels,
     );
 
     return AppServices._(
@@ -163,9 +162,9 @@ class AppServices {
       categories: categories,
       transactions: transactions,
       rawCaptures: rawCaptures,
-      budgets: budgets,
       overallBudgets: overallBudgets,
-      income: income,
+      payees: payees,
+      labels: labels,
       settings: settings,
       customSenders: customSenders,
       appLock: AppLockRepository(
@@ -205,9 +204,9 @@ class AppServices {
   final CategoryRepository categories;
   final TransactionRepository transactions;
   final RawCaptureRepository rawCaptures;
-  final BudgetRepository budgets;
   final OverallBudgetRepository overallBudgets;
-  final IncomeRepository income;
+  final PayeeRepository payees;
+  final LabelRepository labels;
   final SettingsRepository settings;
   final CustomSenderRepository customSenders;
   final AppLockRepository appLock;

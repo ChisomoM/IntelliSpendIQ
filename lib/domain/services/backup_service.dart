@@ -2,17 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:intellispendiq/data/repositories/account_repository.dart';
-import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
-import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
+import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
-import 'package:intellispendiq/domain/models/budget.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
-import 'package:intellispendiq/domain/models/monthly_income.dart';
+import 'package:intellispendiq/domain/models/label.dart';
 import 'package:intellispendiq/domain/models/overall_budget.dart';
+import 'package:intellispendiq/domain/models/payee.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -20,7 +20,7 @@ import 'package:path_provider/path_provider.dart';
 /// The current backup file's schema version. Bump this only if a
 /// future field is required for correct restore — `importBackupJson`
 /// should keep reading older versions rather than refusing them.
-const _backupSchemaVersion = 1;
+const _backupSchemaVersion = 2;
 
 /// How many rows `importBackupJson` actually wrote, versus how many
 /// it left alone because they (or something they collide with) were
@@ -29,18 +29,18 @@ class RestoreSummary {
   const RestoreSummary({
     required this.accountsImported,
     required this.categoriesImported,
-    required this.budgetsImported,
     required this.overallBudgetsImported,
-    required this.incomesImported,
+    required this.payeesImported,
+    required this.labelsImported,
     required this.transactionsImported,
     required this.skipped,
   });
 
   final int accountsImported;
   final int categoriesImported;
-  final int budgetsImported;
   final int overallBudgetsImported;
-  final int incomesImported;
+  final int payeesImported;
+  final int labelsImported;
   final int transactionsImported;
 
   /// Rows that already existed (by id) or collided with an existing
@@ -50,9 +50,9 @@ class RestoreSummary {
   int get totalImported =>
       accountsImported +
       categoriesImported +
-      budgetsImported +
       overallBudgetsImported +
-      incomesImported +
+      payeesImported +
+      labelsImported +
       transactionsImported;
 }
 
@@ -67,24 +67,24 @@ class BackupService {
     required TransactionRepository transactions,
     required AccountRepository accounts,
     required CategoryRepository categories,
-    required BudgetRepository budgets,
     required OverallBudgetRepository overallBudgets,
-    required IncomeRepository incomes,
+    required PayeeRepository payees,
+    required LabelRepository labels,
     Future<Directory> Function()? tempDirectory,
   }) : _transactions = transactions,
        _accounts = accounts,
        _categories = categories,
-       _budgets = budgets,
        _overallBudgets = overallBudgets,
-       _incomes = incomes,
+       _payees = payees,
+       _labels = labels,
        _tempDirectory = tempDirectory ?? getTemporaryDirectory;
 
   final TransactionRepository _transactions;
   final AccountRepository _accounts;
   final CategoryRepository _categories;
-  final BudgetRepository _budgets;
   final OverallBudgetRepository _overallBudgets;
-  final IncomeRepository _incomes;
+  final PayeeRepository _payees;
+  final LabelRepository _labels;
 
   /// Defaults to `path_provider`'s temp directory; overridable so
   /// tests never need a platform channel just to write a file.
@@ -141,15 +141,18 @@ class BackupService {
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'accounts': (await _accounts.getAll()).map(_accountToJson).toList(),
       'categories': (await _categories.getAll()).map(_categoryToJson).toList(),
-      'budgets': (await _budgets.getAllForExport()).map(_budgetToJson).toList(),
       'overallBudgets': (await _overallBudgets.getAllForExport())
           .map(_overallBudgetToJson)
           .toList(),
-      'monthlyIncomes': (await _incomes.getAllForExport())
-          .map(_incomeToJson)
-          .toList(),
+      'payees': (await _payees.getAll()).map(_payeeToJson).toList(),
+      'labels': (await _labels.getAll()).map(_labelToJson).toList(),
       'transactions': (await _transactions.getAllForExport())
           .map(_transactionToJson)
+          .toList(),
+      'transactionLabels': (await _transactions.getAllLabelLinksForExport())
+          .map(
+            (link) => {'transactionId': link.$1, 'labelId': link.$2},
+          )
           .toList(),
     };
     return _writeTempFile(
@@ -169,13 +172,13 @@ class BackupService {
 
     var accountsImported = 0;
     var categoriesImported = 0;
-    var budgetsImported = 0;
     var overallBudgetsImported = 0;
-    var incomesImported = 0;
+    var payeesImported = 0;
+    var labelsImported = 0;
     var transactionsImported = 0;
     var skipped = 0;
 
-    // Accounts and categories first — transactions and budgets
+    // Accounts, categories, payees and labels first — transactions
     // reference them by id.
     for (final entry in _listOf(document, 'accounts')) {
       if (await _accounts.restoreAccount(_accountFromJson(entry))) {
@@ -191,13 +194,6 @@ class BackupService {
         skipped++;
       }
     }
-    for (final entry in _listOf(document, 'budgets')) {
-      if (await _budgets.restoreBudget(_budgetFromJson(entry))) {
-        budgetsImported++;
-      } else {
-        skipped++;
-      }
-    }
     for (final entry in _listOf(document, 'overallBudgets')) {
       if (await _overallBudgets.restoreOverallBudget(
         _overallBudgetFromJson(entry),
@@ -207,9 +203,16 @@ class BackupService {
         skipped++;
       }
     }
-    for (final entry in _listOf(document, 'monthlyIncomes')) {
-      if (await _incomes.restoreIncome(_incomeFromJson(entry))) {
-        incomesImported++;
+    for (final entry in _listOf(document, 'payees')) {
+      if (await _payees.restorePayee(_payeeFromJson(entry))) {
+        payeesImported++;
+      } else {
+        skipped++;
+      }
+    }
+    for (final entry in _listOf(document, 'labels')) {
+      if (await _labels.restoreLabel(_labelFromJson(entry))) {
+        labelsImported++;
       } else {
         skipped++;
       }
@@ -221,13 +224,21 @@ class BackupService {
         skipped++;
       }
     }
+    for (final entry in _listOf(document, 'transactionLabels')) {
+      final transactionId = entry['transactionId'] as String?;
+      final labelId = entry['labelId'] as String?;
+      if (transactionId == null || labelId == null) continue;
+      if (!await _transactions.restoreLabelLink(transactionId, labelId)) {
+        skipped++;
+      }
+    }
 
     return RestoreSummary(
       accountsImported: accountsImported,
       categoriesImported: categoriesImported,
-      budgetsImported: budgetsImported,
       overallBudgetsImported: overallBudgetsImported,
-      incomesImported: incomesImported,
+      payeesImported: payeesImported,
+      labelsImported: labelsImported,
       transactionsImported: transactionsImported,
       skipped: skipped,
     );
@@ -294,6 +305,8 @@ class BackupService {
     'parentId': category.parentId,
     'isSystem': category.isSystem,
     'sortOrder': category.sortOrder,
+    'type': category.type.dbName,
+    'budgetedAmountMinor': category.budgetedAmountMinor,
   };
 
   Category _categoryFromJson(Map<String, Object?> json) => Category(
@@ -304,22 +317,10 @@ class BackupService {
     parentId: json['parentId'] as String?,
     isSystem: json['isSystem'] as bool? ?? false,
     sortOrder: json['sortOrder'] as int? ?? 0,
-  );
-
-  Map<String, Object?> _budgetToJson(Budget budget) => {
-    'id': budget.id,
-    'categoryId': budget.categoryId,
-    'period': budget.period,
-    'amountMinor': budget.amountMinor,
-    'carryOver': budget.carryOver,
-  };
-
-  Budget _budgetFromJson(Map<String, Object?> json) => Budget(
-    id: json['id']! as String,
-    categoryId: json['categoryId']! as String,
-    period: json['period']! as String,
-    amountMinor: json['amountMinor']! as int,
-    carryOver: json['carryOver'] as bool? ?? true,
+    type: json['type'] == null
+        ? CategoryType.expense
+        : CategoryType.fromDbName(json['type']! as String),
+    budgetedAmountMinor: json['budgetedAmountMinor'] as int?,
   );
 
   Map<String, Object?> _overallBudgetToJson(OverallBudget budget) => {
@@ -337,18 +338,26 @@ class BackupService {
         carryOver: json['carryOver'] as bool? ?? true,
       );
 
-  Map<String, Object?> _incomeToJson(MonthlyIncome income) => {
-    'id': income.id,
-    'period': income.period,
-    'amountMinor': income.amountMinor,
-    'label': income.label,
+  Map<String, Object?> _payeeToJson(Payee payee) => {
+    'id': payee.id,
+    'name': payee.name,
   };
 
-  MonthlyIncome _incomeFromJson(Map<String, Object?> json) => MonthlyIncome(
+  Payee _payeeFromJson(Map<String, Object?> json) => Payee(
     id: json['id']! as String,
-    period: json['period']! as String,
-    amountMinor: json['amountMinor']! as int,
-    label: json['label'] as String?,
+    name: json['name']! as String,
+  );
+
+  Map<String, Object?> _labelToJson(Label label) => {
+    'id': label.id,
+    'name': label.name,
+    'color': label.color,
+  };
+
+  Label _labelFromJson(Map<String, Object?> json) => Label(
+    id: json['id']! as String,
+    name: json['name']! as String,
+    color: json['color'] as String?,
   );
 
   Map<String, Object?> _transactionToJson(Transaction tx) => {
@@ -370,6 +379,8 @@ class BackupService {
     'paymentMethod': tx.paymentMethod,
     'externalRef': tx.externalRef,
     'metadata': tx.metadata,
+    'receiptPath': tx.receiptPath,
+    'payeeId': tx.payeeId,
   };
 
   Transaction _transactionFromJson(Map<String, Object?> json) => Transaction(
@@ -391,5 +402,7 @@ class BackupService {
     paymentMethod: json['paymentMethod'] as String?,
     externalRef: json['externalRef'] as String?,
     metadata: (json['metadata'] as Map<String, Object?>?) ?? const {},
+    receiptPath: json['receiptPath'] as String?,
+    payeeId: json['payeeId'] as String?,
   );
 }

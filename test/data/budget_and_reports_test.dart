@@ -121,80 +121,88 @@ void main() {
     });
   });
 
-  group('budgets', () {
-    test('upsert replaces the limit for the same category and month', () async {
-      const period = '2026-07';
-      await services.budgets.upsert(
-        categoryId: foodCategoryId,
-        period: period,
-        amountMinor: 100000,
-      );
-      await services.budgets.upsert(
-        categoryId: foodCategoryId,
-        period: period,
-        amountMinor: 150000,
+  group('category budgets', () {
+    test(
+      'a category carries a standing budget, not a per-period row',
+      () async {
+        await services.categories.update(
+          foodCategoryId,
+          budgetedAmountMinor: 100000,
+        );
+        var food = (await services.categories.getAll()).firstWhere(
+          (c) => c.id == foodCategoryId,
+        );
+        expect(food.budgetedAmountMinor, 100000);
+
+        await services.categories.update(
+          foodCategoryId,
+          budgetedAmountMinor: 150000,
+        );
+        food = (await services.categories.getAll()).firstWhere(
+          (c) => c.id == foodCategoryId,
+        );
+        expect(food.budgetedAmountMinor, 150000);
+      },
+    );
+
+    test('clearBudget removes the budget entirely', () async {
+      await services.categories.update(
+        foodCategoryId,
+        budgetedAmountMinor: 100000,
       );
 
-      final budgets = await services.budgets.getForPeriod(period);
-      expect(budgets, hasLength(1));
-      expect(budgets.single.amountMinor, 150000);
+      await services.categories.update(foodCategoryId, clearBudget: true);
+
+      final food = (await services.categories.getAll()).firstWhere(
+        (c) => c.id == foodCategoryId,
+      );
+      expect(food.budgetedAmountMinor, isNull);
     });
 
-    test('carries last month forward as an editable default', () async {
-      await services.budgets.upsert(
-        categoryId: foodCategoryId,
-        period: '2026-06',
-        amountMinor: 120000,
+    test('transferBudget moves ngwee between two categories', () async {
+      final transportId = (await services.categories.byName('Transport'))!.id;
+      await services.categories.update(
+        foodCategoryId,
+        budgetedAmountMinor: 100000,
+      );
+      await services.categories.update(transportId, budgetedAmountMinor: 20000);
+
+      final moved = await services.categories.transferBudget(
+        fromCategoryId: foodCategoryId,
+        toCategoryId: transportId,
+        amountMinor: 30000,
       );
 
-      final created = await services.budgets.carryOverInto('2026-07');
-
-      expect(created, 1);
-      final july = await services.budgets.getForPeriod('2026-07');
-      expect(july.single.amountMinor, 120000);
+      expect(moved, isTrue);
+      final all = await services.categories.getAll();
+      expect(
+        all.firstWhere((c) => c.id == foodCategoryId).budgetedAmountMinor,
+        70000,
+      );
+      expect(
+        all.firstWhere((c) => c.id == transportId).budgetedAmountMinor,
+        50000,
+      );
     });
 
-    test('carry-over never overwrites a budget already set', () async {
-      await services.budgets.upsert(
-        categoryId: foodCategoryId,
-        period: '2026-06',
-        amountMinor: 120000,
-      );
-      await services.budgets.upsert(
-        categoryId: foodCategoryId,
-        period: '2026-07',
-        amountMinor: 80000,
+    test('transferBudget refuses to overdraw the source category', () async {
+      final transportId = (await services.categories.byName('Transport'))!.id;
+      await services.categories.update(
+        foodCategoryId,
+        budgetedAmountMinor: 10000,
       );
 
-      await services.budgets.carryOverInto('2026-07');
-
-      final july = await services.budgets.getForPeriod('2026-07');
-      expect(july.single.amountMinor, 80000);
-    });
-
-    test('does not carry a budget marked as non-recurring', () async {
-      await services.budgets.upsert(
-        categoryId: foodCategoryId,
-        period: '2026-06',
-        amountMinor: 120000,
-        carryOver: false,
+      final moved = await services.categories.transferBudget(
+        fromCategoryId: foodCategoryId,
+        toCategoryId: transportId,
+        amountMinor: 30000,
       );
 
-      expect(await services.budgets.carryOverInto('2026-07'), 0);
-      expect(await services.budgets.getForPeriod('2026-07'), isEmpty);
-    });
-
-    test('a deleted budget disappears from the period', () async {
-      await services.budgets.upsert(
-        categoryId: foodCategoryId,
-        period: '2026-07',
-        amountMinor: 120000,
+      expect(moved, isFalse);
+      final food = (await services.categories.getAll()).firstWhere(
+        (c) => c.id == foodCategoryId,
       );
-      final budget = (await services.budgets.getForPeriod('2026-07')).single;
-
-      await services.budgets.delete(budget.id);
-
-      expect(await services.budgets.getForPeriod('2026-07'), isEmpty);
+      expect(food.budgetedAmountMinor, 10000);
     });
   });
 
@@ -204,15 +212,17 @@ void main() {
         period: '2026-07',
         amountMinor: 500000,
       );
-      await services.budgets.upsert(
-        categoryId: foodCategoryId,
-        period: '2026-07',
-        amountMinor: 100000,
+      await services.categories.update(
+        foodCategoryId,
+        budgetedAmountMinor: 100000,
       );
 
       final overall = await services.overallBudgets.getForPeriod('2026-07');
       expect(overall!.amountMinor, 500000);
-      expect(await services.budgets.getForPeriod('2026-07'), hasLength(1));
+      final food = (await services.categories.getAll()).firstWhere(
+        (c) => c.id == foodCategoryId,
+      );
+      expect(food.budgetedAmountMinor, 100000);
     });
 
     test('carries last month forward as an editable default', () async {
@@ -339,67 +349,70 @@ void main() {
     });
   });
 
-  group('monthly income', () {
-    test('upsert replaces the declared income for the same month', () async {
-      const period = '2026-07';
-      await services.income.upsert(period: period, amountMinor: 500000);
-      await services.income.upsert(period: period, amountMinor: 650000);
+  group('income categories', () {
+    test('a category budgeted with type income counts as income', () async {
+      final salary = await services.categories.create(
+        'Salary',
+        type: CategoryType.income,
+        budgetedAmountMinor: 500000,
+      );
+      await services.categories.update(salary.id, budgetedAmountMinor: 650000);
 
-      final income = await services.income.getForPeriod(period);
-      expect(income.single.amountMinor, 650000);
-    });
-
-    test('no income set for a period returns an empty list', () async {
-      expect(await services.income.getForPeriod('2026-08'), isEmpty);
+      final updated = (await services.categories.getAll()).firstWhere(
+        (c) => c.id == salary.id,
+      );
+      expect(updated.budgetedAmountMinor, 650000);
+      expect(updated.isIncome, isTrue);
     });
 
     test(
-      'different labels create separate streams for the same month',
+      'multiple income categories coexist independently',
       () async {
-        const period = '2026-07';
-        await services.income.upsert(
-          period: period,
-          amountMinor: 500000,
-          label: 'Salary',
+        await services.categories.create(
+          'Salary',
+          type: CategoryType.income,
+          budgetedAmountMinor: 500000,
         );
-        await services.income.upsert(
-          period: period,
-          amountMinor: 150000,
-          label: 'Side hustle',
+        await services.categories.create(
+          'Side hustle',
+          type: CategoryType.income,
+          budgetedAmountMinor: 150000,
         );
 
-        final income = await services.income.getForPeriod(period);
-        expect(income, hasLength(2));
+        final incomeCategories = (await services.categories.getAll())
+            .where((c) => c.isIncome && c.hasBudget)
+            .toList();
+        expect(incomeCategories, hasLength(2));
         expect(
-          income.map((i) => i.amountMinor).reduce((a, b) => a + b),
+          incomeCategories
+              .map((c) => c.budgetedAmountMinor!)
+              .reduce((a, b) => a + b),
           650000,
         );
       },
     );
 
     test(
-      'deleteSource removes a single stream without touching others',
+      'deleting an income category removes it without touching others',
       () async {
-        const period = '2026-07';
-        await services.income.upsert(
-          period: period,
-          amountMinor: 500000,
-          label: 'Salary',
+        final salary = await services.categories.create(
+          'Salary',
+          type: CategoryType.income,
+          budgetedAmountMinor: 500000,
         );
-        await services.income.upsert(
-          period: period,
-          amountMinor: 150000,
-          label: 'Side hustle',
+        await services.categories.create(
+          'Side hustle',
+          type: CategoryType.income,
+          budgetedAmountMinor: 150000,
         );
-        final toDelete = (await services.income.getForPeriod(
-          period,
-        )).firstWhere((i) => i.label == 'Side hustle');
 
-        await services.income.deleteSource(toDelete.id);
+        await services.categories.delete(salary.id);
 
-        final remaining = await services.income.getForPeriod(period);
+        final remaining = (await services.categories.getAll())
+            .where((c) => c.isIncome && c.hasBudget)
+            .toList();
         expect(remaining, hasLength(1));
-        expect(remaining.single.label, 'Salary');
+        expect(remaining.single.name, 'Side hustle');
       },
     );
 
@@ -514,14 +527,13 @@ void main() {
       expect(Iso.previousMonthKey('2026-07'), '2026-06');
     });
 
-    test('a December budget carries into January', () async {
-      await services.budgets.upsert(
-        categoryId: foodCategoryId,
+    test('a December overall budget carries into January', () async {
+      await services.overallBudgets.upsert(
         period: '2025-12',
-        amountMinor: 50000,
+        amountMinor: 500000,
       );
 
-      expect(await services.budgets.carryOverInto('2026-01'), 1);
+      expect(await services.overallBudgets.carryOverInto('2026-01'), isTrue);
     });
 
     test('spend on the last day of the month counts in that month', () async {

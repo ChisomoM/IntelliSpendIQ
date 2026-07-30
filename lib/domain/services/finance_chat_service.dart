@@ -4,7 +4,6 @@ import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
-import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/ai/chat_provider.dart';
@@ -53,18 +52,15 @@ class FinanceChatService {
     required TransactionRepository transactions,
     required AccountRepository accounts,
     required CategoryRepository categories,
-    required BudgetRepository budgets,
   }) : _provider = provider,
        _transactions = transactions,
        _accounts = accounts,
-       _categories = categories,
-       _budgets = budgets;
+       _categories = categories;
 
   final ChatProvider _provider;
   final TransactionRepository _transactions;
   final AccountRepository _accounts;
   final CategoryRepository _categories;
-  final BudgetRepository _budgets;
 
   static const _proposeAddTransaction = 'propose_add_transaction';
   static const _proposeSetBudget = 'propose_set_budget';
@@ -202,10 +198,9 @@ class FinanceChatService {
   }
 
   Future<String> _confirmBudget(ProposedBudget action) async {
-    await _budgets.upsert(
-      categoryId: action.categoryId,
-      period: action.period,
-      amountMinor: action.amountMinor,
+    await _categories.update(
+      action.categoryId,
+      budgetedAmountMinor: action.amountMinor,
     );
     return 'Budget saved.';
   }
@@ -241,13 +236,11 @@ class FinanceChatService {
     final category = await _categories.byName(input['category_name'] as String);
     if (category == null) return null;
 
-    final period = input['period'] as String? ?? Iso.monthKey(DateTime.now());
     return ProposedBudget(
       toolUseId: toolUseId,
       categoryId: category.id,
       categoryName: category.displayName,
       amountMinor: Money.minorFromDouble((input['amount'] as num).toDouble()),
-      period: period,
     );
   }
 
@@ -318,20 +311,19 @@ class FinanceChatService {
     Map<String, dynamic> input,
   ) async {
     final period = input['period'] as String? ?? Iso.monthKey(DateTime.now());
-    final budgets = await _budgets.getForPeriod(period);
-    final categories = {
-      for (final category in await _categories.getAll()) category.id: category,
-    };
+    final budgeted = (await _categories.getAll())
+        .where((c) => c.isExpense && c.hasBudget)
+        .toList();
 
     return {
       'period': period,
       'budgets': [
-        for (final budget in budgets)
+        for (final category in budgeted)
           {
-            'category': categories[budget.categoryId]?.displayName ?? 'Unknown',
-            'limit_minor': budget.amountMinor,
+            'category': category.displayName,
+            'limit_minor': category.budgetedAmountMinor,
             'spent_minor': await _transactions.spentForCategory(
-              budget.categoryId,
+              category.id,
               period,
             ),
           },
@@ -461,8 +453,8 @@ class FinanceChatService {
     {
       'name': _proposeSetBudget,
       'description':
-          'Propose a monthly budget limit for a category. This shows a '
-          'confirmation card and saves nothing by itself.',
+          'Propose a standing monthly budget limit for a category. This '
+          'shows a confirmation card and saves nothing by itself.',
       'strict': true,
       'input_schema': {
         'type': 'object',
@@ -472,12 +464,8 @@ class FinanceChatService {
             'type': 'number',
             'description': 'Monthly limit in major units.',
           },
-          'period': {
-            'type': ['string', 'null'],
-            'description': 'Month as YYYY-MM. Null means the current month.',
-          },
         },
-        'required': ['category_name', 'amount', 'period'],
+        'required': ['category_name', 'amount'],
         'additionalProperties': false,
       },
     },

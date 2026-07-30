@@ -15,6 +15,22 @@ class AccountsState extends Equatable {
 
   bool get isEmpty => status == AccountsStatus.loaded && accounts.isEmpty;
 
+  /// Every account's balance summed, in ngwee. Accounts with no known
+  /// balance (never reported by a provider or set by hand) count as
+  /// zero.
+  int get totalBalanceMinor =>
+      accounts.fold(0, (sum, account) => sum + (account.balanceMinor ?? 0));
+
+  /// Accounts grouped by type, in a stable display order.
+  Map<AccountType, List<Account>> get byType {
+    final grouped = <AccountType, List<Account>>{};
+    for (final type in AccountType.values) {
+      final matching = accounts.where((a) => a.type == type).toList();
+      if (matching.isNotEmpty) grouped[type] = matching;
+    }
+    return grouped;
+  }
+
   AccountsState copyWith({
     AccountsStatus? status,
     List<Account>? accounts,

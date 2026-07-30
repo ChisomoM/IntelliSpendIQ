@@ -33,7 +33,9 @@ class CategoriesView extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Add category',
-            onPressed: () => CategoryEditorSheet.show(context),
+            onPressed: () => Navigator.of(
+              context,
+            ).push<String?>(CategoryEditorPage.route()),
           ),
         ],
       ),
@@ -66,9 +68,12 @@ class CategoriesView extends StatelessWidget {
                     child: TextButton.icon(
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text('Add subcategory'),
-                      onPressed: () => CategoryEditorSheet.show(
-                        context,
-                        parentId: parent.id,
+                      onPressed: () => Navigator.of(context).push<String?>(
+                        CategoryEditorPage.route(
+                          parentId: parent.id,
+                          initialType: parent.type,
+                          lockParent: true,
+                        ),
                       ),
                     ),
                   ),

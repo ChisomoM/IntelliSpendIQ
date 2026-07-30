@@ -38,15 +38,16 @@ class AccountTile extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (account.isDefault)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
-                Icons.star,
-                size: 18,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
+          IconButton(
+            icon: Icon(account.isDefault ? Icons.star : Icons.star_border),
+            tooltip: account.isDefault ? 'Default account' : 'Set as default',
+            color: account.isDefault
+                ? Theme.of(context).colorScheme.primary
+                : null,
+            onPressed: account.isDefault
+                ? null
+                : () => context.read<AccountsCubit>().setDefault(account.id),
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Edit balance',
