@@ -8,6 +8,7 @@ class SettingsState extends Equatable {
     this.pinSet = false,
     this.biometricsAvailable = false,
     this.biometricsEnabled = false,
+    this.anthropicApiKeyConfigured = false,
   });
 
   final SettingsStatus status;
@@ -21,6 +22,10 @@ class SettingsState extends Equatable {
   /// Whether the user opted in.
   final bool biometricsEnabled;
 
+  /// Whether an Anthropic API key is stored. The key itself never
+  /// leaves Keystore into this state.
+  final bool anthropicApiKeyConfigured;
+
   /// Biometrics are only offerable once a PIN exists — they are a
   /// shortcut past the PIN, never a replacement for having one.
   bool get canOfferBiometrics => pinSet && biometricsAvailable;
@@ -30,12 +35,15 @@ class SettingsState extends Equatable {
     bool? pinSet,
     bool? biometricsAvailable,
     bool? biometricsEnabled,
+    bool? anthropicApiKeyConfigured,
   }) {
     return SettingsState(
       status: status ?? this.status,
       pinSet: pinSet ?? this.pinSet,
       biometricsAvailable: biometricsAvailable ?? this.biometricsAvailable,
       biometricsEnabled: biometricsEnabled ?? this.biometricsEnabled,
+      anthropicApiKeyConfigured:
+          anthropicApiKeyConfigured ?? this.anthropicApiKeyConfigured,
     );
   }
 
@@ -45,5 +53,6 @@ class SettingsState extends Equatable {
     pinSet,
     biometricsAvailable,
     biometricsEnabled,
+    anthropicApiKeyConfigured,
   ];
 }

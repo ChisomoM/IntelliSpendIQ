@@ -31,10 +31,12 @@ void main() {
     await services.dispose();
   });
 
+  SettingsCubit buildCubit() => SettingsCubit(repository, store);
+
   group('SettingsCubit', () {
     blocTest<SettingsCubit, SettingsState>(
       'reports the lock as off before a PIN is set',
-      build: () => SettingsCubit(repository),
+      build: buildCubit,
       act: (cubit) => cubit.load(),
       verify: (cubit) {
         expect(cubit.state.pinSet, isFalse);
@@ -44,7 +46,7 @@ void main() {
 
     blocTest<SettingsCubit, SettingsState>(
       'will not offer biometrics without a PIN behind them',
-      build: () => SettingsCubit(repository),
+      build: buildCubit,
       act: (cubit) => cubit.load(),
       verify: (cubit) {
         expect(cubit.state.biometricsAvailable, isTrue);
@@ -61,7 +63,7 @@ void main() {
       setUp: () async {
         await repository.setPin('1234');
       },
-      build: () => SettingsCubit(repository),
+      build: buildCubit,
       act: (cubit) => cubit.load(),
       verify: (cubit) => expect(cubit.state.canOfferBiometrics, isTrue),
     );
@@ -72,7 +74,7 @@ void main() {
         await repository.setPin('1234');
         biometrics.available = false;
       },
-      build: () => SettingsCubit(repository),
+      build: buildCubit,
       act: (cubit) => cubit.load(),
       verify: (cubit) {
         expect(cubit.state.pinSet, isTrue);
@@ -85,7 +87,7 @@ void main() {
       setUp: () async {
         await repository.setPin('1234');
       },
-      build: () => SettingsCubit(repository),
+      build: buildCubit,
       act: (cubit) async {
         await cubit.load();
         await cubit.setBiometricsEnabled(enabled: true);
@@ -102,7 +104,7 @@ void main() {
         await repository.setPin('1234');
         await repository.setBiometricsEnabled(enabled: true);
       },
-      build: () => SettingsCubit(repository),
+      build: buildCubit,
       act: (cubit) async {
         await cubit.load();
         await cubit.disableLock();
@@ -116,6 +118,44 @@ void main() {
           isFalse,
           reason: 'A stale opt-in would re-enable itself on the next PIN',
         );
+      },
+    );
+
+    blocTest<SettingsCubit, SettingsState>(
+      'reports the Anthropic key as missing until one is saved',
+      build: buildCubit,
+      act: (cubit) => cubit.load(),
+      verify: (cubit) {
+        expect(cubit.state.anthropicApiKeyConfigured, isFalse);
+      },
+    );
+
+    blocTest<SettingsCubit, SettingsState>(
+      'saves the Anthropic key to the secure store',
+      build: buildCubit,
+      act: (cubit) async {
+        await cubit.load();
+        await cubit.saveAnthropicApiKey('  sk-ant-test  ');
+      },
+      verify: (cubit) {
+        expect(cubit.state.anthropicApiKeyConfigured, isTrue);
+        expect(store.anthropicKey, 'sk-ant-test');
+      },
+    );
+
+    blocTest<SettingsCubit, SettingsState>(
+      'clears the Anthropic key',
+      setUp: () async {
+        await store.setAnthropicApiKey('sk-ant-test');
+      },
+      build: buildCubit,
+      act: (cubit) async {
+        await cubit.load();
+        await cubit.clearAnthropicApiKey();
+      },
+      verify: (cubit) {
+        expect(cubit.state.anthropicApiKeyConfigured, isFalse);
+        expect(store.anthropicKey, isNull);
       },
     );
   });

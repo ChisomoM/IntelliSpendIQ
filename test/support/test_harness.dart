@@ -42,6 +42,7 @@ Future<AppServices> createTestServices({
 /// reference and assert on what was stored.
 class FakeSecureStore implements SecureStore {
   String? appLock;
+  String? anthropicKey;
 
   @override
   Future<String> dbPassphrase() async => 'test-passphrase';
@@ -50,10 +51,12 @@ class FakeSecureStore implements SecureStore {
   Future<String> userId() async => 'test-user';
 
   @override
-  Future<String?> anthropicApiKey() async => null;
+  Future<String?> anthropicApiKey() async => anthropicKey;
 
   @override
-  Future<void> setAnthropicApiKey(String? value) async {}
+  Future<void> setAnthropicApiKey(String? value) async {
+    anthropicKey = (value == null || value.isEmpty) ? null : value;
+  }
 
   @override
   Future<String?> appLockCredential() async => appLock;

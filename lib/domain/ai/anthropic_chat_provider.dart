@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:intellispendiq/config/resolve_anthropic_api_key.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/ai/chat_provider.dart';
 
@@ -15,7 +16,7 @@ class AnthropicChatProvider implements ChatProvider {
   AnthropicChatProvider({
     required SecureStore secureStore,
     http.Client? httpClient,
-    this.model = 'claude-opus-5',
+    this.model = 'claude-sonnet-5',
   }) : _secureStore = secureStore,
        _http = httpClient ?? http.Client();
 
@@ -28,7 +29,7 @@ class AnthropicChatProvider implements ChatProvider {
 
   @override
   Future<bool> get isConfigured async {
-    final key = await _secureStore.anthropicApiKey();
+    final key = await resolveAnthropicApiKey(_secureStore);
     return key != null && key.isNotEmpty;
   }
 
@@ -37,7 +38,7 @@ class AnthropicChatProvider implements ChatProvider {
     required List<Map<String, dynamic>> messages,
     required List<Map<String, dynamic>> tools,
   }) async {
-    final apiKey = await _secureStore.anthropicApiKey();
+    final apiKey = await resolveAnthropicApiKey(_secureStore);
     if (apiKey == null || apiKey.isEmpty) {
       throw ChatException('Anthropic API key not configured');
     }

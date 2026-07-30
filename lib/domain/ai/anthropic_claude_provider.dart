@@ -1,6 +1,8 @@
+
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:intellispendiq/config/resolve_anthropic_api_key.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/ai/ai_provider.dart';
 import 'package:intellispendiq/domain/ai/pii.dart';
@@ -16,7 +18,7 @@ class AnthropicClaudeProvider implements AiProvider {
   AnthropicClaudeProvider({
     required SecureStore secureStore,
     http.Client? httpClient,
-    this.model = 'claude-opus-5',
+    this.model = 'claude-sonnet-5',
   }) : _secureStore = secureStore,
        _http = httpClient ?? http.Client();
 
@@ -99,7 +101,7 @@ class AnthropicClaudeProvider implements AiProvider {
 
   @override
   Future<bool> get isConfigured async {
-    final key = await _secureStore.anthropicApiKey();
+    final key = await resolveAnthropicApiKey(_secureStore);
     return key != null && key.isNotEmpty;
   }
 
@@ -108,7 +110,7 @@ class AnthropicClaudeProvider implements AiProvider {
     required String transcript,
     String locale = 'en',
   }) async {
-    final apiKey = await _secureStore.anthropicApiKey();
+    final apiKey = await resolveAnthropicApiKey(_secureStore);
     if (apiKey == null || apiKey.isEmpty) {
       throw AiExtractionException('Anthropic API key not configured');
     }

@@ -11,6 +11,7 @@ import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
@@ -50,6 +51,7 @@ class App extends StatelessWidget {
           value: services.financeChat,
         ),
         RepositoryProvider<AppLockRepository>.value(value: services.appLock),
+        RepositoryProvider<SecureStore>.value(value: services.secureStore),
       ],
       // Theme, auth and deep links are app-wide, so they sit above the
       // MaterialApp rather than inside any one screen.

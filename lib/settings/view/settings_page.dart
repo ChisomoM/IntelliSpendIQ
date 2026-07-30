@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/app/cubit/cubit.dart';
 import 'package:intellispendiq/auth/auth.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
+import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -11,8 +12,10 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          SettingsCubit(context.read<AppLockRepository>())..loadUnawaited(),
+      create: (context) => SettingsCubit(
+        context.read<AppLockRepository>(),
+        context.read<SecureStore>(),
+      )..loadUnawaited(),
       child: const SettingsView(),
     );
   }
@@ -32,6 +35,9 @@ class SettingsView extends StatelessWidget {
           Divider(height: 32),
           _SectionHeader('Security'),
           _AppLockSection(),
+          Divider(height: 32),
+          _SectionHeader('AI'),
+          _AnthropicApiKeySection(),
         ],
       ),
     );
@@ -205,5 +211,151 @@ class _AppLockSection extends StatelessWidget {
     );
 
     if (confirmed ?? false) await settings.disableLock();
+  }
+}
+
+class _AnthropicApiKeySection extends StatelessWidget {
+  const _AnthropicApiKeySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<SettingsCubit, SettingsState>(
+      builder: (context, state) {
+        if (state.status == SettingsStatus.initial) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          children: [
+            ListTile(
+              leading: Icon(
+                state.anthropicApiKeyConfigured
+                    ? Icons.check_circle_outline
+                    : Icons.key_outlined,
+              ),
+              title: const Text('Anthropic API key'),
+              subtitle: Text(
+                state.anthropicApiKeyConfigured
+                    ? 'Configured — used for voice and assistant'
+                    : 'Paste in secrets.json, or here',
+              ),
+              onTap: () => _editKey(context, configured: state.anthropicApiKeyConfigured),
+            ),
+            if (state.anthropicApiKeyConfigured)
+              ListTile(
+                leading: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  'Remove API key',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+                onTap: () => _confirmClear(context),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _editKey(
+    BuildContext context, {
+    required bool configured,
+  }) async {
+    final settings = context.read<SettingsCubit>();
+    final controller = TextEditingController();
+    var obscure = true;
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(configured ? 'Replace API key' : 'Add API key'),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                obscureText: obscure,
+                autocorrect: false,
+                enableSuggestions: false,
+                keyboardType: TextInputType.visiblePassword,
+                decoration: InputDecoration(
+                  labelText: 'sk-ant-…',
+                  hintText: configured
+                      ? 'Paste a new key to replace the stored one'
+                      : 'Paste your Anthropic API key',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      obscure ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () => setState(() => obscure = !obscure),
+                  ),
+                ),
+                onSubmitted: (_) => Navigator.of(dialogContext).pop(true),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    final value = controller.text;
+    controller.dispose();
+
+    if (saved ?? false) {
+      await settings.saveAnthropicApiKey(value);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value.trim().isEmpty
+                  ? 'API key removed'
+                  : 'API key saved',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmClear(BuildContext context) async {
+    final settings = context.read<SettingsCubit>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove API key?'),
+        content: const Text(
+          'Voice extraction and the assistant will stop working until '
+          'you add a key again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed ?? false) await settings.clearAnthropicApiKey();
   }
 }
