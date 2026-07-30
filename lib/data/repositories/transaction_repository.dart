@@ -196,6 +196,110 @@ class TransactionRepository {
     return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
+  /// Every transaction, unbounded — for CSV export and backups, where
+  /// truncating at a display-friendly limit would silently drop rows.
+  Future<List<Transaction>> getAllForExport() async {
+    final query = _db.select(_db.transactions)
+      ..where((t) => t.userId.equals(userId) & t.deletedAt.isNull())
+      ..orderBy([(t) => OrderingTerm.desc(t.transactedAt)]);
+    return (await query.get()).map(_fromRow).toList();
+  }
+
+  /// Re-inserts a transaction from a backup, preserving its original id
+  /// so importing the same backup twice does not duplicate anything.
+  /// Returns false without writing if a transaction with this id
+  /// already exists, or if `idempotencyKey` collides with a different
+  /// row (its unique constraint) — the caller decides whether either
+  /// counts as a real failure.
+  Future<bool> restoreTransaction(Transaction tx) async {
+    final existing = await (_db.select(
+      _db.transactions,
+    )..where((t) => t.id.equals(tx.id))).getSingleOrNull();
+    if (existing != null) return false;
+
+    final now = Iso.nowUtc();
+    try {
+      await _db
+          .into(_db.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              id: tx.id,
+              userId: userId,
+              createdAt: now,
+              updatedAt: now,
+              accountId: tx.accountId,
+              categoryId: Value(tx.categoryId),
+              amountMinor: tx.amountMinor,
+              currency: Value(tx.currency),
+              direction: tx.direction.name,
+              merchant: Value(tx.merchant),
+              description: Value(tx.description),
+              transactedAt: Iso.fromDateTime(tx.transactedAt),
+              source: tx.source.name,
+              confidence: Value(tx.confidence),
+              status: tx.status.dbName,
+              rawCaptureId: Value(tx.rawCaptureId),
+              idempotencyKey: tx.idempotencyKey,
+              duplicateOfId: Value(tx.duplicateOfId),
+              paymentMethod: Value(tx.paymentMethod),
+              externalRef: Value(tx.externalRef),
+              metadataJson: Value(
+                tx.metadata.isEmpty ? null : jsonEncode(tx.metadata),
+              ),
+            ),
+          );
+      return true;
+    } on Exception {
+      return false;
+    }
+  }
+
+  /// Recent transactions matching every non-null filter — a merchant or
+  /// description substring, a category, an account, and/or a date
+  /// range. Each filter is independent: pass only the ones the user
+  /// has actually set.
+  Stream<List<Transaction>> watchFiltered({
+    String? query,
+    String? categoryId,
+    String? accountId,
+    DateTime? from,
+    DateTime? to,
+    int limit = 200,
+  }) {
+    final t = _db.transactions;
+    var predicate = t.userId.equals(userId) & t.deletedAt.isNull();
+
+    final trimmedQuery = query?.trim();
+    if (trimmedQuery != null && trimmedQuery.isNotEmpty) {
+      final pattern = '%${trimmedQuery.toLowerCase()}%';
+      predicate =
+          predicate &
+          (t.merchant.lower().like(pattern) |
+              t.description.lower().like(pattern));
+    }
+    if (categoryId != null) {
+      predicate = predicate & t.categoryId.equals(categoryId);
+    }
+    if (accountId != null) {
+      predicate = predicate & t.accountId.equals(accountId);
+    }
+    if (from != null) {
+      predicate =
+          predicate &
+          t.transactedAt.isBiggerOrEqualValue(Iso.fromDateTime(from));
+    }
+    if (to != null) {
+      predicate =
+          predicate & t.transactedAt.isSmallerThanValue(Iso.fromDateTime(to));
+    }
+
+    final selectQuery = _db.select(t)
+      ..where((_) => predicate)
+      ..orderBy([(t) => OrderingTerm.desc(t.transactedAt)])
+      ..limit(limit);
+    return selectQuery.watch().map((rows) => rows.map(_fromRow).toList());
+  }
+
   Stream<List<Transaction>> watchByStatus(TxStatus status) {
     final query = _db.select(_db.transactions)
       ..where(

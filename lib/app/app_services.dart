@@ -15,6 +15,7 @@ import 'package:intellispendiq/domain/ai/anthropic_chat_provider.dart';
 import 'package:intellispendiq/domain/ai/anthropic_claude_provider.dart';
 import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
+import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
@@ -47,6 +48,7 @@ class AppServices {
     required this.aiProvider,
     required this.chatProvider,
     required this.financeChat,
+    required this.backupService,
     required this.captureBridge,
     required this.deepLinkSource,
   });
@@ -133,6 +135,13 @@ class AppServices {
       categories: categories,
       budgets: budgets,
     );
+    final backupService = BackupService(
+      transactions: transactions,
+      accounts: accounts,
+      categories: categories,
+      budgets: budgets,
+      incomes: income,
+    );
 
     return AppServices._(
       db: db,
@@ -169,6 +178,7 @@ class AppServices {
       aiProvider: ai,
       chatProvider: chat,
       financeChat: financeChatService,
+      backupService: backupService,
       captureBridge: bridge,
       deepLinkSource: deepLinkSource ?? AppLinksSource(),
     );
@@ -193,6 +203,7 @@ class AppServices {
   final AiProvider aiProvider;
   final ChatProvider chatProvider;
   final FinanceChatService financeChat;
+  final BackupService backupService;
   final CaptureBridge captureBridge;
   final DeepLinkSource deepLinkSource;
 

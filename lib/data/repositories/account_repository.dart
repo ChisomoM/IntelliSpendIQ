@@ -183,4 +183,48 @@ class AccountRepository {
       AccountsCompanion(isDefault: const Value(true), updatedAt: Value(now)),
     );
   }
+
+  /// Re-inserts an account from a backup, preserving its original id
+  /// so importing the same backup twice does not duplicate anything.
+  /// A day-one seed gets a fresh id on every install, so an id-only
+  /// check would let the seeded account collide by id yet still
+  /// duplicate by provider the moment it's restored onto a device
+  /// that already seeded its own — matching by `providerKey` closes
+  /// that gap for provider-linked accounts.
+  Future<bool> restoreAccount(Account account) async {
+    final existing = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.id.equals(account.id))).getSingleOrNull();
+    if (existing != null) return false;
+    if (account.providerKey != null) {
+      final sameProvider =
+          await (_db.select(_db.accounts)..where(
+                (a) =>
+                    a.userId.equals(userId) &
+                    a.providerKey.equals(account.providerKey!) &
+                    a.deletedAt.isNull(),
+              ))
+              .getSingleOrNull();
+      if (sameProvider != null) return false;
+    }
+
+    final now = Iso.nowUtc();
+    await _db
+        .into(_db.accounts)
+        .insert(
+          AccountsCompanion.insert(
+            id: account.id,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+            name: account.name,
+            type: account.type.dbName,
+            currency: Value(account.currency),
+            isDefault: Value(account.isDefault),
+            providerKey: Value(account.providerKey),
+            balanceMinor: Value(account.balanceMinor),
+          ),
+        );
+    return true;
+  }
 }

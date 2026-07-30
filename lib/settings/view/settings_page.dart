@@ -1,10 +1,16 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/accounts/accounts.dart';
 import 'package:intellispendiq/app/cubit/cubit.dart';
 import 'package:intellispendiq/auth/auth.dart';
+import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
+import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
+import 'package:share_plus/share_plus.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -45,6 +51,17 @@ class SettingsView extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push<void>(AccountsPage.route()),
           ),
+          ListTile(
+            leading: const Icon(Icons.label_outline),
+            title: const Text('Categories'),
+            subtitle: const Text('Add or remove spending categories'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () =>
+                Navigator.of(context).push<void>(CategoriesPage.route()),
+          ),
+          const Divider(height: 32),
+          const _SectionHeader('Data'),
+          const _DataSection(),
           const Divider(height: 32),
           const _SectionHeader('Security'),
           const _AppLockSection(),
@@ -221,5 +238,149 @@ class _AppLockSection extends StatelessWidget {
     );
 
     if (confirmed ?? false) await settings.disableLock();
+  }
+}
+
+/// Export and backup actions. Restore merges into what's already on
+/// this device — see [BackupService] for why that's safe to repeat.
+class _DataSection extends StatefulWidget {
+  const _DataSection();
+
+  @override
+  State<_DataSection> createState() => _DataSectionState();
+}
+
+class _DataSectionState extends State<_DataSection> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.table_chart_outlined),
+          title: const Text('Export transactions (CSV)'),
+          subtitle: const Text('For your own records or a spreadsheet'),
+          enabled: !_busy,
+          onTap: () => _exportCsv(context),
+        ),
+        ListTile(
+          leading: const Icon(Icons.backup_outlined),
+          title: const Text('Back up all data (JSON)'),
+          subtitle: const Text(
+            'Accounts, categories, budgets, and transactions',
+          ),
+          enabled: !_busy,
+          onTap: () => _exportBackup(context),
+        ),
+        ListTile(
+          leading: const Icon(Icons.restore_outlined),
+          title: const Text('Restore from backup'),
+          subtitle: const Text(
+            "Adds a backup file's data to what is already here",
+          ),
+          enabled: !_busy,
+          onTap: () => _restoreBackup(context),
+        ),
+        if (_busy)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _exportCsv(BuildContext context) async {
+    final backup = context.read<BackupService>();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final file = await backup.exportTransactionsCsv();
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'IntelliSpendIQ transactions export',
+        ),
+      );
+    } on Exception catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not export: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _exportBackup(BuildContext context) async {
+    final backup = context.read<BackupService>();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final file = await backup.exportBackupJson();
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], text: 'IntelliSpendIQ backup'),
+      );
+    } on Exception catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not export: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _restoreBackup(BuildContext context) async {
+    final backup = context.read<BackupService>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Restore from backup?'),
+        content: const Text(
+          'This adds every account, category, budget, and transaction '
+          'from the backup file that is not already here. Nothing '
+          'already on this device is removed or changed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Choose file'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+    final path = result?.files.single.path;
+    if (path == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final summary = await backup.importBackupJson(File(path));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Restored ${summary.totalImported} record(s) '
+            '(${summary.skipped} already present).',
+          ),
+        ),
+      );
+    } on Exception catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not restore that file: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 }

@@ -241,6 +241,60 @@ void main() {
     );
   });
 
+  group('categories', () {
+    test('creates a custom category', () async {
+      final category = await services.categories.create('Pets', icon: '🐕');
+
+      final all = await services.categories.getAll();
+      expect(all.map((c) => c.name), contains('Pets'));
+      expect(category.isSystem, isFalse);
+    });
+
+    test('update renames a category and changes its icon', () async {
+      final category = await services.categories.create('Pets', icon: '🐕');
+
+      await services.categories.update(
+        category.id,
+        name: 'Pet care',
+        icon: '🐈',
+      );
+
+      final all = await services.categories.getAll();
+      final updated = all.firstWhere((c) => c.id == category.id);
+      expect(updated.name, 'Pet care');
+      expect(updated.icon, '🐈');
+    });
+
+    test('update can clear an icon', () async {
+      final category = await services.categories.create('Pets', icon: '🐕');
+
+      await services.categories.update(category.id, clearIcon: true);
+
+      final all = await services.categories.getAll();
+      expect(all.firstWhere((c) => c.id == category.id).icon, isNull);
+    });
+
+    test('deletes a user-created category', () async {
+      final category = await services.categories.create('Pets');
+
+      final removed = await services.categories.delete(category.id);
+
+      expect(removed, isTrue);
+      final all = await services.categories.getAll();
+      expect(all.map((c) => c.id), isNot(contains(category.id)));
+    });
+
+    test('refuses to delete a system category', () async {
+      final food = (await services.categories.byName('Food'))!;
+
+      final removed = await services.categories.delete(food.id);
+
+      expect(removed, isFalse);
+      final all = await services.categories.getAll();
+      expect(all.map((c) => c.id), contains(food.id));
+    });
+  });
+
   group('monthly income', () {
     test('upsert replaces the declared income for the same month', () async {
       const period = '2026-07';

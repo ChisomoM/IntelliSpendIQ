@@ -43,6 +43,14 @@ class IncomeRepository {
     return row == null ? null : _fromRow(row);
   }
 
+  /// Every declared income across every period, unbounded — for
+  /// backups.
+  Future<List<MonthlyIncome>> getAllForExport() async {
+    final query = _db.select(_db.monthlyIncomes)
+      ..where((i) => i.userId.equals(userId) & i.deletedAt.isNull());
+    return (await query.get()).map(_fromRow).toList();
+  }
+
   Future<void> upsert({
     required String period,
     required int amountMinor,
@@ -76,6 +84,37 @@ class IncomeRepository {
           updatedAt: Value(now),
         ),
       );
+    }
+  }
+
+  /// Re-inserts a declared income from a backup, preserving its
+  /// original id so importing the same backup twice does not
+  /// duplicate anything. Returns false without writing if an income
+  /// with this id already exists, or if `{userId, period}` collides
+  /// with a different row (its unique constraint).
+  Future<bool> restoreIncome(MonthlyIncome income) async {
+    final existing = await (_db.select(
+      _db.monthlyIncomes,
+    )..where((i) => i.id.equals(income.id))).getSingleOrNull();
+    if (existing != null) return false;
+
+    final now = Iso.nowUtc();
+    try {
+      await _db
+          .into(_db.monthlyIncomes)
+          .insert(
+            MonthlyIncomesCompanion.insert(
+              id: income.id,
+              userId: userId,
+              createdAt: now,
+              updatedAt: now,
+              period: income.period,
+              amountMinor: income.amountMinor,
+            ),
+          );
+      return true;
+    } on Exception {
+      return false;
     }
   }
 }
