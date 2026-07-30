@@ -84,6 +84,13 @@ class BudgetRepository {
     }
   }
 
+  /// Every budget across every period, unbounded — for backups.
+  Future<List<Budget>> getAllForExport() async {
+    final query = _db.select(_db.budgets)
+      ..where((b) => b.userId.equals(userId) & b.deletedAt.isNull());
+    return (await query.get()).map(_fromRow).toList();
+  }
+
   Future<void> delete(String id) async {
     final now = Iso.nowUtc();
     await (_db.update(_db.budgets)..where((b) => b.id.equals(id))).write(
@@ -110,5 +117,38 @@ class BudgetRepository {
       created++;
     }
     return created;
+  }
+
+  /// Re-inserts a budget from a backup, preserving its original id so
+  /// importing the same backup twice does not duplicate anything.
+  /// Returns false without writing if a budget with this id already
+  /// exists, or if `{userId, categoryId, period}` collides with a
+  /// different row (its unique constraint).
+  Future<bool> restoreBudget(Budget budget) async {
+    final existing = await (_db.select(
+      _db.budgets,
+    )..where((b) => b.id.equals(budget.id))).getSingleOrNull();
+    if (existing != null) return false;
+
+    final now = Iso.nowUtc();
+    try {
+      await _db
+          .into(_db.budgets)
+          .insert(
+            BudgetsCompanion.insert(
+              id: budget.id,
+              userId: userId,
+              createdAt: now,
+              updatedAt: now,
+              categoryId: budget.categoryId,
+              period: budget.period,
+              amountMinor: budget.amountMinor,
+              carryOver: Value(budget.carryOver),
+            ),
+          );
+      return true;
+    } on Exception {
+      return false;
+    }
   }
 }

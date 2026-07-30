@@ -100,6 +100,20 @@ class Budgets extends SyncedTable {
   ];
 }
 
+@DataClassName('MonthlyIncomeRow')
+class MonthlyIncomes extends SyncedTable {
+  /// Month key `YYYY-MM`.
+  TextColumn get period => text()();
+
+  /// Declared income for the month, in ngwee.
+  IntColumn get amountMinor => integer()();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, period},
+  ];
+}
+
 @DataClassName('RawCaptureRow')
 @TableIndex(name: 'idx_raw_hash', columns: {#contentHash})
 @TableIndex(name: 'idx_raw_status', columns: {#userId, #parseStatus})

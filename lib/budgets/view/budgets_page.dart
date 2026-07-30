@@ -4,6 +4,7 @@ import 'package:intellispendiq/budgets/cubit/cubit.dart';
 import 'package:intellispendiq/budgets/widgets/widgets.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/income_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 
 class BudgetsPage extends StatelessWidget {
@@ -16,6 +17,7 @@ class BudgetsPage extends StatelessWidget {
         budgets: context.read<BudgetRepository>(),
         categories: context.read<CategoryRepository>(),
         transactions: context.read<TransactionRepository>(),
+        income: context.read<IncomeRepository>(),
       )..loadUnawaited(),
       child: const BudgetsView(),
     );
@@ -40,7 +42,9 @@ class BudgetsView extends StatelessWidget {
       ),
       body: BlocBuilder<BudgetsCubit, BudgetsState>(
         builder: (context, state) {
-          if (state.isEmpty) return const NoBudgetsYet();
+          if (state.status == BudgetsStatus.initial) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -50,12 +54,20 @@ class BudgetsView extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 12),
-              for (final budget in state.budgets)
-                BudgetCard(
-                  budget: budget,
-                  categoryName: state.categoryName(budget.categoryId),
-                  spentMinor: state.spentFor(budget.categoryId),
-                ),
+              IncomeSummaryCard(
+                income: state.income,
+                totalSpent: state.totalSpent,
+              ),
+              const SizedBox(height: 20),
+              if (state.isEmpty)
+                const NoBudgetsYet()
+              else
+                for (final budget in state.budgets)
+                  BudgetCard(
+                    budget: budget,
+                    categoryName: state.categoryName(budget.categoryId),
+                    spentMinor: state.spentFor(budget.categoryId),
+                  ),
             ],
           );
         },

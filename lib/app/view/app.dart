@@ -8,9 +8,11 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/income_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
@@ -41,6 +43,7 @@ class App extends StatelessWidget {
           value: services.rawCaptures,
         ),
         RepositoryProvider<BudgetRepository>.value(value: services.budgets),
+        RepositoryProvider<IncomeRepository>.value(value: services.income),
         RepositoryProvider<SettingsRepository>.value(value: services.settings),
         RepositoryProvider<CaptureService>.value(
           value: services.captureService,
@@ -50,6 +53,7 @@ class App extends StatelessWidget {
         RepositoryProvider<FinanceChatService>.value(
           value: services.financeChat,
         ),
+        RepositoryProvider<BackupService>.value(value: services.backupService),
         RepositoryProvider<AppLockRepository>.value(value: services.appLock),
         RepositoryProvider<SecureStore>.value(value: services.secureStore),
       ],

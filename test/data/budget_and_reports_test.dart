@@ -24,6 +24,7 @@ void main() {
     required int amountMinor,
     required DateTime at,
     String? categoryId,
+    String? txAccountId,
     TxStatus status = TxStatus.confirmed,
     TxDirection direction = TxDirection.debit,
   }) async {
@@ -36,7 +37,7 @@ void main() {
         categoryId: categoryId ?? foodCategoryId,
         merchant: 'Test',
       ),
-      accountId: accountId,
+      accountId: txAccountId ?? accountId,
       idempotencyKey: 'test:${Ids.newId()}',
       status: status,
     );
@@ -195,6 +196,222 @@ void main() {
 
       expect(await services.budgets.getForPeriod('2026-07'), isEmpty);
     });
+  });
+
+  group('accounts', () {
+    test('creates additional accounts of any type', () async {
+      final account = await services.accounts.create(
+        name: 'Piggy Bank',
+        type: AccountType.cash,
+      );
+
+      final all = await services.accounts.getAll();
+      expect(all, hasLength(2));
+      expect(all.map((a) => a.name), contains('Piggy Bank'));
+      expect(account.type, AccountType.cash);
+    });
+
+    test('a deleted account disappears from the list', () async {
+      final account = await services.accounts.create(
+        name: 'Extra Bank',
+        type: AccountType.bank,
+      );
+
+      await services.accounts.delete(account.id);
+
+      final all = await services.accounts.getAll();
+      expect(all.map((a) => a.id), isNot(contains(account.id)));
+    });
+
+    test(
+      'deleting the default account promotes another as the new default',
+      () async {
+        final original = await services.accounts.getDefault();
+        final second = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+
+        await services.accounts.delete(original.id);
+
+        final newDefault = await services.accounts.getDefault();
+        expect(newDefault.id, second.id);
+        expect(newDefault.isDefault, isTrue);
+      },
+    );
+  });
+
+  group('categories', () {
+    test('creates a custom category', () async {
+      final category = await services.categories.create('Pets', icon: '🐕');
+
+      final all = await services.categories.getAll();
+      expect(all.map((c) => c.name), contains('Pets'));
+      expect(category.isSystem, isFalse);
+    });
+
+    test('update renames a category and changes its icon', () async {
+      final category = await services.categories.create('Pets', icon: '🐕');
+
+      await services.categories.update(
+        category.id,
+        name: 'Pet care',
+        icon: '🐈',
+      );
+
+      final all = await services.categories.getAll();
+      final updated = all.firstWhere((c) => c.id == category.id);
+      expect(updated.name, 'Pet care');
+      expect(updated.icon, '🐈');
+    });
+
+    test('update can clear an icon', () async {
+      final category = await services.categories.create('Pets', icon: '🐕');
+
+      await services.categories.update(category.id, clearIcon: true);
+
+      final all = await services.categories.getAll();
+      expect(all.firstWhere((c) => c.id == category.id).icon, isNull);
+    });
+
+    test('deletes a user-created category', () async {
+      final category = await services.categories.create('Pets');
+
+      final removed = await services.categories.delete(category.id);
+
+      expect(removed, isTrue);
+      final all = await services.categories.getAll();
+      expect(all.map((c) => c.id), isNot(contains(category.id)));
+    });
+
+    test('refuses to delete a system category', () async {
+      final food = (await services.categories.byName('Food'))!;
+
+      final removed = await services.categories.delete(food.id);
+
+      expect(removed, isFalse);
+      final all = await services.categories.getAll();
+      expect(all.map((c) => c.id), contains(food.id));
+    });
+  });
+
+  group('monthly income', () {
+    test('upsert replaces the declared income for the same month', () async {
+      const period = '2026-07';
+      await services.income.upsert(period: period, amountMinor: 500000);
+      await services.income.upsert(period: period, amountMinor: 650000);
+
+      final income = await services.income.getForPeriod(period);
+      expect(income!.amountMinor, 650000);
+    });
+
+    test('no income set for a period returns null', () async {
+      expect(await services.income.getForPeriod('2026-08'), isNull);
+    });
+
+    test('totalSpent sums confirmed debits across every category', () async {
+      final transportId = (await services.categories.byName('Transport'))!.id;
+      await addSpend(amountMinor: 3000, at: DateTime(2026, 7, 5));
+      await addSpend(
+        amountMinor: 7000,
+        at: DateTime(2026, 7, 6),
+        categoryId: transportId,
+      );
+      // Excluded: not yet confirmed.
+      await addSpend(
+        amountMinor: 9999,
+        at: DateTime(2026, 7, 7),
+        status: TxStatus.needsReview,
+      );
+      // Excluded: a credit, not spending.
+      await addSpend(
+        amountMinor: 9999,
+        at: DateTime(2026, 7, 8),
+        direction: TxDirection.credit,
+      );
+
+      expect(await services.transactions.totalSpent('2026-07'), 10000);
+    });
+  });
+
+  group('reports aggregation', () {
+    test('watchDailySpend groups confirmed debits by local day', () async {
+      await addSpend(amountMinor: 3000, at: DateTime(2026, 7, 5, 9));
+      await addSpend(amountMinor: 2000, at: DateTime(2026, 7, 5, 18));
+      await addSpend(amountMinor: 4000, at: DateTime(2026, 7, 10));
+      // Excluded: not confirmed.
+      await addSpend(
+        amountMinor: 9999,
+        at: DateTime(2026, 7, 12),
+        status: TxStatus.needsReview,
+      );
+
+      final daily = await services.transactions
+          .watchDailySpend('2026-07')
+          .first;
+
+      expect(daily, hasLength(2));
+      expect(daily.first.date, DateTime(2026, 7, 5));
+      expect(daily.first.spentMinor, 5000);
+      expect(daily.last.date, DateTime(2026, 7, 10));
+      expect(daily.last.spentMinor, 4000);
+    });
+
+    test("transactionsOnDate returns only that day's transactions", () async {
+      await addSpend(amountMinor: 3000, at: DateTime(2026, 7, 5, 9));
+      await addSpend(amountMinor: 4000, at: DateTime(2026, 7, 6, 9));
+
+      final onDay = await services.transactions.transactionsOnDate(
+        DateTime(2026, 7, 5),
+      );
+
+      expect(onDay, hasLength(1));
+      expect(onDay.single.amountMinor, 3000);
+    });
+
+    test('spendTrend returns the trailing months oldest-first', () async {
+      await addSpend(amountMinor: 1000, at: DateTime(2026, 5, 10));
+      await addSpend(amountMinor: 2000, at: DateTime(2026, 6, 10));
+      await addSpend(amountMinor: 3000, at: DateTime(2026, 7, 10));
+
+      final trend = await services.transactions.spendTrend(
+        '2026-07',
+        months: 3,
+      );
+
+      expect(trend.map((m) => m.period).toList(), [
+        '2026-05',
+        '2026-06',
+        '2026-07',
+      ]);
+      expect(trend.map((m) => m.spentMinor).toList(), [1000, 2000, 3000]);
+    });
+
+    test(
+      'watchSpendByAccount groups confirmed debits by account, largest first',
+      () async {
+        final secondAccount = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+        await addSpend(amountMinor: 2000, at: DateTime(2026, 7, 5));
+        await addSpend(
+          amountMinor: 6000,
+          at: DateTime(2026, 7, 6),
+          txAccountId: secondAccount.id,
+        );
+
+        final byAccount = await services.transactions
+            .watchSpendByAccount('2026-07')
+            .first;
+
+        expect(byAccount, hasLength(2));
+        expect(byAccount.first.accountName, 'Cash');
+        expect(byAccount.first.spentMinor, 6000);
+        expect(byAccount.last.accountName, 'Airtel Money');
+        expect(byAccount.last.spentMinor, 2000);
+      },
+    );
   });
 
   group('month boundaries', () {

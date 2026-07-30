@@ -10,6 +10,10 @@ import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 class ChatPage extends StatelessWidget {
   const ChatPage({super.key});
 
+  static Route<void> route() {
+    return MaterialPageRoute<void>(builder: (_) => const ChatPage());
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(

@@ -5,6 +5,7 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/income_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -14,6 +15,7 @@ import 'package:intellispendiq/domain/ai/anthropic_chat_provider.dart';
 import 'package:intellispendiq/domain/ai/anthropic_claude_provider.dart';
 import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
+import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
@@ -36,6 +38,7 @@ class AppServices {
     required this.transactions,
     required this.rawCaptures,
     required this.budgets,
+    required this.income,
     required this.settings,
     required this.appLock,
     required this.registry,
@@ -45,6 +48,7 @@ class AppServices {
     required this.aiProvider,
     required this.chatProvider,
     required this.financeChat,
+    required this.backupService,
     required this.captureBridge,
     required this.deepLinkSource,
   });
@@ -104,6 +108,7 @@ class AppServices {
     final transactions = TransactionRepository(db, userId: userId);
     final rawCaptures = RawCaptureRepository(db, userId: userId);
     final budgets = BudgetRepository(db, userId: userId);
+    final income = IncomeRepository(db, userId: userId);
     final settings = SettingsRepository(db);
 
     // Day-one seeds (plan §6.2): categories and the default Airtel Money
@@ -130,6 +135,13 @@ class AppServices {
       categories: categories,
       budgets: budgets,
     );
+    final backupService = BackupService(
+      transactions: transactions,
+      accounts: accounts,
+      categories: categories,
+      budgets: budgets,
+      incomes: income,
+    );
 
     return AppServices._(
       db: db,
@@ -141,6 +153,7 @@ class AppServices {
       transactions: transactions,
       rawCaptures: rawCaptures,
       budgets: budgets,
+      income: income,
       settings: settings,
       appLock: AppLockRepository(
         secureStore: store,
@@ -165,6 +178,7 @@ class AppServices {
       aiProvider: ai,
       chatProvider: chat,
       financeChat: financeChatService,
+      backupService: backupService,
       captureBridge: bridge,
       deepLinkSource: deepLinkSource ?? AppLinksSource(),
     );
@@ -179,6 +193,7 @@ class AppServices {
   final TransactionRepository transactions;
   final RawCaptureRepository rawCaptures;
   final BudgetRepository budgets;
+  final IncomeRepository income;
   final SettingsRepository settings;
   final AppLockRepository appLock;
   final ParserRegistry registry;
@@ -188,6 +203,7 @@ class AppServices {
   final AiProvider aiProvider;
   final ChatProvider chatProvider;
   final FinanceChatService financeChat;
+  final BackupService backupService;
   final CaptureBridge captureBridge;
   final DeepLinkSource deepLinkSource;
 

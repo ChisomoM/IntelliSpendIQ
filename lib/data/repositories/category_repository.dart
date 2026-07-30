@@ -107,4 +107,78 @@ class CategoryRepository {
     )..where((c) => c.id.equals(id))).getSingle();
     return _fromRow(row);
   }
+
+  /// Renames a category or changes its icon. Allowed for system
+  /// categories too — only deletion is restricted for those. Pass
+  /// [clearIcon] to remove an icon rather than leaving it untouched.
+  Future<void> update(
+    String id, {
+    String? name,
+    String? icon,
+    bool clearIcon = false,
+  }) async {
+    await (_db.update(_db.categories)..where((c) => c.id.equals(id))).write(
+      CategoriesCompanion(
+        name: name == null ? const Value.absent() : Value(name),
+        icon: clearIcon
+            ? const Value(null)
+            : (icon == null ? const Value.absent() : Value(icon)),
+        updatedAt: Value(Iso.nowUtc()),
+      ),
+    );
+  }
+
+  /// Removes a user-created category. Refuses system categories (the
+  /// day-one seeds) — those stay put so the taxonomy the rest of the
+  /// app assumes always exists. Returns false without writing anything
+  /// if [id] is a system category or doesn't exist.
+  Future<bool> delete(String id) async {
+    final row = await (_db.select(
+      _db.categories,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (row == null || row.isSystem) return false;
+
+    final now = Iso.nowUtc();
+    await (_db.update(_db.categories)..where((c) => c.id.equals(id))).write(
+      CategoriesCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
+    return true;
+  }
+
+  /// Re-inserts a category from a backup, preserving its original id
+  /// so importing the same backup twice does not duplicate anything.
+  ///
+  /// A day-one seed gets a fresh id on every install, so an id-only
+  /// check would let a system category collide by id yet still
+  /// duplicate by name the moment it's restored onto a device that
+  /// already ran its own seeding — matching by name for system
+  /// categories specifically closes that gap.
+  Future<bool> restoreCategory(Category category) async {
+    final existing = await (_db.select(
+      _db.categories,
+    )..where((c) => c.id.equals(category.id))).getSingleOrNull();
+    if (existing != null) return false;
+    if (category.isSystem && await byName(category.name) != null) {
+      return false;
+    }
+
+    final now = Iso.nowUtc();
+    await _db
+        .into(_db.categories)
+        .insert(
+          CategoriesCompanion.insert(
+            id: category.id,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+            name: category.name,
+            icon: Value(category.icon),
+            color: Value(category.color),
+            parentId: Value(category.parentId),
+            isSystem: Value(category.isSystem),
+            sortOrder: Value(category.sortOrder),
+          ),
+        );
+    return true;
+  }
 }

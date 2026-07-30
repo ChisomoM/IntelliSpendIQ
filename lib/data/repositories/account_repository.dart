@@ -129,4 +129,102 @@ class AccountRepository {
       ),
     );
   }
+
+  /// Adds a user-created account, e.g. a cash wallet or a second bank
+  /// account not tied to any SMS parser.
+  Future<Account> create({
+    required String name,
+    required AccountType type,
+    String? providerKey,
+  }) async {
+    final now = Iso.nowUtc();
+    final id = Ids.newId();
+    await _db
+        .into(_db.accounts)
+        .insert(
+          AccountsCompanion.insert(
+            id: id,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+            name: name,
+            type: type.dbName,
+            providerKey: Value(providerKey),
+          ),
+        );
+    final row = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.id.equals(id))).getSingle();
+    return _fromRow(row);
+  }
+
+  /// Removes an account the user added by mistake or no longer uses.
+  /// Existing transactions keep their account id — this only hides the
+  /// account from pickers, same as every other soft delete in the app.
+  /// If the deleted account was the default, another remaining account
+  /// is promoted so [getDefault] always has somewhere to fall back to.
+  Future<void> delete(String id) async {
+    final target = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.id.equals(id))).getSingleOrNull();
+    if (target == null) return;
+
+    final now = Iso.nowUtc();
+    await (_db.update(_db.accounts)..where((a) => a.id.equals(id))).write(
+      AccountsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
+
+    if (!target.isDefault) return;
+    final remaining = await getAll();
+    if (remaining.isEmpty) return;
+    await (_db.update(
+      _db.accounts,
+    )..where((a) => a.id.equals(remaining.first.id))).write(
+      AccountsCompanion(isDefault: const Value(true), updatedAt: Value(now)),
+    );
+  }
+
+  /// Re-inserts an account from a backup, preserving its original id
+  /// so importing the same backup twice does not duplicate anything.
+  /// A day-one seed gets a fresh id on every install, so an id-only
+  /// check would let the seeded account collide by id yet still
+  /// duplicate by provider the moment it's restored onto a device
+  /// that already seeded its own — matching by `providerKey` closes
+  /// that gap for provider-linked accounts.
+  Future<bool> restoreAccount(Account account) async {
+    final existing = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.id.equals(account.id))).getSingleOrNull();
+    if (existing != null) return false;
+    if (account.providerKey != null) {
+      final sameProvider =
+          await (_db.select(_db.accounts)..where(
+                (a) =>
+                    a.userId.equals(userId) &
+                    a.providerKey.equals(account.providerKey!) &
+                    a.deletedAt.isNull(),
+              ))
+              .getSingleOrNull();
+      if (sameProvider != null) return false;
+    }
+
+    final now = Iso.nowUtc();
+    await _db
+        .into(_db.accounts)
+        .insert(
+          AccountsCompanion.insert(
+            id: account.id,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+            name: account.name,
+            type: account.type.dbName,
+            currency: Value(account.currency),
+            isDefault: Value(account.isDefault),
+            providerKey: Value(account.providerKey),
+            balanceMinor: Value(account.balanceMinor),
+          ),
+        );
+    return true;
+  }
 }

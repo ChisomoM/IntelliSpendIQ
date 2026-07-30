@@ -9,6 +9,8 @@ class BudgetsState extends Equatable {
     this.budgets = const [],
     this.categories = const [],
     this.spentByCategory = const {},
+    this.income,
+    this.totalSpent = 0,
     this.errorMessage,
   });
 
@@ -21,9 +23,21 @@ class BudgetsState extends Equatable {
 
   /// Confirmed debit spend per category for [period], in ngwee.
   final Map<String, int> spentByCategory;
+
+  /// Declared income for [period], or null if none has been set yet.
+  final MonthlyIncome? income;
+
+  /// Confirmed debit spend across every category for [period], in
+  /// ngwee — tracked against [income] rather than a per-category limit.
+  final int totalSpent;
   final String? errorMessage;
 
   bool get isEmpty => status == BudgetsStatus.loaded && budgets.isEmpty;
+
+  bool get hasIncome => income != null;
+
+  /// Income minus total spend, in ngwee. Zero when no income is set.
+  int get remainingMinor => (income?.amountMinor ?? 0) - totalSpent;
 
   int spentFor(String categoryId) => spentByCategory[categoryId] ?? 0;
 
@@ -40,6 +54,9 @@ class BudgetsState extends Equatable {
     List<Budget>? budgets,
     List<Category>? categories,
     Map<String, int>? spentByCategory,
+    MonthlyIncome? income,
+    bool clearIncome = false,
+    int? totalSpent,
     String? errorMessage,
   }) {
     return BudgetsState(
@@ -48,6 +65,8 @@ class BudgetsState extends Equatable {
       budgets: budgets ?? this.budgets,
       categories: categories ?? this.categories,
       spentByCategory: spentByCategory ?? this.spentByCategory,
+      income: clearIncome ? null : (income ?? this.income),
+      totalSpent: totalSpent ?? this.totalSpent,
       errorMessage: errorMessage,
     );
   }
@@ -59,6 +78,8 @@ class BudgetsState extends Equatable {
     budgets,
     categories,
     spentByCategory,
+    income,
+    totalSpent,
     errorMessage,
   ];
 }

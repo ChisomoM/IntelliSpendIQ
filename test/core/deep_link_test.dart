@@ -84,12 +84,23 @@ void main() {
       expect(AppSection.fromSlug('nope'), isNull);
     });
 
-    test('tab index round-trips and clamps out-of-range values', () {
-      for (final section in AppSection.values) {
+    test('tab index round-trips for every nav-bar section', () {
+      for (final section in AppSection.tabs) {
         expect(AppSection.fromTabIndex(section.tabIndex), section);
       }
-      expect(AppSection.fromTabIndex(-1), AppSection.activity);
-      expect(AppSection.fromTabIndex(99), AppSection.activity);
+    });
+
+    test('a non-tab section has no tab index', () {
+      for (final section in AppSection.values) {
+        if (AppSection.tabs.contains(section)) continue;
+        expect(section.isTab, isFalse);
+        expect(section.tabIndex, -1);
+      }
+    });
+
+    test('fromTabIndex clamps out-of-range values to Home', () {
+      expect(AppSection.fromTabIndex(-1), AppSection.home);
+      expect(AppSection.fromTabIndex(99), AppSection.home);
     });
   });
 }
