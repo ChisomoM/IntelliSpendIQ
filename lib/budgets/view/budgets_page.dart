@@ -5,6 +5,7 @@ import 'package:intellispendiq/budgets/widgets/widgets.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 
 class BudgetsPage extends StatelessWidget {
@@ -15,6 +16,7 @@ class BudgetsPage extends StatelessWidget {
     return BlocProvider(
       create: (context) => BudgetsCubit(
         budgets: context.read<BudgetRepository>(),
+        overallBudgets: context.read<OverallBudgetRepository>(),
         categories: context.read<CategoryRepository>(),
         transactions: context.read<TransactionRepository>(),
         income: context.read<IncomeRepository>(),
@@ -35,7 +37,7 @@ class BudgetsView extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Set a budget',
+            tooltip: 'Add category budget',
             onPressed: () => BudgetEditorSheet.show(context),
           ),
         ],
@@ -62,6 +64,8 @@ class BudgetsView extends StatelessWidget {
               PlannedVsActualCard(
                 plannedMinor: state.totalPlannedMinor,
                 totalSpent: state.totalSpent,
+                allocatedMinor: state.totalAllocatedMinor,
+                overallBudget: state.overallBudget,
               ),
               const SizedBox(height: 20),
               if (state.isEmpty)

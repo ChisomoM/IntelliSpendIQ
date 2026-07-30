@@ -5,12 +5,14 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/budget.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/monthly_income.dart';
+import 'package:intellispendiq/domain/models/overall_budget.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -28,6 +30,7 @@ class RestoreSummary {
     required this.accountsImported,
     required this.categoriesImported,
     required this.budgetsImported,
+    required this.overallBudgetsImported,
     required this.incomesImported,
     required this.transactionsImported,
     required this.skipped,
@@ -36,6 +39,7 @@ class RestoreSummary {
   final int accountsImported;
   final int categoriesImported;
   final int budgetsImported;
+  final int overallBudgetsImported;
   final int incomesImported;
   final int transactionsImported;
 
@@ -47,6 +51,7 @@ class RestoreSummary {
       accountsImported +
       categoriesImported +
       budgetsImported +
+      overallBudgetsImported +
       incomesImported +
       transactionsImported;
 }
@@ -63,12 +68,14 @@ class BackupService {
     required AccountRepository accounts,
     required CategoryRepository categories,
     required BudgetRepository budgets,
+    required OverallBudgetRepository overallBudgets,
     required IncomeRepository incomes,
     Future<Directory> Function()? tempDirectory,
   }) : _transactions = transactions,
        _accounts = accounts,
        _categories = categories,
        _budgets = budgets,
+       _overallBudgets = overallBudgets,
        _incomes = incomes,
        _tempDirectory = tempDirectory ?? getTemporaryDirectory;
 
@@ -76,6 +83,7 @@ class BackupService {
   final AccountRepository _accounts;
   final CategoryRepository _categories;
   final BudgetRepository _budgets;
+  final OverallBudgetRepository _overallBudgets;
   final IncomeRepository _incomes;
 
   /// Defaults to `path_provider`'s temp directory; overridable so
@@ -134,6 +142,9 @@ class BackupService {
       'accounts': (await _accounts.getAll()).map(_accountToJson).toList(),
       'categories': (await _categories.getAll()).map(_categoryToJson).toList(),
       'budgets': (await _budgets.getAllForExport()).map(_budgetToJson).toList(),
+      'overallBudgets': (await _overallBudgets.getAllForExport())
+          .map(_overallBudgetToJson)
+          .toList(),
       'monthlyIncomes': (await _incomes.getAllForExport())
           .map(_incomeToJson)
           .toList(),
@@ -159,6 +170,7 @@ class BackupService {
     var accountsImported = 0;
     var categoriesImported = 0;
     var budgetsImported = 0;
+    var overallBudgetsImported = 0;
     var incomesImported = 0;
     var transactionsImported = 0;
     var skipped = 0;
@@ -186,6 +198,15 @@ class BackupService {
         skipped++;
       }
     }
+    for (final entry in _listOf(document, 'overallBudgets')) {
+      if (await _overallBudgets.restoreOverallBudget(
+        _overallBudgetFromJson(entry),
+      )) {
+        overallBudgetsImported++;
+      } else {
+        skipped++;
+      }
+    }
     for (final entry in _listOf(document, 'monthlyIncomes')) {
       if (await _incomes.restoreIncome(_incomeFromJson(entry))) {
         incomesImported++;
@@ -205,6 +226,7 @@ class BackupService {
       accountsImported: accountsImported,
       categoriesImported: categoriesImported,
       budgetsImported: budgetsImported,
+      overallBudgetsImported: overallBudgetsImported,
       incomesImported: incomesImported,
       transactionsImported: transactionsImported,
       skipped: skipped,
@@ -299,6 +321,21 @@ class BackupService {
     amountMinor: json['amountMinor']! as int,
     carryOver: json['carryOver'] as bool? ?? true,
   );
+
+  Map<String, Object?> _overallBudgetToJson(OverallBudget budget) => {
+    'id': budget.id,
+    'period': budget.period,
+    'amountMinor': budget.amountMinor,
+    'carryOver': budget.carryOver,
+  };
+
+  OverallBudget _overallBudgetFromJson(Map<String, Object?> json) =>
+      OverallBudget(
+        id: json['id']! as String,
+        period: json['period']! as String,
+        amountMinor: json['amountMinor']! as int,
+        carryOver: json['carryOver'] as bool? ?? true,
+      );
 
   Map<String, Object?> _incomeToJson(MonthlyIncome income) => {
     'id': income.id,

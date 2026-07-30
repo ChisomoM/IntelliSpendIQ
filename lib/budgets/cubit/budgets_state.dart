@@ -7,6 +7,7 @@ class BudgetsState extends Equatable {
     required this.period,
     this.status = BudgetsStatus.initial,
     this.budgets = const [],
+    this.overallBudget,
     this.categories = const [],
     this.spentByCategory = const {},
     this.incomeSources = const [],
@@ -19,6 +20,9 @@ class BudgetsState extends Equatable {
   /// Month key, `YYYY-MM`.
   final String period;
   final List<Budget> budgets;
+
+  /// The month's overall spending budget, independent of [budgets].
+  final OverallBudget? overallBudget;
   final List<Category> categories;
 
   /// Confirmed debit spend per category for [period], in ngwee.
@@ -29,14 +33,16 @@ class BudgetsState extends Equatable {
   final List<MonthlyIncome> incomeSources;
 
   /// Confirmed debit spend across every category for [period], in
-  /// ngwee — tracked against [totalIncomeMinor] rather than a
-  /// per-category limit.
+  /// ngwee — tracked against [totalIncomeMinor] and [totalPlannedMinor]
+  /// rather than a per-category limit.
   final int totalSpent;
   final String? errorMessage;
 
   bool get isEmpty => status == BudgetsStatus.loaded && budgets.isEmpty;
 
   bool get hasIncome => incomeSources.isNotEmpty;
+
+  bool get hasOverallBudget => overallBudget != null;
 
   /// Every income stream summed, in ngwee.
   int get totalIncomeMinor =>
@@ -45,10 +51,13 @@ class BudgetsState extends Equatable {
   /// Income minus total spend, in ngwee. Zero when no income is set.
   int get remainingMinor => totalIncomeMinor - totalSpent;
 
-  /// Every category budget limit summed, in ngwee — the "planned"
-  /// figure to compare against [totalSpent], independent of whether
-  /// every dollar spent actually falls inside a budgeted category.
-  int get totalPlannedMinor =>
+  /// The overall monthly budget in ngwee. Category limits do not
+  /// contribute — they are allocations under this figure.
+  int get totalPlannedMinor => overallBudget?.amountMinor ?? 0;
+
+  /// Sum of per-category limits for [period], in ngwee — how much of
+  /// the overall budget has been allocated, not the overall itself.
+  int get totalAllocatedMinor =>
       budgets.fold(0, (sum, budget) => sum + budget.amountMinor);
 
   int spentFor(String categoryId) => spentByCategory[categoryId] ?? 0;
@@ -64,6 +73,8 @@ class BudgetsState extends Equatable {
     BudgetsStatus? status,
     String? period,
     List<Budget>? budgets,
+    OverallBudget? overallBudget,
+    bool clearOverallBudget = false,
     List<Category>? categories,
     Map<String, int>? spentByCategory,
     List<MonthlyIncome>? incomeSources,
@@ -74,6 +85,9 @@ class BudgetsState extends Equatable {
       status: status ?? this.status,
       period: period ?? this.period,
       budgets: budgets ?? this.budgets,
+      overallBudget: clearOverallBudget
+          ? null
+          : (overallBudget ?? this.overallBudget),
       categories: categories ?? this.categories,
       spentByCategory: spentByCategory ?? this.spentByCategory,
       incomeSources: incomeSources ?? this.incomeSources,
@@ -87,6 +101,7 @@ class BudgetsState extends Equatable {
     status,
     period,
     budgets,
+    overallBudget,
     categories,
     spentByCategory,
     incomeSources,

@@ -10,6 +10,7 @@ import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
 import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -45,6 +46,9 @@ class App extends StatelessWidget {
           value: services.rawCaptures,
         ),
         RepositoryProvider<BudgetRepository>.value(value: services.budgets),
+        RepositoryProvider<OverallBudgetRepository>.value(
+          value: services.overallBudgets,
+        ),
         RepositoryProvider<IncomeRepository>.value(value: services.income),
         RepositoryProvider<CustomSenderRepository>.value(
           value: services.customSenders,

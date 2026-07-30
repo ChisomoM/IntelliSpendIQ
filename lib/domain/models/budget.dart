@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-/// A monthly spending limit for one category.
+/// A monthly spending limit for one category. Allocates under the
+/// month's overall budget; it does not define the overall total.
 class Budget extends Equatable {
   const Budget({
     required this.id,

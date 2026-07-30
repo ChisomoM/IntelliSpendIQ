@@ -122,6 +122,26 @@ class MonthlyIncomes extends SyncedTable {
   ];
 }
 
+/// Overall monthly spending budget — independent of per-category
+/// [Budgets] rows. Category limits allocate under this total; they
+/// do not define it.
+@DataClassName('OverallBudgetRow')
+class OverallBudgets extends SyncedTable {
+  /// Month key `YYYY-MM`.
+  TextColumn get period => text()();
+
+  /// Total monthly budget in ngwee.
+  IntColumn get amountMinor => integer()();
+
+  /// Whether next month defaults from this budget.
+  BoolColumn get carryOver => boolean().withDefault(const Constant(true))();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, period},
+  ];
+}
+
 /// A user-added SMS sender ID routed to an existing provider parser —
 /// e.g. a bank that sends alerts from a shortcode the built-in parser
 /// doesn't already recognize.

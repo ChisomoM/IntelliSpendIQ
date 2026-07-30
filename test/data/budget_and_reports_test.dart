@@ -198,6 +198,50 @@ void main() {
     });
   });
 
+  group('overall budgets', () {
+    test('upsert sets the month total independent of categories', () async {
+      await services.overallBudgets.upsert(
+        period: '2026-07',
+        amountMinor: 500000,
+      );
+      await services.budgets.upsert(
+        categoryId: foodCategoryId,
+        period: '2026-07',
+        amountMinor: 100000,
+      );
+
+      final overall = await services.overallBudgets.getForPeriod('2026-07');
+      expect(overall!.amountMinor, 500000);
+      expect(await services.budgets.getForPeriod('2026-07'), hasLength(1));
+    });
+
+    test('carries last month forward as an editable default', () async {
+      await services.overallBudgets.upsert(
+        period: '2026-06',
+        amountMinor: 400000,
+      );
+
+      expect(await services.overallBudgets.carryOverInto('2026-07'), isTrue);
+      final july = await services.overallBudgets.getForPeriod('2026-07');
+      expect(july!.amountMinor, 400000);
+    });
+
+    test('carry-over never overwrites a total already set', () async {
+      await services.overallBudgets.upsert(
+        period: '2026-06',
+        amountMinor: 400000,
+      );
+      await services.overallBudgets.upsert(
+        period: '2026-07',
+        amountMinor: 600000,
+      );
+
+      expect(await services.overallBudgets.carryOverInto('2026-07'), isFalse);
+      final july = await services.overallBudgets.getForPeriod('2026-07');
+      expect(july!.amountMinor, 600000);
+    });
+  });
+
   group('accounts', () {
     test('creates additional accounts of any type', () async {
       final account = await services.accounts.create(

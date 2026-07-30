@@ -16,6 +16,7 @@ void main() {
     addTearDown(services.dispose);
     return BudgetsCubit(
       budgets: services.budgets,
+      overallBudgets: services.overallBudgets,
       categories: services.categories,
       transactions: services.transactions,
       income: services.income,
@@ -139,8 +140,8 @@ void main() {
     );
   });
 
-  group('BudgetsCubit planned vs actual', () {
-    test('totalPlannedMinor sums every category budget', () async {
+  group('BudgetsCubit overall vs category budgets', () {
+    test('totalPlannedMinor comes from overall budget, not categories', () async {
       final cubit = await cubitWith();
       addTearDown(cubit.close);
       await cubit.load();
@@ -151,7 +152,40 @@ void main() {
       await cubit.upsert(categoryId: transportId, amount: '300');
       await Future<void>.delayed(Duration.zero);
 
-      expect(cubit.state.totalPlannedMinor, 130000);
+      expect(cubit.state.totalPlannedMinor, 0);
+      expect(cubit.state.totalAllocatedMinor, 130000);
+
+      await cubit.setOverallBudget('5000');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.hasOverallBudget, isTrue);
+      expect(cubit.state.totalPlannedMinor, 500000);
+      expect(cubit.state.totalAllocatedMinor, 130000);
+    });
+
+    test('deleteOverallBudget clears the planned total', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await cubit.setOverallBudget('5000');
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.deleteOverallBudget();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.hasOverallBudget, isFalse);
+      expect(cubit.state.totalPlannedMinor, 0);
+    });
+
+    test('setOverallBudget rejects a non-positive amount', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      await cubit.setOverallBudget('0');
+
+      expect(cubit.state.status, BudgetsStatus.invalid);
+      expect(cubit.state.hasOverallBudget, isFalse);
     });
   });
 }

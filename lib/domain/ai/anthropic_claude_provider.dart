@@ -122,10 +122,6 @@ class AnthropicClaudeProvider implements AiProvider {
     final body = jsonEncode({
       'model': model,
       'max_tokens': 1024,
-      // Server-side fallback: if safety classifiers decline, the request
-      // is re-served by Anthropic's recommended fallback model instead
-      // of failing outright.
-      'fallbacks': 'default',
       'output_config': {'effort': 'low'},
       'system':
           'You extract personal finance transactions from short spoken '
@@ -149,7 +145,6 @@ class AnthropicClaudeProvider implements AiProvider {
               'content-type': 'application/json',
               'x-api-key': apiKey,
               'anthropic-version': _apiVersion,
-              'anthropic-beta': 'server-side-fallback-2026-07-01',
             },
             body: body,
           )

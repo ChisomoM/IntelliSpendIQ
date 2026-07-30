@@ -46,7 +46,6 @@ class AnthropicChatProvider implements ChatProvider {
     final body = jsonEncode({
       'model': model,
       'max_tokens': 2048,
-      'fallbacks': 'default',
       'output_config': {'effort': 'medium'},
       'tools': tools,
       // One tool call per turn: the service's loop, and the pause/resume
@@ -75,7 +74,6 @@ class AnthropicChatProvider implements ChatProvider {
               'content-type': 'application/json',
               'x-api-key': apiKey,
               'anthropic-version': _apiVersion,
-              'anthropic-beta': 'server-side-fallback-2026-07-01',
             },
             body: body,
           )

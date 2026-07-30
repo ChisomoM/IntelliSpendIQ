@@ -7,6 +7,7 @@ import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
 import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -39,6 +40,7 @@ class AppServices {
     required this.transactions,
     required this.rawCaptures,
     required this.budgets,
+    required this.overallBudgets,
     required this.income,
     required this.settings,
     required this.customSenders,
@@ -110,6 +112,7 @@ class AppServices {
     final transactions = TransactionRepository(db, userId: userId);
     final rawCaptures = RawCaptureRepository(db, userId: userId);
     final budgets = BudgetRepository(db, userId: userId);
+    final overallBudgets = OverallBudgetRepository(db, userId: userId);
     final income = IncomeRepository(db, userId: userId);
     final settings = SettingsRepository(db);
     final customSenders = CustomSenderRepository(db, userId: userId);
@@ -147,6 +150,7 @@ class AppServices {
       accounts: accounts,
       categories: categories,
       budgets: budgets,
+      overallBudgets: overallBudgets,
       incomes: income,
     );
 
@@ -160,6 +164,7 @@ class AppServices {
       transactions: transactions,
       rawCaptures: rawCaptures,
       budgets: budgets,
+      overallBudgets: overallBudgets,
       income: income,
       settings: settings,
       customSenders: customSenders,
@@ -201,6 +206,7 @@ class AppServices {
   final TransactionRepository transactions;
   final RawCaptureRepository rawCaptures;
   final BudgetRepository budgets;
+  final OverallBudgetRepository overallBudgets;
   final IncomeRepository income;
   final SettingsRepository settings;
   final CustomSenderRepository customSenders;

@@ -7,24 +7,27 @@ import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/repositories/budget_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/income_repository.dart';
+import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/budget.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/monthly_income.dart';
+import 'package:intellispendiq/domain/models/overall_budget.dart';
 
 part 'budgets_state.dart';
 
-/// Budget CRUD plus the live over/under figures (plan §11), plus a
-/// declared monthly income tracked against total confirmed spend. All
-/// the arithmetic is local SQL — no LLM anywhere near the numbers.
+/// Overall monthly budget, per-category limits, and declared income —
+/// tracked against confirmed spend. All arithmetic is local SQL.
 class BudgetsCubit extends Cubit<BudgetsState> {
   BudgetsCubit({
     required BudgetRepository budgets,
+    required OverallBudgetRepository overallBudgets,
     required CategoryRepository categories,
     required TransactionRepository transactions,
     required IncomeRepository income,
     String? period,
   }) : _budgets = budgets,
+       _overallBudgets = overallBudgets,
        _categories = categories,
        _transactions = transactions,
        _income = income,
@@ -33,10 +36,12 @@ class BudgetsCubit extends Cubit<BudgetsState> {
        );
 
   final BudgetRepository _budgets;
+  final OverallBudgetRepository _overallBudgets;
   final CategoryRepository _categories;
   final TransactionRepository _transactions;
   final IncomeRepository _income;
   StreamSubscription<List<Budget>>? _subscription;
+  StreamSubscription<OverallBudget?>? _overallSubscription;
   StreamSubscription<List<MonthlyIncome>>? _incomeSubscription;
 
   /// Fire-and-forget entry point for widget construction.
@@ -46,11 +51,17 @@ class BudgetsCubit extends Cubit<BudgetsState> {
   /// starts watching this month.
   Future<void> load() async {
     emit(state.copyWith(status: BudgetsStatus.loading));
+    await _overallBudgets.carryOverInto(state.period);
     await _budgets.carryOverInto(state.period);
     emit(state.copyWith(categories: await _categories.getAll()));
 
     await _subscription?.cancel();
     _subscription = _budgets.watchForPeriod(state.period).listen(_onBudgets);
+
+    await _overallSubscription?.cancel();
+    _overallSubscription = _overallBudgets
+        .watchForPeriod(state.period)
+        .listen(_onOverallBudget);
 
     await _incomeSubscription?.cancel();
     _incomeSubscription = _income
@@ -73,6 +84,19 @@ class BudgetsCubit extends Cubit<BudgetsState> {
         status: BudgetsStatus.loaded,
         budgets: budgets,
         spentByCategory: spent,
+        totalSpent: totalSpent,
+      ),
+    );
+  }
+
+  Future<void> _onOverallBudget(OverallBudget? overallBudget) async {
+    final totalSpent = await _transactions.totalSpent(state.period);
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        status: BudgetsStatus.loaded,
+        overallBudget: overallBudget,
+        clearOverallBudget: overallBudget == null,
         totalSpent: totalSpent,
       ),
     );
@@ -112,6 +136,29 @@ class BudgetsCubit extends Cubit<BudgetsState> {
   }
 
   Future<void> delete(String budgetId) => _budgets.delete(budgetId);
+
+  Future<void> setOverallBudget(String amount) async {
+    final amountMinor = Money.tryParseToMinor(amount);
+    if (amountMinor == null || amountMinor <= 0) {
+      emit(
+        state.copyWith(
+          status: BudgetsStatus.invalid,
+          errorMessage: 'Enter a total budget, e.g. 5000',
+        ),
+      );
+      return;
+    }
+    await _overallBudgets.upsert(
+      period: state.period,
+      amountMinor: amountMinor,
+    );
+  }
+
+  Future<void> deleteOverallBudget() async {
+    final id = state.overallBudget?.id;
+    if (id == null) return;
+    await _overallBudgets.delete(id);
+  }
 
   /// Adds a new income stream for the month, or updates the existing
   /// stream with the same [label] if there already is one.
@@ -156,6 +203,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
   @override
   Future<void> close() async {
     await _subscription?.cancel();
+    await _overallSubscription?.cancel();
     await _incomeSubscription?.cancel();
     return super.close();
   }

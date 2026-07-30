@@ -19,6 +19,7 @@ BackupService _testBackupService(AppServices services) => BackupService(
   accounts: services.accounts,
   categories: services.categories,
   budgets: services.budgets,
+  overallBudgets: services.overallBudgets,
   incomes: services.income,
   tempDirectory: () async => Directory.systemTemp,
 );
@@ -82,6 +83,10 @@ void main() {
         period: '2026-07',
         amountMinor: 20000,
       );
+      await source.overallBudgets.upsert(
+        period: '2026-07',
+        amountMinor: 800000,
+      );
       await source.income.upsert(period: '2026-07', amountMinor: 500000);
       final cash = await source.accounts.create(
         name: 'Cash',
@@ -103,6 +108,7 @@ void main() {
 
       expect(summary.transactionsImported, 2);
       expect(summary.budgetsImported, 1);
+      expect(summary.overallBudgetsImported, 1);
       expect(summary.incomesImported, 1);
       expect(
         summary.accountsImported,
@@ -134,6 +140,9 @@ void main() {
 
       final targetBudgets = await target.budgets.getForPeriod('2026-07');
       expect(targetBudgets.single.amountMinor, 20000);
+
+      final targetOverall = await target.overallBudgets.getForPeriod('2026-07');
+      expect(targetOverall!.amountMinor, 800000);
 
       final targetIncome = await target.income.getForPeriod('2026-07');
       expect(targetIncome.single.amountMinor, 500000);
