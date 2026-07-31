@@ -28,20 +28,22 @@ Future<void> bootstrap(
   AppBuilder builder, {
   required AppFlavor flavor,
 }) async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  FlutterError.onError = (details) {
-    log(
-      details.exceptionAsString(),
-      stackTrace: details.stack,
-      name: 'flutter',
-    );
-  };
-
-  Bloc.observer = const AppBlocObserver();
-
+  // Binding init and runApp must share one zone — otherwise Flutter
+  // warns about zone mismatch and callbacks can pick the wrong config.
   await runZonedGuarded(
     () async {
+      WidgetsFlutterBinding.ensureInitialized();
+
+      FlutterError.onError = (details) {
+        log(
+          details.exceptionAsString(),
+          stackTrace: details.stack,
+          name: 'flutter',
+        );
+      };
+
+      Bloc.observer = const AppBlocObserver();
+
       // Paint something first. Deriving the SQLCipher key and opening
       // the database is slow enough to be visible, and without this the
       // user stares at a blank window while it happens.

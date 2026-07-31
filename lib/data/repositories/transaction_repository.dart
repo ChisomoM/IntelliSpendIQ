@@ -489,6 +489,14 @@ class TransactionRepository {
   /// (deterministic SQL — no LLM anywhere near the math).
   Stream<List<CategorySpend>> watchSpendByCategory(String period) {
     final (from, to) = Iso.monthBoundsUtc(period);
+    return watchSpendByCategoryInRange(from: from, to: to);
+  }
+
+  /// Confirmed debit spend per category in a half-open UTC range.
+  Stream<List<CategorySpend>> watchSpendByCategoryInRange({
+    required String from,
+    required String to,
+  }) {
     final t = _db.transactions;
     final c = _db.categories;
     final total = t.amountMinor.sum();
@@ -518,9 +526,18 @@ class TransactionRepository {
     );
   }
 
-  /// Confirmed debit total for one category in a month (budget math).
-  Future<int> spentForCategory(String categoryId, String period) async {
+  /// Confirmed debit total for one category in a calendar month.
+  Future<int> spentForCategory(String categoryId, String period) {
     final (from, to) = Iso.monthBoundsUtc(period);
+    return spentForCategoryInRange(categoryId, from: from, to: to);
+  }
+
+  /// Confirmed debit total for one category in a half-open UTC range.
+  Future<int> spentForCategoryInRange(
+    String categoryId, {
+    required String from,
+    required String to,
+  }) async {
     final t = _db.transactions;
     final total = t.amountMinor.sum();
     final query = _db.selectOnly(t)
@@ -560,11 +577,17 @@ class TransactionRepository {
     return row.read(total) ?? 0;
   }
 
-  /// Confirmed debit total across every category for a month, for
-  /// tracking spend against a declared income rather than a per-category
-  /// limit.
-  Future<int> totalSpent(String period) async {
+  /// Confirmed debit total across every category for a calendar month.
+  Future<int> totalSpent(String period) {
     final (from, to) = Iso.monthBoundsUtc(period);
+    return totalSpentInRange(from: from, to: to);
+  }
+
+  /// Confirmed debit total in a half-open UTC range (budget periods).
+  Future<int> totalSpentInRange({
+    required String from,
+    required String to,
+  }) async {
     final t = _db.transactions;
     final total = t.amountMinor.sum();
     final query = _db.selectOnly(t)

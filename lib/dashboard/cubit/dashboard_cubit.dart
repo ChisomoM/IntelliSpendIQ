@@ -2,35 +2,35 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:intellispendiq/core/time.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/models/budget_period.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 
 part 'dashboard_state.dart';
 
-/// At-a-glance numbers for the Home tab: this month's income vs.
-/// confirmed spend, the biggest categories, the most recent activity,
-/// and how much is waiting in the Review Inbox. Everything here is a
-/// read of data owned elsewhere (Budgets, Activity, Review) — this
-/// cubit never writes anything. It reads repositories directly rather
-/// than another feature's cubit, same as every other feature in the
-/// app.
+/// At-a-glance numbers for the Home tab: this budget period's income
+/// vs. confirmed spend, the biggest categories, the most recent
+/// activity, and how much is waiting in the Review Inbox.
 class DashboardCubit extends Cubit<DashboardState> {
   DashboardCubit({
     required TransactionRepository transactions,
     required CategoryRepository categories,
+    required BudgetPeriodRepository budgetPeriods,
     required RawCaptureRepository rawCaptures,
-    String? period,
+    BudgetPeriod? initialPeriod,
   }) : _transactions = transactions,
        _categories = categories,
+       _budgetPeriods = budgetPeriods,
        _rawCaptures = rawCaptures,
-       super(DashboardState(period: period ?? Iso.monthKey(DateTime.now())));
+       super(DashboardState(budgetPeriod: initialPeriod));
 
   final TransactionRepository _transactions;
   final CategoryRepository _categories;
+  final BudgetPeriodRepository _budgetPeriods;
   final RawCaptureRepository _rawCaptures;
   StreamSubscription<List<Category>>? _categoriesSubscription;
   StreamSubscription<List<CategorySpend>>? _categorySpendSubscription;
@@ -42,13 +42,17 @@ class DashboardCubit extends Cubit<DashboardState> {
 
   Future<void> load() async {
     emit(state.copyWith(status: DashboardStatus.loading));
+    final period =
+        state.budgetPeriod ??
+        await _budgetPeriods.ensurePeriodContaining(DateTime.now());
+    emit(state.copyWith(budgetPeriod: period));
 
     await _categoriesSubscription?.cancel();
     _categoriesSubscription = _categories.watchAll().listen(_onCategories);
 
     await _categorySpendSubscription?.cancel();
     _categorySpendSubscription = _transactions
-        .watchSpendByCategory(state.period)
+        .watchSpendByCategoryInRange(from: period.startAt, to: period.endAt)
         .listen(_onCategorySpend);
 
     await _recentSubscription?.cancel();
@@ -82,10 +86,35 @@ class DashboardCubit extends Cubit<DashboardState> {
   }
 
   Future<void> _onCategories(List<Category> categories) async {
+    final period = state.budgetPeriod;
+    if (period == null) return;
+
+    final periodAmounts = {
+      for (final b in await _budgetPeriods.categoryBudgetsFor(period.id))
+        b.categoryId: b.amountMinor,
+    };
     final incomeCategories = categories
-        .where((c) => c.isIncome && c.parentId == null && c.hasBudget)
+        .where((c) => c.isIncome && c.parentId == null)
+        .map(
+          (c) => Category(
+            id: c.id,
+            name: c.name,
+            icon: c.icon,
+            color: c.color,
+            parentId: c.parentId,
+            isSystem: c.isSystem,
+            sortOrder: c.sortOrder,
+            type: c.type,
+            budgetedAmountMinor: periodAmounts[c.id] ?? c.budgetedAmountMinor,
+          ),
+        )
+        .where((c) => c.hasBudget)
         .toList();
-    final totalSpent = await _transactions.totalSpent(state.period);
+
+    final totalSpent = await _transactions.totalSpentInRange(
+      from: period.startAt,
+      to: period.endAt,
+    );
     if (isClosed) return;
     emit(
       state.copyWith(
@@ -97,7 +126,12 @@ class DashboardCubit extends Cubit<DashboardState> {
   }
 
   Future<void> _onCategorySpend(List<CategorySpend> rows) async {
-    final totalSpent = await _transactions.totalSpent(state.period);
+    final period = state.budgetPeriod;
+    if (period == null) return;
+    final totalSpent = await _transactions.totalSpentInRange(
+      from: period.startAt,
+      to: period.endAt,
+    );
     if (isClosed) return;
     emit(
       state.copyWith(

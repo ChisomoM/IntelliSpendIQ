@@ -4,6 +4,7 @@ import 'package:intellispendiq/chat/chat.dart';
 import 'package:intellispendiq/core/app_section.dart';
 import 'package:intellispendiq/dashboard/cubit/cubit.dart';
 import 'package:intellispendiq/dashboard/widgets/widgets.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -22,6 +23,7 @@ class DashboardPage extends StatelessWidget {
       create: (context) => DashboardCubit(
         transactions: context.read<TransactionRepository>(),
         categories: context.read<CategoryRepository>(),
+        budgetPeriods: context.read<BudgetPeriodRepository>(),
         rawCaptures: context.read<RawCaptureRepository>(),
       )..loadUnawaited(),
       child: const DashboardView(),
@@ -57,7 +59,7 @@ class DashboardView extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             children: [
-              GreetingHeader(period: state.period),
+              GreetingHeader(periodLabel: state.periodLabel),
               const SizedBox(height: 16),
               ReviewBanner(
                 count: state.pendingReviewCount,
@@ -79,6 +81,8 @@ class DashboardView extends StatelessWidget {
                 hasIncome: state.hasIncome,
                 incomeMinor: state.totalIncomeMinor,
                 totalSpent: state.totalSpent,
+                periodLabel: state.periodLabel,
+                incomeCategories: state.incomeCategories,
                 onTap: () => home.tabSelected(AppSection.budgets.tabIndex),
               ),
               const SizedBox(height: 12),

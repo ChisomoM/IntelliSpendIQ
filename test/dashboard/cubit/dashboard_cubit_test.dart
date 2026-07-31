@@ -9,16 +9,19 @@ import '../../support/test_harness.dart';
 
 void main() {
   late AppServices services;
-  const period = '2026-07';
 
   Future<DashboardCubit> cubitWith() async {
     services = await createTestServices();
     addTearDown(services.dispose);
+    final period = await services.budgetPeriods.ensurePeriodContaining(
+      DateTime(2026, 7, 15),
+    );
     return DashboardCubit(
       transactions: services.transactions,
       categories: services.categories,
+      budgetPeriods: services.budgetPeriods,
       rawCaptures: services.rawCaptures,
-      period: period,
+      initialPeriod: period,
     );
   }
 
@@ -48,6 +51,7 @@ void main() {
       await cubit.load();
       await Future<void>.delayed(Duration.zero);
 
+      expect(cubit.state.periodLabel, '01/07/2026 – 31/07/2026');
       expect(cubit.state.hasIncome, isFalse);
       expect(cubit.state.totalSpent, 0);
       expect(cubit.state.topCategories, isEmpty);
@@ -78,10 +82,15 @@ void main() {
       await addConfirmedSpend(30000);
       await Future<void>.delayed(Duration.zero);
 
-      await services.categories.create(
+      final salary = await services.categories.create(
         'Salary',
         type: CategoryType.income,
         budgetedAmountMinor: 100000,
+      );
+      await services.budgetPeriods.upsertCategoryBudget(
+        periodId: cubit.state.budgetPeriod!.id,
+        categoryId: salary.id,
+        amountMinor: 100000,
       );
       await Future<void>.delayed(Duration.zero);
 

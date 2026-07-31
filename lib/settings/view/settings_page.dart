@@ -8,10 +8,13 @@ import 'package:intellispendiq/app/cubit/cubit.dart';
 import 'package:intellispendiq/auth/auth.dart';
 import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/senders/senders.dart';
+import 'package:intellispendiq/settings/budget_cadence_labels.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
+import 'package:intellispendiq/settings/view/budget_cycle_page.dart';
 import 'package:share_plus/share_plus.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -46,6 +49,14 @@ class SettingsView extends StatelessWidget {
           const _ThemeSelector(),
           const Divider(height: 32),
           const _SectionHeader('Money'),
+          ListTile(
+            leading: const Icon(Icons.date_range_outlined),
+            title: const Text('Budget cycle'),
+            subtitle: const _BudgetCycleSubtitle(),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () =>
+                Navigator.of(context).push<void>(BudgetCyclePage.route()),
+          ),
           ListTile(
             leading: const Icon(Icons.account_balance_wallet_outlined),
             title: const Text('Accounts'),
@@ -104,6 +115,24 @@ class _SectionHeader extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+}
+
+class _BudgetCycleSubtitle extends StatelessWidget {
+  const _BudgetCycleSubtitle();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: context.read<BudgetPeriodRepository>().ensureSchedule(),
+      builder: (context, snapshot) {
+        final schedule = snapshot.data;
+        if (schedule == null) {
+          return const Text('When each budget period starts and ends');
+        }
+        return Text(BudgetCadenceLabels.title(schedule.cadence));
+      },
     );
   }
 }

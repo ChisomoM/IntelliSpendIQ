@@ -5,7 +5,9 @@ enum CategoryDetailStatus { initial, loading, loaded, notFound, invalid }
 class CategoryDetailState extends Equatable {
   const CategoryDetailState({
     required this.categoryId,
-    required this.period,
+    required this.periodStartAt,
+    required this.periodEndAt,
+    this.periodId,
     this.status = CategoryDetailStatus.initial,
     this.category,
     this.allCategories = const [],
@@ -16,7 +18,9 @@ class CategoryDetailState extends Equatable {
   });
 
   final String categoryId;
-  final String period;
+  final String? periodId;
+  final String periodStartAt;
+  final String periodEndAt;
   final CategoryDetailStatus status;
   final Category? category;
 
@@ -60,7 +64,9 @@ class CategoryDetailState extends Equatable {
   }) {
     return CategoryDetailState(
       categoryId: categoryId,
-      period: period,
+      periodId: periodId,
+      periodStartAt: periodStartAt,
+      periodEndAt: periodEndAt,
       status: status ?? this.status,
       category: category ?? this.category,
       allCategories: allCategories ?? this.allCategories,
@@ -74,7 +80,9 @@ class CategoryDetailState extends Equatable {
   @override
   List<Object?> get props => [
     categoryId,
-    period,
+    periodId,
+    periodStartAt,
+    periodEndAt,
     status,
     category,
     allCategories,

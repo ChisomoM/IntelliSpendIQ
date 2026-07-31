@@ -3,118 +3,201 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/money.dart';
-import 'package:intellispendiq/core/time.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
-import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/models/budget_period.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/category_budget.dart';
 import 'package:intellispendiq/domain/models/overall_budget.dart';
 
 part 'budgets_state.dart';
 
-/// Overall monthly budget and category-level budget envelopes,
-/// tracked against confirmed spend. Categories are the budget line —
-/// there is no separate per-category row, so editing a category's
-/// budget (via the Categories feature) is what updates the envelope
-/// this cubit shows. All arithmetic is local SQL.
+/// Overall period budget and category envelopes, tracked against
+/// confirmed spend in the selected [BudgetPeriod] window.
 class BudgetsCubit extends Cubit<BudgetsState> {
   BudgetsCubit({
     required CategoryRepository categories,
-    required OverallBudgetRepository overallBudgets,
+    required BudgetPeriodRepository budgetPeriods,
     required TransactionRepository transactions,
-    String? period,
+    BudgetPeriod? initialPeriod,
   }) : _categories = categories,
-       _overallBudgets = overallBudgets,
+       _budgetPeriods = budgetPeriods,
        _transactions = transactions,
-       super(BudgetsState(period: period ?? Iso.monthKey(DateTime.now())));
+       super(BudgetsState(budgetPeriod: initialPeriod));
 
   final CategoryRepository _categories;
-  final OverallBudgetRepository _overallBudgets;
+  final BudgetPeriodRepository _budgetPeriods;
   final TransactionRepository _transactions;
-  StreamSubscription<List<Category>>? _subscription;
-  StreamSubscription<OverallBudget?>? _overallSubscription;
+  StreamSubscription<List<Category>>? _categorySubscription;
+  StreamSubscription<BudgetPeriod?>? _periodSubscription;
+  StreamSubscription<List<CategoryBudget>>? _categoryBudgetSubscription;
 
-  /// Fire-and-forget entry point for widget construction.
   void loadUnawaited() => unawaited(load());
 
   Future<void> load() async {
     emit(state.copyWith(status: BudgetsStatus.loading));
-    await _overallBudgets.carryOverInto(state.period);
-
-    await _subscription?.cancel();
-    _subscription = _categories.watchAll().listen(_onCategories);
-
-    await _overallSubscription?.cancel();
-    _overallSubscription = _overallBudgets
-        .watchForPeriod(state.period)
-        .listen(_onOverallBudget);
+    final period =
+        state.budgetPeriod ??
+        await _budgetPeriods.ensurePeriodContaining(DateTime.now());
+    await _subscribe(period);
   }
 
-  Future<void> _onCategories(List<Category> categories) async {
-    final spent = <String, int>{};
-    for (final category in categories) {
-      if (!category.isExpense || !category.hasBudget) continue;
-      spent[category.id] = await _transactions.spentForCategory(
-        category.id,
-        state.period,
-      );
-    }
-    final totalSpent = await _transactions.totalSpent(state.period);
+  /// Moves to the previous (-1) or next (+1) budget period.
+  void shiftPeriod(int delta) => unawaited(_shiftPeriod(delta));
+
+  Future<void> _shiftPeriod(int delta) async {
+    final current =
+        state.budgetPeriod ??
+        await _budgetPeriods.ensurePeriodContaining(DateTime.now());
+    final next = await _budgetPeriods.shiftPeriod(current, delta);
+    emit(
+      state.copyWith(
+        budgetPeriod: next,
+        status: BudgetsStatus.loading,
+        clearOverallBudget: true,
+        spentByCategory: const {},
+        totalSpent: 0,
+        categoryBudgets: const {},
+      ),
+    );
+    await _subscribe(next);
+  }
+
+  Future<void> _subscribe(BudgetPeriod period) async {
+    await _categorySubscription?.cancel();
+    await _periodSubscription?.cancel();
+    await _categoryBudgetSubscription?.cancel();
+
+    emit(state.copyWith(budgetPeriod: period));
+
+    _periodSubscription = _budgetPeriods
+        .watchPeriod(period.id)
+        .listen(_onPeriod);
+
+    _categoryBudgetSubscription = _budgetPeriods
+        .watchCategoryBudgets(period.id)
+        .listen(_onCategoryBudgets);
+
+    _categorySubscription = _categories.watchAll().listen(_onCategories);
+  }
+
+  Future<void> _onPeriod(BudgetPeriod? period) async {
+    if (period == null || isClosed) return;
+    final totalSpent = await _transactions.totalSpentInRange(
+      from: period.startAt,
+      to: period.endAt,
+    );
     if (isClosed) return;
     emit(
       state.copyWith(
         status: BudgetsStatus.loaded,
-        categories: categories,
+        budgetPeriod: period,
+        overallBudget: period.hasOverallBudget
+            ? OverallBudget(
+                id: period.id,
+                period: period.id,
+                amountMinor: period.overallAmountMinor!,
+                carryOver: period.carryOver,
+              )
+            : null,
+        clearOverallBudget: !period.hasOverallBudget,
+        totalSpent: totalSpent,
+      ),
+    );
+  }
+
+  Future<void> _onCategoryBudgets(List<CategoryBudget> budgets) async {
+    final map = {for (final b in budgets) b.categoryId: b.amountMinor};
+    if (isClosed) return;
+    emit(state.copyWith(categoryBudgets: map));
+    await _refreshSpend(state.categories);
+  }
+
+  Future<void> _onCategories(List<Category> categories) async {
+    await _refreshSpend(categories);
+  }
+
+  Future<void> _refreshSpend(List<Category> categories) async {
+    final period = state.budgetPeriod;
+    if (period == null) return;
+
+    final effective = _withPeriodBudgets(categories);
+    final spent = <String, int>{};
+    for (final category in effective) {
+      if (!category.isExpense || !category.hasBudget) continue;
+      spent[category.id] = await _transactions.spentForCategoryInRange(
+        category.id,
+        from: period.startAt,
+        to: period.endAt,
+      );
+    }
+    final totalSpent = await _transactions.totalSpentInRange(
+      from: period.startAt,
+      to: period.endAt,
+    );
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        status: BudgetsStatus.loaded,
+        categories: effective,
         spentByCategory: spent,
         totalSpent: totalSpent,
       ),
     );
   }
 
-  Future<void> _onOverallBudget(OverallBudget? overallBudget) async {
-    final totalSpent = await _transactions.totalSpent(state.period);
-    if (isClosed) return;
-    emit(
-      state.copyWith(
-        status: BudgetsStatus.loaded,
-        overallBudget: overallBudget,
-        clearOverallBudget: overallBudget == null,
-        totalSpent: totalSpent,
-      ),
-    );
+  List<Category> _withPeriodBudgets(List<Category> categories) {
+    if (state.categoryBudgets.isEmpty) return categories;
+    return [
+      for (final category in categories)
+        Category(
+          id: category.id,
+          name: category.name,
+          icon: category.icon,
+          color: category.color,
+          parentId: category.parentId,
+          isSystem: category.isSystem,
+          sortOrder: category.sortOrder,
+          type: category.type,
+          budgetedAmountMinor:
+              state.categoryBudgets[category.id] ?? category.budgetedAmountMinor,
+        ),
+    ];
   }
 
   Future<void> setOverallBudget(String amount) async {
+    final period = state.budgetPeriod;
+    if (period == null) return;
     final amountMinor = Money.tryParseToMinor(amount);
     if (amountMinor == null || amountMinor <= 0) {
       emit(
         state.copyWith(
           status: BudgetsStatus.invalid,
-          errorMessage: 'Enter a total budget, e.g. 5000',
+          errorMessage: 'Enter a planned budget, e.g. 5000',
         ),
       );
       return;
     }
-    await _overallBudgets.upsert(
-      period: state.period,
+    await _budgetPeriods.setOverallAmount(
+      periodId: period.id,
       amountMinor: amountMinor,
     );
   }
 
   Future<void> deleteOverallBudget() async {
-    final id = state.overallBudget?.id;
-    if (id == null) return;
-    await _overallBudgets.delete(id);
+    final period = state.budgetPeriod;
+    if (period == null) return;
+    await _budgetPeriods.clearOverallAmount(period.id);
   }
 
-  /// Moves budgeted amount from one category to another. Emits
-  /// [BudgetsStatus.invalid] if the source doesn't have enough
-  /// budgeted, or either category doesn't exist.
   Future<void> transferBudget({
     required String fromCategoryId,
     required String toCategoryId,
     required String amount,
   }) async {
+    final period = state.budgetPeriod;
+    if (period == null) return;
     final amountMinor = Money.tryParseToMinor(amount);
     if (amountMinor == null || amountMinor <= 0) {
       emit(
@@ -125,7 +208,8 @@ class BudgetsCubit extends Cubit<BudgetsState> {
       );
       return;
     }
-    final moved = await _categories.transferBudget(
+    final moved = await _budgetPeriods.transferCategoryBudget(
+      periodId: period.id,
       fromCategoryId: fromCategoryId,
       toCategoryId: toCategoryId,
       amountMinor: amountMinor,
@@ -142,8 +226,9 @@ class BudgetsCubit extends Cubit<BudgetsState> {
 
   @override
   Future<void> close() async {
-    await _subscription?.cancel();
-    await _overallSubscription?.cancel();
+    await _categorySubscription?.cancel();
+    await _periodSubscription?.cancel();
+    await _categoryBudgetSubscription?.cancel();
     return super.close();
   }
 }

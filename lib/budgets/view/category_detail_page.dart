@@ -5,6 +5,7 @@ import 'package:intellispendiq/budgets/widgets/widgets.dart';
 import 'package:intellispendiq/categories/widgets/widgets.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/core/time.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 
@@ -13,28 +14,47 @@ import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 class CategoryDetailPage extends StatelessWidget {
   const CategoryDetailPage({
     required this.categoryId,
-    this.period,
+    this.periodId,
+    this.periodStartAt,
+    this.periodEndAt,
     super.key,
   });
 
   final String categoryId;
-  final String? period;
+  final String? periodId;
+  final String? periodStartAt;
+  final String? periodEndAt;
 
-  static Route<void> route({required String categoryId, String? period}) {
+  static Route<void> route({
+    required String categoryId,
+    String? periodId,
+    String? periodStartAt,
+    String? periodEndAt,
+  }) {
     return MaterialPageRoute<void>(
-      builder: (_) =>
-          CategoryDetailPage(categoryId: categoryId, period: period),
+      builder: (_) => CategoryDetailPage(
+        categoryId: categoryId,
+        periodId: periodId,
+        periodStartAt: periodStartAt,
+        periodEndAt: periodEndAt,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final (fallbackFrom, fallbackTo) = Iso.monthBoundsUtc(
+      Iso.monthKey(DateTime.now()),
+    );
     return BlocProvider(
       create: (context) => CategoryDetailCubit(
         categories: context.read<CategoryRepository>(),
+        budgetPeriods: context.read<BudgetPeriodRepository>(),
         transactions: context.read<TransactionRepository>(),
         categoryId: categoryId,
-        period: period ?? Iso.monthKey(DateTime.now()),
+        periodId: periodId,
+        periodStartAt: periodStartAt ?? fallbackFrom,
+        periodEndAt: periodEndAt ?? fallbackTo,
       )..loadUnawaited(),
       child: const CategoryDetailView(),
     );

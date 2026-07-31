@@ -1,8 +1,8 @@
 import 'package:equatable/equatable.dart';
 
-/// The month's overall spending budget — separate from per-category
-/// [Budget] limits, which allocate under this total rather than
-/// defining it.
+/// Display helper for the overall spending plan on a [BudgetPeriod].
+/// Prefer [BudgetPeriod.overallAmountMinor] for new code; this type
+/// remains for editors and legacy backup JSON.
 class OverallBudget extends Equatable {
   const OverallBudget({
     required this.id,
@@ -13,7 +13,7 @@ class OverallBudget extends Equatable {
 
   final String id;
 
-  /// Month key, `YYYY-MM`.
+  /// Budget period id (or legacy `YYYY-MM` in old backups).
   final String period;
 
   /// Total monthly budget in ngwee.

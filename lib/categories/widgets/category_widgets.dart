@@ -3,25 +3,40 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/categories/cubit/cubit.dart';
 import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 
 class CategoryTile extends StatelessWidget {
-  const CategoryTile({required this.category, super.key});
+  const CategoryTile({
+    required this.category,
+    this.onTap,
+    this.childCount,
+    super.key,
+  });
 
   final Category category;
+
+  /// Opens this category's detail (e.g. its subcategories). When set, a
+  /// chevron is shown to signal the row is tappable.
+  final VoidCallback? onTap;
+
+  /// When non-null, appended to the subtitle as "N subcategories".
+  final int? childCount;
 
   @override
   Widget build(BuildContext context) {
     final subtitleParts = [
       if (category.isSystem) 'Default category',
       if (category.hasBudget)
-        '${category.isIncome ? 'Planned' : 'Budget'}: '
-            '${Money.format(category.budgetedAmountMinor!)}',
+        '${category.isIncome ? 'Planned' : 'Budget'}: ${Money.format(category.budgetedAmountMinor!)}',
+      if (childCount != null && childCount! > 0)
+        '$childCount subcategor${childCount == 1 ? 'y' : 'ies'}',
     ];
 
     return ListTile(
+      onTap: onTap,
       leading: CircleAvatar(
         child: category.icon == null
             ? const Icon(Icons.label_outline)
@@ -45,6 +60,7 @@ class CategoryTile extends StatelessWidget {
               tooltip: 'Delete',
               onPressed: () => _confirmDelete(context),
             ),
+          if (onTap != null) const Icon(Icons.chevron_right),
         ],
       ),
     );
@@ -90,6 +106,7 @@ class CategoryEditorPage extends StatelessWidget {
     this.existing,
     this.parentId,
     this.initialType,
+    this.periodId,
     this.lockParent = false,
     super.key,
   });
@@ -106,6 +123,9 @@ class CategoryEditorPage extends StatelessWidget {
   /// yet.
   final CategoryType? initialType;
 
+  /// Budget period to write the planned/budget amount into.
+  final String? periodId;
+
   /// True when opened as "add subcategory" — the parent (and its
   /// type) are fixed rather than pickable.
   final bool lockParent;
@@ -117,6 +137,7 @@ class CategoryEditorPage extends StatelessWidget {
     Category? existing,
     String? parentId,
     CategoryType? initialType,
+    String? periodId,
     bool lockParent = false,
   }) {
     return MaterialPageRoute<String?>(
@@ -124,6 +145,7 @@ class CategoryEditorPage extends StatelessWidget {
         existing: existing,
         parentId: parentId,
         initialType: initialType,
+        periodId: periodId,
         lockParent: lockParent,
       ),
     );
@@ -134,6 +156,8 @@ class CategoryEditorPage extends StatelessWidget {
     return BlocProvider(
       create: (context) => CategoriesCubit(
         context.read<CategoryRepository>(),
+        budgetPeriods: context.read<BudgetPeriodRepository>(),
+        periodId: periodId,
       )..loadUnawaited(),
       child: _CategoryEditorView(
         existing: existing,
@@ -226,7 +250,15 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit category' : 'Add category'),
+        title: Text(
+          isEditing
+              ? (_type == CategoryType.income
+                    ? 'Edit income source'
+                    : 'Edit category')
+              : (_type == CategoryType.income
+                    ? 'Add income source'
+                    : 'Add category'),
+        ),
         actions: [
           TextButton(onPressed: _save, child: const Text('SAVE')),
         ],
@@ -288,8 +320,11 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                 controller: _budgetController,
                 decoration: InputDecoration(
                   labelText: _type == CategoryType.income
-                      ? 'Planned amount (optional)'
+                      ? 'Planned amount for this period'
                       : 'Budgeted amount (optional)',
+                  hintText: _type == CategoryType.income
+                      ? 'e.g. monthly salary'
+                      : null,
                   prefixText: 'ZMW ',
                 ),
                 keyboardType: const TextInputType.numberWithOptions(

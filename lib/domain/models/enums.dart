@@ -105,3 +105,33 @@ enum CategoryType {
   static CategoryType fromDbName(String name) =>
       _names.entries.firstWhere((e) => e.value == name).key;
 }
+
+/// How successive budget periods are generated for a user.
+enum BudgetCadence {
+  /// 1st of the month → 1st of next month (default).
+  calendarMonth,
+
+  /// Same day each month → same day next month (e.g. payday on the 25th).
+  payday,
+
+  weekly,
+  biweekly,
+  everyFourWeeks,
+
+  /// One-off or irregular ranges; periods are created manually.
+  custom;
+
+  static const Map<BudgetCadence, String> _names = {
+    calendarMonth: 'calendar_month',
+    payday: 'payday',
+    weekly: 'weekly',
+    biweekly: 'biweekly',
+    everyFourWeeks: 'every_four_weeks',
+    custom: 'custom',
+  };
+
+  String get dbName => _names[this]!;
+
+  static BudgetCadence fromDbName(String name) =>
+      _names.entries.firstWhere((e) => e.value == name).key;
+}

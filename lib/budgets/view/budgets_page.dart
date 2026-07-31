@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/budgets/cubit/cubit.dart';
 import 'package:intellispendiq/budgets/widgets/widgets.dart';
 import 'package:intellispendiq/categories/widgets/widgets.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
-import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 
@@ -16,7 +16,7 @@ class BudgetsPage extends StatelessWidget {
     return BlocProvider(
       create: (context) => BudgetsCubit(
         categories: context.read<CategoryRepository>(),
-        overallBudgets: context.read<OverallBudgetRepository>(),
+        budgetPeriods: context.read<BudgetPeriodRepository>(),
         transactions: context.read<TransactionRepository>(),
       )..loadUnawaited(),
       child: const BudgetsView(),
@@ -44,21 +44,43 @@ class BudgetsView extends StatelessWidget {
       ),
       body: BlocBuilder<BudgetsCubit, BudgetsState>(
         builder: (context, state) {
-          if (state.status == BudgetsStatus.initial) {
+          if (state.status == BudgetsStatus.initial ||
+              state.budgetPeriod == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
+          final cubit = context.read<BudgetsCubit>();
+          final period = state.budgetPeriod!;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(
-                'Month of ${state.period}',
-                style: Theme.of(context).textTheme.titleMedium,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    tooltip: 'Previous period',
+                    onPressed: () => cubit.shiftPeriod(-1),
+                  ),
+                  Expanded(
+                    child: Text(
+                      state.periodLabel,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    tooltip: 'Next period',
+                    onPressed: () => cubit.shiftPeriod(1),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               IncomeSummaryCard(
-                incomeCategories: state.budgetedIncomeCategories,
+                incomeCategories: state.topLevelIncomeCategories,
                 totalSpent: state.totalSpent,
+                periodId: period.id,
               ),
               const SizedBox(height: 12),
               PlannedVsActualCard(
@@ -75,6 +97,9 @@ class BudgetsView extends StatelessWidget {
                   ExpenseCategoryEnvelopeCard(
                     category: category,
                     spentMinor: state.spentFor(category.id),
+                    periodId: period.id,
+                    periodStartAt: period.startAt,
+                    periodEndAt: period.endAt,
                   ),
             ],
           );

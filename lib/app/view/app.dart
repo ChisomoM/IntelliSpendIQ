@@ -6,6 +6,7 @@ import 'package:intellispendiq/app/theme/theme.dart';
 import 'package:intellispendiq/auth/auth.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
@@ -51,6 +52,9 @@ class App extends StatelessWidget {
         ),
         RepositoryProvider<OverallBudgetRepository>.value(
           value: services.overallBudgets,
+        ),
+        RepositoryProvider<BudgetPeriodRepository>.value(
+          value: services.budgetPeriods,
         ),
         RepositoryProvider<PayeeRepository>.value(value: services.payees),
         RepositoryProvider<LabelRepository>.value(value: services.labels),

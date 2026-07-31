@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -10,11 +11,21 @@ import 'package:intellispendiq/domain/models/enums.dart';
 part 'categories_state.dart';
 
 /// Lets the user add, rename, and remove spending categories beyond
-/// the ten seeded on first launch.
+/// the ten seeded on first launch. Planned/budget amounts are written
+/// to both the standing template and the active (or [periodId]) budget
+/// period when [budgetPeriods] is provided.
 class CategoriesCubit extends Cubit<CategoriesState> {
-  CategoriesCubit(this._categories) : super(const CategoriesState());
+  CategoriesCubit(
+    this._categories, {
+    BudgetPeriodRepository? budgetPeriods,
+    String? periodId,
+  }) : _budgetPeriods = budgetPeriods,
+       _periodId = periodId,
+       super(const CategoriesState());
 
   final CategoryRepository _categories;
+  final BudgetPeriodRepository? _budgetPeriods;
+  final String? _periodId;
   StreamSubscription<List<Category>>? _subscription;
 
   void loadUnawaited() => unawaited(load());
@@ -59,13 +70,15 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       );
       return null;
     }
-    return _categories.create(
+    final created = await _categories.create(
       trimmed,
       icon: _trimIcon(icon),
       parentId: parentId,
       type: type,
       budgetedAmountMinor: budgetedAmountMinor,
     );
+    await _syncPeriodAmount(created.id, budgetedAmountMinor);
+    return created;
   }
 
   Future<void> rename(
@@ -108,6 +121,27 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       type: type,
       budgetedAmountMinor: budgetedAmountMinor,
       clearBudget: budgetedAmountMinor == null,
+    );
+    await _syncPeriodAmount(id, budgetedAmountMinor);
+  }
+
+  Future<void> _syncPeriodAmount(String categoryId, int? amountMinor) async {
+    final periods = _budgetPeriods;
+    if (periods == null) return;
+    final periodId =
+        _periodId ??
+        (await periods.ensurePeriodContaining(DateTime.now())).id;
+    if (amountMinor == null) {
+      await periods.clearCategoryBudget(
+        periodId: periodId,
+        categoryId: categoryId,
+      );
+      return;
+    }
+    await periods.upsertCategoryBudget(
+      periodId: periodId,
+      categoryId: categoryId,
+      amountMinor: amountMinor,
     );
   }
 

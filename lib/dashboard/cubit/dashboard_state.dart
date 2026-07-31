@@ -4,7 +4,7 @@ enum DashboardStatus { initial, loading, loaded }
 
 class DashboardState extends Equatable {
   const DashboardState({
-    required this.period,
+    this.budgetPeriod,
     this.status = DashboardStatus.initial,
     this.incomeCategories = const [],
     this.totalSpent = 0,
@@ -14,18 +14,17 @@ class DashboardState extends Equatable {
     this.failedCaptureCount = 0,
   });
 
-  /// Month key, `YYYY-MM`.
-  final String period;
+  /// Active budget window for home totals.
+  final BudgetPeriod? budgetPeriod;
   final DashboardStatus status;
 
-  /// Top-level income categories with a planned amount, for [period].
+  /// Top-level income categories with a planned amount for [budgetPeriod].
   final List<Category> incomeCategories;
 
-  /// Confirmed debit spend across every category for [period], in
-  /// ngwee.
+  /// Confirmed debit spend across every category for [budgetPeriod].
   final int totalSpent;
 
-  /// Largest categories by spend for [period], already sorted and
+  /// Largest categories by spend for [budgetPeriod], already sorted and
   /// truncated to the top few.
   final List<CategorySpend> topCategories;
 
@@ -38,22 +37,22 @@ class DashboardState extends Equatable {
   /// Messages stored raw because no parser understood them.
   final int failedCaptureCount;
 
+  /// Display label `DD/MM/YYYY – DD/MM/YYYY`.
+  String get periodLabel => budgetPeriod?.label ?? '';
+
   bool get hasIncome => incomeCategories.isNotEmpty;
 
-  /// Every income category's planned amount summed, in ngwee.
   int get totalIncomeMinor => incomeCategories.fold(
     0,
     (sum, category) => sum + category.budgetedAmountMinor!,
   );
 
-  /// Income minus total spend, in ngwee. Zero when no income is set.
   int get remainingMinor => totalIncomeMinor - totalSpent;
 
-  /// What the Review banner shows.
   int get pendingReviewCount => needsReviewCount + failedCaptureCount;
 
   DashboardState copyWith({
-    String? period,
+    BudgetPeriod? budgetPeriod,
     DashboardStatus? status,
     List<Category>? incomeCategories,
     int? totalSpent,
@@ -63,7 +62,7 @@ class DashboardState extends Equatable {
     int? failedCaptureCount,
   }) {
     return DashboardState(
-      period: period ?? this.period,
+      budgetPeriod: budgetPeriod ?? this.budgetPeriod,
       status: status ?? this.status,
       incomeCategories: incomeCategories ?? this.incomeCategories,
       totalSpent: totalSpent ?? this.totalSpent,
@@ -76,7 +75,7 @@ class DashboardState extends Equatable {
 
   @override
   List<Object?> get props => [
-    period,
+    budgetPeriod,
     status,
     incomeCategories,
     totalSpent,

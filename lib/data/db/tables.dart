@@ -54,10 +54,10 @@ class Categories extends SyncedTable {
   TextColumn get categoryType =>
       text().withDefault(const Constant('expense'))();
 
-  /// A standing monthly limit (expense) or planned figure (income), in
-  /// ngwee. Applies to whichever period is currently viewed — there is
-  /// no separate per-month row to carry forward, unlike the old
-  /// [Budgets] table this replaced.
+  /// Standing template for new budget periods (expense limit or income
+  /// plan), in ngwee. Live envelopes for a given period live in
+  /// [CategoryBudgets]; this column seeds new periods and the Categories
+  /// editor.
   IntColumn get budgetedAmountMinor => integer().nullable()();
 }
 
@@ -141,6 +141,10 @@ class TransactionLabels extends Table {
 /// Overall monthly spending budget — independent of per-category
 /// budget envelopes on [Categories]. Category limits allocate under
 /// this total; they do not define it.
+///
+/// Legacy rows use [period] as `YYYY-MM`. New budget periods store the
+/// overall amount on [BudgetPeriods] instead; this table remains for
+/// migration and older backups.
 @DataClassName('OverallBudgetRow')
 class OverallBudgets extends SyncedTable {
   /// Month key `YYYY-MM`.
@@ -155,6 +159,58 @@ class OverallBudgets extends SyncedTable {
   @override
   List<Set<Column<Object>>> get uniqueKeys => [
     {userId, period},
+  ];
+}
+
+/// How the user generates successive budget periods (calendar month,
+/// payday cycle, weekly, …). One active schedule per user for now.
+@DataClassName('BudgetScheduleRow')
+class BudgetSchedules extends SyncedTable {
+  /// See [BudgetCadence.dbName].
+  TextColumn get cadence => text()();
+
+  /// Day of month for payday cadence (1–31).
+  IntColumn get anchorDay => integer().nullable()();
+
+  /// Local `YYYY-MM-DD` anchor for biweekly / every-four-weeks.
+  TextColumn get anchorDate => text().nullable()();
+
+  /// `DateTime` weekday (1=Mon…7=Sun) for weekly cadence.
+  IntColumn get startWeekday => integer().nullable()();
+}
+
+/// One concrete budget window. Half-open `[startAt, endAt)` UTC ISO.
+@DataClassName('BudgetPeriodRow')
+@TableIndex(name: 'idx_budget_period_bounds', columns: {#userId, #startAt})
+class BudgetPeriods extends SyncedTable {
+  TextColumn get scheduleId => text()();
+  TextColumn get startAt => text()();
+  TextColumn get endAt => text()();
+
+  /// Display label `DD/MM/YYYY – DD/MM/YYYY`.
+  TextColumn get label => text()();
+
+  /// Overall spending plan for this period, in ngwee.
+  IntColumn get overallAmountMinor => integer().nullable()();
+
+  BoolColumn get carryOver => boolean().withDefault(const Constant(true))();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, startAt, endAt},
+  ];
+}
+
+/// Per-period category envelope (expense limit or income plan).
+@DataClassName('CategoryBudgetRow')
+class CategoryBudgets extends SyncedTable {
+  TextColumn get periodId => text()();
+  TextColumn get categoryId => text()();
+  IntColumn get amountMinor => integer()();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, periodId, categoryId},
   ];
 }
 

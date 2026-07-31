@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/transactions/widgets/widgets.dart';
 
 class GreetingHeader extends StatelessWidget {
-  const GreetingHeader({required this.period, super.key});
+  const GreetingHeader({required this.periodLabel, super.key});
 
-  final String period;
+  /// Budget period label, e.g. `01/07/2026 – 31/07/2026`.
+  final String periodLabel;
 
   String get _greeting => switch (DateTime.now().hour) {
     < 12 => 'Good morning',
@@ -23,7 +25,9 @@ class GreetingHeader extends StatelessWidget {
         Text(_greeting, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 2),
         Text(
-          'Here is how $period is looking',
+          periodLabel.isEmpty
+              ? 'Here is how this period is looking'
+              : 'Here is how $periodLabel is looking',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -41,6 +45,8 @@ class IncomeOverviewCard extends StatelessWidget {
     required this.incomeMinor,
     required this.totalSpent,
     required this.onTap,
+    this.periodLabel = '',
+    this.incomeCategories = const [],
     super.key,
   });
 
@@ -48,6 +54,8 @@ class IncomeOverviewCard extends StatelessWidget {
   final int incomeMinor;
   final int totalSpent;
   final VoidCallback onTap;
+  final String periodLabel;
+  final List<Category> incomeCategories;
 
   @override
   Widget build(BuildContext context) {
@@ -57,8 +65,10 @@ class IncomeOverviewCard extends StatelessWidget {
       return Card(
         child: ListTile(
           leading: const Icon(Icons.payments_outlined),
-          title: const Text('Set your income for this month'),
-          subtitle: const Text('Track spend against what you earn.'),
+          title: const Text('Add income sources for this period'),
+          subtitle: const Text(
+            'Track spend against salary, side hustles, and more.',
+          ),
           trailing: const Icon(Icons.chevron_right),
           onTap: onTap,
         ),
@@ -81,7 +91,7 @@ class IncomeOverviewCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'This month',
+                      periodLabel.isEmpty ? 'This period' : periodLabel,
                       style: theme.textTheme.titleSmall,
                     ),
                   ),
@@ -104,6 +114,31 @@ class IncomeOverviewCard extends StatelessWidget {
                   color: over ? theme.colorScheme.error : null,
                 ),
               ),
+              if (incomeCategories.length > 1) ...[
+                const SizedBox(height: 12),
+                for (final category in incomeCategories)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            category.displayName,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          Money.format(category.budgetedAmountMinor!),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ],
           ),
         ),

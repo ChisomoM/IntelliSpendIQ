@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/category.dart';
@@ -15,14 +16,26 @@ part 'category_detail_state.dart';
 class CategoryDetailCubit extends Cubit<CategoryDetailState> {
   CategoryDetailCubit({
     required CategoryRepository categories,
+    required BudgetPeriodRepository budgetPeriods,
     required TransactionRepository transactions,
     required String categoryId,
-    required String period,
+    required String periodStartAt,
+    required String periodEndAt,
+    String? periodId,
   }) : _categories = categories,
+       _budgetPeriods = budgetPeriods,
        _transactions = transactions,
-       super(CategoryDetailState(categoryId: categoryId, period: period));
+       super(
+         CategoryDetailState(
+           categoryId: categoryId,
+           periodId: periodId,
+           periodStartAt: periodStartAt,
+           periodEndAt: periodEndAt,
+         ),
+       );
 
   final CategoryRepository _categories;
+  final BudgetPeriodRepository _budgetPeriods;
   final TransactionRepository _transactions;
   StreamSubscription<List<Category>>? _subscription;
 
@@ -46,24 +59,48 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
         .where((c) => c.parentId == state.categoryId)
         .toList();
 
-    final spentMinor = await _transactions.spentForCategory(
+    final periodAmounts = state.periodId == null
+        ? const <String, int>{}
+        : {
+            for (final b in await _budgetPeriods.categoryBudgetsFor(
+              state.periodId!,
+            ))
+              b.categoryId: b.amountMinor,
+          };
+
+    Category overlay(Category category) => Category(
+      id: category.id,
+      name: category.name,
+      icon: category.icon,
+      color: category.color,
+      parentId: category.parentId,
+      isSystem: category.isSystem,
+      sortOrder: category.sortOrder,
+      type: category.type,
+      budgetedAmountMinor:
+          periodAmounts[category.id] ?? category.budgetedAmountMinor,
+    );
+
+    final spentMinor = await _transactions.spentForCategoryInRange(
       state.categoryId,
-      state.period,
+      from: state.periodStartAt,
+      to: state.periodEndAt,
     );
     final spentByChild = <String, int>{};
     for (final child in children) {
-      spentByChild[child.id] = await _transactions.spentForCategory(
+      spentByChild[child.id] = await _transactions.spentForCategoryInRange(
         child.id,
-        state.period,
+        from: state.periodStartAt,
+        to: state.periodEndAt,
       );
     }
     if (isClosed) return;
     emit(
       state.copyWith(
         status: CategoryDetailStatus.loaded,
-        category: self,
-        allCategories: categories,
-        children: children,
+        category: overlay(self),
+        allCategories: categories.map(overlay).toList(),
+        children: children.map(overlay).toList(),
         spentMinor: spentMinor,
         spentByChild: spentByChild,
       ),
@@ -82,11 +119,19 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
       );
       return;
     }
-    final moved = await _categories.transferBudget(
-      fromCategoryId: state.categoryId,
-      toCategoryId: toCategoryId,
-      amountMinor: amountMinor,
-    );
+
+    final moved = state.periodId == null
+        ? await _categories.transferBudget(
+            fromCategoryId: state.categoryId,
+            toCategoryId: toCategoryId,
+            amountMinor: amountMinor,
+          )
+        : await _budgetPeriods.transferCategoryBudget(
+            periodId: state.periodId!,
+            fromCategoryId: state.categoryId,
+            toCategoryId: toCategoryId,
+            amountMinor: amountMinor,
+          );
     if (!moved) {
       emit(
         state.copyWith(

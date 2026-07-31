@@ -347,7 +347,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
 
   /// When [balanceMinor] was set. Null means no checkpoint has ever
   /// been set, so the displayed balance sums the account's entire
-  /// history from [SyncedTable.createdAt] instead.
+  /// transaction history instead.
   final String? balanceAsOf;
   const AccountRow({
     required this.id,
@@ -3444,6 +3444,1777 @@ class OverallBudgetsCompanion extends UpdateCompanion<OverallBudgetRow> {
           ..write('period: $period, ')
           ..write('amountMinor: $amountMinor, ')
           ..write('carryOver: $carryOver, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BudgetSchedulesTable extends BudgetSchedules
+    with TableInfo<$BudgetSchedulesTable, BudgetScheduleRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BudgetSchedulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cadenceMeta = const VerificationMeta(
+    'cadence',
+  );
+  @override
+  late final GeneratedColumn<String> cadence = GeneratedColumn<String>(
+    'cadence',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _anchorDayMeta = const VerificationMeta(
+    'anchorDay',
+  );
+  @override
+  late final GeneratedColumn<int> anchorDay = GeneratedColumn<int>(
+    'anchor_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _anchorDateMeta = const VerificationMeta(
+    'anchorDate',
+  );
+  @override
+  late final GeneratedColumn<String> anchorDate = GeneratedColumn<String>(
+    'anchor_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startWeekdayMeta = const VerificationMeta(
+    'startWeekday',
+  );
+  @override
+  late final GeneratedColumn<int> startWeekday = GeneratedColumn<int>(
+    'start_weekday',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    cadence,
+    anchorDay,
+    anchorDate,
+    startWeekday,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'budget_schedules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BudgetScheduleRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('cadence')) {
+      context.handle(
+        _cadenceMeta,
+        cadence.isAcceptableOrUnknown(data['cadence']!, _cadenceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cadenceMeta);
+    }
+    if (data.containsKey('anchor_day')) {
+      context.handle(
+        _anchorDayMeta,
+        anchorDay.isAcceptableOrUnknown(data['anchor_day']!, _anchorDayMeta),
+      );
+    }
+    if (data.containsKey('anchor_date')) {
+      context.handle(
+        _anchorDateMeta,
+        anchorDate.isAcceptableOrUnknown(data['anchor_date']!, _anchorDateMeta),
+      );
+    }
+    if (data.containsKey('start_weekday')) {
+      context.handle(
+        _startWeekdayMeta,
+        startWeekday.isAcceptableOrUnknown(
+          data['start_weekday']!,
+          _startWeekdayMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BudgetScheduleRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BudgetScheduleRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      cadence: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cadence'],
+      )!,
+      anchorDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}anchor_day'],
+      ),
+      anchorDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}anchor_date'],
+      ),
+      startWeekday: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_weekday'],
+      ),
+    );
+  }
+
+  @override
+  $BudgetSchedulesTable createAlias(String alias) {
+    return $BudgetSchedulesTable(attachedDatabase, alias);
+  }
+}
+
+class BudgetScheduleRow extends DataClass
+    implements Insertable<BudgetScheduleRow> {
+  final String id;
+  final String userId;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+
+  /// See [BudgetCadence.dbName].
+  final String cadence;
+
+  /// Day of month for payday cadence (1–31).
+  final int? anchorDay;
+
+  /// Local `YYYY-MM-DD` anchor for biweekly / every-four-weeks.
+  final String? anchorDate;
+
+  /// `DateTime` weekday (1=Mon…7=Sun) for weekly cadence.
+  final int? startWeekday;
+  const BudgetScheduleRow({
+    required this.id,
+    required this.userId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.cadence,
+    this.anchorDay,
+    this.anchorDate,
+    this.startWeekday,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<String>(deletedAt);
+    }
+    map['cadence'] = Variable<String>(cadence);
+    if (!nullToAbsent || anchorDay != null) {
+      map['anchor_day'] = Variable<int>(anchorDay);
+    }
+    if (!nullToAbsent || anchorDate != null) {
+      map['anchor_date'] = Variable<String>(anchorDate);
+    }
+    if (!nullToAbsent || startWeekday != null) {
+      map['start_weekday'] = Variable<int>(startWeekday);
+    }
+    return map;
+  }
+
+  BudgetSchedulesCompanion toCompanion(bool nullToAbsent) {
+    return BudgetSchedulesCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      cadence: Value(cadence),
+      anchorDay: anchorDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anchorDay),
+      anchorDate: anchorDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anchorDate),
+      startWeekday: startWeekday == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startWeekday),
+    );
+  }
+
+  factory BudgetScheduleRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BudgetScheduleRow(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      deletedAt: serializer.fromJson<String?>(json['deletedAt']),
+      cadence: serializer.fromJson<String>(json['cadence']),
+      anchorDay: serializer.fromJson<int?>(json['anchorDay']),
+      anchorDate: serializer.fromJson<String?>(json['anchorDate']),
+      startWeekday: serializer.fromJson<int?>(json['startWeekday']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'deletedAt': serializer.toJson<String?>(deletedAt),
+      'cadence': serializer.toJson<String>(cadence),
+      'anchorDay': serializer.toJson<int?>(anchorDay),
+      'anchorDate': serializer.toJson<String?>(anchorDate),
+      'startWeekday': serializer.toJson<int?>(startWeekday),
+    };
+  }
+
+  BudgetScheduleRow copyWith({
+    String? id,
+    String? userId,
+    String? createdAt,
+    String? updatedAt,
+    Value<String?> deletedAt = const Value.absent(),
+    String? cadence,
+    Value<int?> anchorDay = const Value.absent(),
+    Value<String?> anchorDate = const Value.absent(),
+    Value<int?> startWeekday = const Value.absent(),
+  }) => BudgetScheduleRow(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    cadence: cadence ?? this.cadence,
+    anchorDay: anchorDay.present ? anchorDay.value : this.anchorDay,
+    anchorDate: anchorDate.present ? anchorDate.value : this.anchorDate,
+    startWeekday: startWeekday.present ? startWeekday.value : this.startWeekday,
+  );
+  BudgetScheduleRow copyWithCompanion(BudgetSchedulesCompanion data) {
+    return BudgetScheduleRow(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      cadence: data.cadence.present ? data.cadence.value : this.cadence,
+      anchorDay: data.anchorDay.present ? data.anchorDay.value : this.anchorDay,
+      anchorDate: data.anchorDate.present
+          ? data.anchorDate.value
+          : this.anchorDate,
+      startWeekday: data.startWeekday.present
+          ? data.startWeekday.value
+          : this.startWeekday,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetScheduleRow(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('cadence: $cadence, ')
+          ..write('anchorDay: $anchorDay, ')
+          ..write('anchorDate: $anchorDate, ')
+          ..write('startWeekday: $startWeekday')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    cadence,
+    anchorDay,
+    anchorDate,
+    startWeekday,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BudgetScheduleRow &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.cadence == this.cadence &&
+          other.anchorDay == this.anchorDay &&
+          other.anchorDate == this.anchorDate &&
+          other.startWeekday == this.startWeekday);
+}
+
+class BudgetSchedulesCompanion extends UpdateCompanion<BudgetScheduleRow> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<String?> deletedAt;
+  final Value<String> cadence;
+  final Value<int?> anchorDay;
+  final Value<String?> anchorDate;
+  final Value<int?> startWeekday;
+  final Value<int> rowid;
+  const BudgetSchedulesCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.cadence = const Value.absent(),
+    this.anchorDay = const Value.absent(),
+    this.anchorDate = const Value.absent(),
+    this.startWeekday = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BudgetSchedulesCompanion.insert({
+    required String id,
+    required String userId,
+    required String createdAt,
+    required String updatedAt,
+    this.deletedAt = const Value.absent(),
+    required String cadence,
+    this.anchorDay = const Value.absent(),
+    this.anchorDate = const Value.absent(),
+    this.startWeekday = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       cadence = Value(cadence);
+  static Insertable<BudgetScheduleRow> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
+    Expression<String>? cadence,
+    Expression<int>? anchorDay,
+    Expression<String>? anchorDate,
+    Expression<int>? startWeekday,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (cadence != null) 'cadence': cadence,
+      if (anchorDay != null) 'anchor_day': anchorDay,
+      if (anchorDate != null) 'anchor_date': anchorDate,
+      if (startWeekday != null) 'start_weekday': startWeekday,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BudgetSchedulesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<String?>? deletedAt,
+    Value<String>? cadence,
+    Value<int?>? anchorDay,
+    Value<String?>? anchorDate,
+    Value<int?>? startWeekday,
+    Value<int>? rowid,
+  }) {
+    return BudgetSchedulesCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      cadence: cadence ?? this.cadence,
+      anchorDay: anchorDay ?? this.anchorDay,
+      anchorDate: anchorDate ?? this.anchorDate,
+      startWeekday: startWeekday ?? this.startWeekday,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (cadence.present) {
+      map['cadence'] = Variable<String>(cadence.value);
+    }
+    if (anchorDay.present) {
+      map['anchor_day'] = Variable<int>(anchorDay.value);
+    }
+    if (anchorDate.present) {
+      map['anchor_date'] = Variable<String>(anchorDate.value);
+    }
+    if (startWeekday.present) {
+      map['start_weekday'] = Variable<int>(startWeekday.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetSchedulesCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('cadence: $cadence, ')
+          ..write('anchorDay: $anchorDay, ')
+          ..write('anchorDate: $anchorDate, ')
+          ..write('startWeekday: $startWeekday, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BudgetPeriodsTable extends BudgetPeriods
+    with TableInfo<$BudgetPeriodsTable, BudgetPeriodRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BudgetPeriodsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scheduleIdMeta = const VerificationMeta(
+    'scheduleId',
+  );
+  @override
+  late final GeneratedColumn<String> scheduleId = GeneratedColumn<String>(
+    'schedule_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startAtMeta = const VerificationMeta(
+    'startAt',
+  );
+  @override
+  late final GeneratedColumn<String> startAt = GeneratedColumn<String>(
+    'start_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endAtMeta = const VerificationMeta('endAt');
+  @override
+  late final GeneratedColumn<String> endAt = GeneratedColumn<String>(
+    'end_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _overallAmountMinorMeta =
+      const VerificationMeta('overallAmountMinor');
+  @override
+  late final GeneratedColumn<int> overallAmountMinor = GeneratedColumn<int>(
+    'overall_amount_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _carryOverMeta = const VerificationMeta(
+    'carryOver',
+  );
+  @override
+  late final GeneratedColumn<bool> carryOver = GeneratedColumn<bool>(
+    'carry_over',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("carry_over" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    scheduleId,
+    startAt,
+    endAt,
+    label,
+    overallAmountMinor,
+    carryOver,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'budget_periods';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BudgetPeriodRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('schedule_id')) {
+      context.handle(
+        _scheduleIdMeta,
+        scheduleId.isAcceptableOrUnknown(data['schedule_id']!, _scheduleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scheduleIdMeta);
+    }
+    if (data.containsKey('start_at')) {
+      context.handle(
+        _startAtMeta,
+        startAt.isAcceptableOrUnknown(data['start_at']!, _startAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startAtMeta);
+    }
+    if (data.containsKey('end_at')) {
+      context.handle(
+        _endAtMeta,
+        endAt.isAcceptableOrUnknown(data['end_at']!, _endAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_endAtMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('overall_amount_minor')) {
+      context.handle(
+        _overallAmountMinorMeta,
+        overallAmountMinor.isAcceptableOrUnknown(
+          data['overall_amount_minor']!,
+          _overallAmountMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('carry_over')) {
+      context.handle(
+        _carryOverMeta,
+        carryOver.isAcceptableOrUnknown(data['carry_over']!, _carryOverMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {userId, startAt, endAt},
+  ];
+  @override
+  BudgetPeriodRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BudgetPeriodRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      scheduleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}schedule_id'],
+      )!,
+      startAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_at'],
+      )!,
+      endAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_at'],
+      )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      )!,
+      overallAmountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}overall_amount_minor'],
+      ),
+      carryOver: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}carry_over'],
+      )!,
+    );
+  }
+
+  @override
+  $BudgetPeriodsTable createAlias(String alias) {
+    return $BudgetPeriodsTable(attachedDatabase, alias);
+  }
+}
+
+class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
+  final String id;
+  final String userId;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+  final String scheduleId;
+  final String startAt;
+  final String endAt;
+
+  /// Display label `DD/MM/YYYY – DD/MM/YYYY`.
+  final String label;
+
+  /// Overall spending plan for this period, in ngwee.
+  final int? overallAmountMinor;
+  final bool carryOver;
+  const BudgetPeriodRow({
+    required this.id,
+    required this.userId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.scheduleId,
+    required this.startAt,
+    required this.endAt,
+    required this.label,
+    this.overallAmountMinor,
+    required this.carryOver,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<String>(deletedAt);
+    }
+    map['schedule_id'] = Variable<String>(scheduleId);
+    map['start_at'] = Variable<String>(startAt);
+    map['end_at'] = Variable<String>(endAt);
+    map['label'] = Variable<String>(label);
+    if (!nullToAbsent || overallAmountMinor != null) {
+      map['overall_amount_minor'] = Variable<int>(overallAmountMinor);
+    }
+    map['carry_over'] = Variable<bool>(carryOver);
+    return map;
+  }
+
+  BudgetPeriodsCompanion toCompanion(bool nullToAbsent) {
+    return BudgetPeriodsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      scheduleId: Value(scheduleId),
+      startAt: Value(startAt),
+      endAt: Value(endAt),
+      label: Value(label),
+      overallAmountMinor: overallAmountMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(overallAmountMinor),
+      carryOver: Value(carryOver),
+    );
+  }
+
+  factory BudgetPeriodRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BudgetPeriodRow(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      deletedAt: serializer.fromJson<String?>(json['deletedAt']),
+      scheduleId: serializer.fromJson<String>(json['scheduleId']),
+      startAt: serializer.fromJson<String>(json['startAt']),
+      endAt: serializer.fromJson<String>(json['endAt']),
+      label: serializer.fromJson<String>(json['label']),
+      overallAmountMinor: serializer.fromJson<int?>(json['overallAmountMinor']),
+      carryOver: serializer.fromJson<bool>(json['carryOver']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'deletedAt': serializer.toJson<String?>(deletedAt),
+      'scheduleId': serializer.toJson<String>(scheduleId),
+      'startAt': serializer.toJson<String>(startAt),
+      'endAt': serializer.toJson<String>(endAt),
+      'label': serializer.toJson<String>(label),
+      'overallAmountMinor': serializer.toJson<int?>(overallAmountMinor),
+      'carryOver': serializer.toJson<bool>(carryOver),
+    };
+  }
+
+  BudgetPeriodRow copyWith({
+    String? id,
+    String? userId,
+    String? createdAt,
+    String? updatedAt,
+    Value<String?> deletedAt = const Value.absent(),
+    String? scheduleId,
+    String? startAt,
+    String? endAt,
+    String? label,
+    Value<int?> overallAmountMinor = const Value.absent(),
+    bool? carryOver,
+  }) => BudgetPeriodRow(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    scheduleId: scheduleId ?? this.scheduleId,
+    startAt: startAt ?? this.startAt,
+    endAt: endAt ?? this.endAt,
+    label: label ?? this.label,
+    overallAmountMinor: overallAmountMinor.present
+        ? overallAmountMinor.value
+        : this.overallAmountMinor,
+    carryOver: carryOver ?? this.carryOver,
+  );
+  BudgetPeriodRow copyWithCompanion(BudgetPeriodsCompanion data) {
+    return BudgetPeriodRow(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      scheduleId: data.scheduleId.present
+          ? data.scheduleId.value
+          : this.scheduleId,
+      startAt: data.startAt.present ? data.startAt.value : this.startAt,
+      endAt: data.endAt.present ? data.endAt.value : this.endAt,
+      label: data.label.present ? data.label.value : this.label,
+      overallAmountMinor: data.overallAmountMinor.present
+          ? data.overallAmountMinor.value
+          : this.overallAmountMinor,
+      carryOver: data.carryOver.present ? data.carryOver.value : this.carryOver,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetPeriodRow(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduleId: $scheduleId, ')
+          ..write('startAt: $startAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('label: $label, ')
+          ..write('overallAmountMinor: $overallAmountMinor, ')
+          ..write('carryOver: $carryOver')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    scheduleId,
+    startAt,
+    endAt,
+    label,
+    overallAmountMinor,
+    carryOver,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BudgetPeriodRow &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.scheduleId == this.scheduleId &&
+          other.startAt == this.startAt &&
+          other.endAt == this.endAt &&
+          other.label == this.label &&
+          other.overallAmountMinor == this.overallAmountMinor &&
+          other.carryOver == this.carryOver);
+}
+
+class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<String?> deletedAt;
+  final Value<String> scheduleId;
+  final Value<String> startAt;
+  final Value<String> endAt;
+  final Value<String> label;
+  final Value<int?> overallAmountMinor;
+  final Value<bool> carryOver;
+  final Value<int> rowid;
+  const BudgetPeriodsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.scheduleId = const Value.absent(),
+    this.startAt = const Value.absent(),
+    this.endAt = const Value.absent(),
+    this.label = const Value.absent(),
+    this.overallAmountMinor = const Value.absent(),
+    this.carryOver = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BudgetPeriodsCompanion.insert({
+    required String id,
+    required String userId,
+    required String createdAt,
+    required String updatedAt,
+    this.deletedAt = const Value.absent(),
+    required String scheduleId,
+    required String startAt,
+    required String endAt,
+    required String label,
+    this.overallAmountMinor = const Value.absent(),
+    this.carryOver = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       scheduleId = Value(scheduleId),
+       startAt = Value(startAt),
+       endAt = Value(endAt),
+       label = Value(label);
+  static Insertable<BudgetPeriodRow> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
+    Expression<String>? scheduleId,
+    Expression<String>? startAt,
+    Expression<String>? endAt,
+    Expression<String>? label,
+    Expression<int>? overallAmountMinor,
+    Expression<bool>? carryOver,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (scheduleId != null) 'schedule_id': scheduleId,
+      if (startAt != null) 'start_at': startAt,
+      if (endAt != null) 'end_at': endAt,
+      if (label != null) 'label': label,
+      if (overallAmountMinor != null)
+        'overall_amount_minor': overallAmountMinor,
+      if (carryOver != null) 'carry_over': carryOver,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BudgetPeriodsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<String?>? deletedAt,
+    Value<String>? scheduleId,
+    Value<String>? startAt,
+    Value<String>? endAt,
+    Value<String>? label,
+    Value<int?>? overallAmountMinor,
+    Value<bool>? carryOver,
+    Value<int>? rowid,
+  }) {
+    return BudgetPeriodsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      scheduleId: scheduleId ?? this.scheduleId,
+      startAt: startAt ?? this.startAt,
+      endAt: endAt ?? this.endAt,
+      label: label ?? this.label,
+      overallAmountMinor: overallAmountMinor ?? this.overallAmountMinor,
+      carryOver: carryOver ?? this.carryOver,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (scheduleId.present) {
+      map['schedule_id'] = Variable<String>(scheduleId.value);
+    }
+    if (startAt.present) {
+      map['start_at'] = Variable<String>(startAt.value);
+    }
+    if (endAt.present) {
+      map['end_at'] = Variable<String>(endAt.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (overallAmountMinor.present) {
+      map['overall_amount_minor'] = Variable<int>(overallAmountMinor.value);
+    }
+    if (carryOver.present) {
+      map['carry_over'] = Variable<bool>(carryOver.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetPeriodsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduleId: $scheduleId, ')
+          ..write('startAt: $startAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('label: $label, ')
+          ..write('overallAmountMinor: $overallAmountMinor, ')
+          ..write('carryOver: $carryOver, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CategoryBudgetsTable extends CategoryBudgets
+    with TableInfo<$CategoryBudgetsTable, CategoryBudgetRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CategoryBudgetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _periodIdMeta = const VerificationMeta(
+    'periodId',
+  );
+  @override
+  late final GeneratedColumn<String> periodId = GeneratedColumn<String>(
+    'period_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    periodId,
+    categoryId,
+    amountMinor,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'category_budgets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CategoryBudgetRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('period_id')) {
+      context.handle(
+        _periodIdMeta,
+        periodId.isAcceptableOrUnknown(data['period_id']!, _periodIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_periodIdMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {userId, periodId, categoryId},
+  ];
+  @override
+  CategoryBudgetRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CategoryBudgetRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      periodId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}period_id'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+    );
+  }
+
+  @override
+  $CategoryBudgetsTable createAlias(String alias) {
+    return $CategoryBudgetsTable(attachedDatabase, alias);
+  }
+}
+
+class CategoryBudgetRow extends DataClass
+    implements Insertable<CategoryBudgetRow> {
+  final String id;
+  final String userId;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+  final String periodId;
+  final String categoryId;
+  final int amountMinor;
+  const CategoryBudgetRow({
+    required this.id,
+    required this.userId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.periodId,
+    required this.categoryId,
+    required this.amountMinor,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<String>(deletedAt);
+    }
+    map['period_id'] = Variable<String>(periodId);
+    map['category_id'] = Variable<String>(categoryId);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    return map;
+  }
+
+  CategoryBudgetsCompanion toCompanion(bool nullToAbsent) {
+    return CategoryBudgetsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      periodId: Value(periodId),
+      categoryId: Value(categoryId),
+      amountMinor: Value(amountMinor),
+    );
+  }
+
+  factory CategoryBudgetRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CategoryBudgetRow(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      deletedAt: serializer.fromJson<String?>(json['deletedAt']),
+      periodId: serializer.fromJson<String>(json['periodId']),
+      categoryId: serializer.fromJson<String>(json['categoryId']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'deletedAt': serializer.toJson<String?>(deletedAt),
+      'periodId': serializer.toJson<String>(periodId),
+      'categoryId': serializer.toJson<String>(categoryId),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+    };
+  }
+
+  CategoryBudgetRow copyWith({
+    String? id,
+    String? userId,
+    String? createdAt,
+    String? updatedAt,
+    Value<String?> deletedAt = const Value.absent(),
+    String? periodId,
+    String? categoryId,
+    int? amountMinor,
+  }) => CategoryBudgetRow(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    periodId: periodId ?? this.periodId,
+    categoryId: categoryId ?? this.categoryId,
+    amountMinor: amountMinor ?? this.amountMinor,
+  );
+  CategoryBudgetRow copyWithCompanion(CategoryBudgetsCompanion data) {
+    return CategoryBudgetRow(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      periodId: data.periodId.present ? data.periodId.value : this.periodId,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoryBudgetRow(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('periodId: $periodId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('amountMinor: $amountMinor')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    periodId,
+    categoryId,
+    amountMinor,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CategoryBudgetRow &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.periodId == this.periodId &&
+          other.categoryId == this.categoryId &&
+          other.amountMinor == this.amountMinor);
+}
+
+class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<String?> deletedAt;
+  final Value<String> periodId;
+  final Value<String> categoryId;
+  final Value<int> amountMinor;
+  final Value<int> rowid;
+  const CategoryBudgetsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.periodId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CategoryBudgetsCompanion.insert({
+    required String id,
+    required String userId,
+    required String createdAt,
+    required String updatedAt,
+    this.deletedAt = const Value.absent(),
+    required String periodId,
+    required String categoryId,
+    required int amountMinor,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       periodId = Value(periodId),
+       categoryId = Value(categoryId),
+       amountMinor = Value(amountMinor);
+  static Insertable<CategoryBudgetRow> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
+    Expression<String>? periodId,
+    Expression<String>? categoryId,
+    Expression<int>? amountMinor,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (periodId != null) 'period_id': periodId,
+      if (categoryId != null) 'category_id': categoryId,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CategoryBudgetsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<String?>? deletedAt,
+    Value<String>? periodId,
+    Value<String>? categoryId,
+    Value<int>? amountMinor,
+    Value<int>? rowid,
+  }) {
+    return CategoryBudgetsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      periodId: periodId ?? this.periodId,
+      categoryId: categoryId ?? this.categoryId,
+      amountMinor: amountMinor ?? this.amountMinor,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (periodId.present) {
+      map['period_id'] = Variable<String>(periodId.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoryBudgetsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('periodId: $periodId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('amountMinor: $amountMinor, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6910,6 +8681,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CategoriesTable categories = $CategoriesTable(this);
   late final $TransactionsTable transactions = $TransactionsTable(this);
   late final $OverallBudgetsTable overallBudgets = $OverallBudgetsTable(this);
+  late final $BudgetSchedulesTable budgetSchedules = $BudgetSchedulesTable(
+    this,
+  );
+  late final $BudgetPeriodsTable budgetPeriods = $BudgetPeriodsTable(this);
+  late final $CategoryBudgetsTable categoryBudgets = $CategoryBudgetsTable(
+    this,
+  );
   late final $PayeesTable payees = $PayeesTable(this);
   late final $LabelsTable labels = $LabelsTable(this);
   late final $TransactionLabelsTable transactionLabels =
@@ -6932,6 +8710,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_tx_fuzzy',
     'CREATE INDEX idx_tx_fuzzy ON transactions (amount_minor, merchant, transacted_at)',
   );
+  late final Index idxBudgetPeriodBounds = Index(
+    'idx_budget_period_bounds',
+    'CREATE INDEX idx_budget_period_bounds ON budget_periods (user_id, start_at)',
+  );
   late final Index idxRawHash = Index(
     'idx_raw_hash',
     'CREATE INDEX idx_raw_hash ON raw_captures (content_hash)',
@@ -6949,6 +8731,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     categories,
     transactions,
     overallBudgets,
+    budgetSchedules,
+    budgetPeriods,
+    categoryBudgets,
     payees,
     labels,
     transactionLabels,
@@ -6959,6 +8744,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxTxUserDate,
     idxTxUserStatus,
     idxTxFuzzy,
+    idxBudgetPeriodBounds,
     idxRawHash,
     idxRawStatus,
   ];
@@ -8525,6 +10311,877 @@ typedef $$OverallBudgetsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $OverallBudgetsTable, OverallBudgetRow>,
       ),
       OverallBudgetRow,
+      PrefetchHooks Function()
+    >;
+typedef $$BudgetSchedulesTableCreateCompanionBuilder =
+    BudgetSchedulesCompanion Function({
+      required String id,
+      required String userId,
+      required String createdAt,
+      required String updatedAt,
+      Value<String?> deletedAt,
+      required String cadence,
+      Value<int?> anchorDay,
+      Value<String?> anchorDate,
+      Value<int?> startWeekday,
+      Value<int> rowid,
+    });
+typedef $$BudgetSchedulesTableUpdateCompanionBuilder =
+    BudgetSchedulesCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<String> cadence,
+      Value<int?> anchorDay,
+      Value<String?> anchorDate,
+      Value<int?> startWeekday,
+      Value<int> rowid,
+    });
+
+class $$BudgetSchedulesTableFilterComposer
+    extends Composer<_$AppDatabase, $BudgetSchedulesTable> {
+  $$BudgetSchedulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cadence => $composableBuilder(
+    column: $table.cadence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get anchorDay => $composableBuilder(
+    column: $table.anchorDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get anchorDate => $composableBuilder(
+    column: $table.anchorDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startWeekday => $composableBuilder(
+    column: $table.startWeekday,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BudgetSchedulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $BudgetSchedulesTable> {
+  $$BudgetSchedulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cadence => $composableBuilder(
+    column: $table.cadence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get anchorDay => $composableBuilder(
+    column: $table.anchorDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get anchorDate => $composableBuilder(
+    column: $table.anchorDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startWeekday => $composableBuilder(
+    column: $table.startWeekday,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BudgetSchedulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BudgetSchedulesTable> {
+  $$BudgetSchedulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get cadence =>
+      $composableBuilder(column: $table.cadence, builder: (column) => column);
+
+  GeneratedColumn<int> get anchorDay =>
+      $composableBuilder(column: $table.anchorDay, builder: (column) => column);
+
+  GeneratedColumn<String> get anchorDate => $composableBuilder(
+    column: $table.anchorDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get startWeekday => $composableBuilder(
+    column: $table.startWeekday,
+    builder: (column) => column,
+  );
+}
+
+class $$BudgetSchedulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BudgetSchedulesTable,
+          BudgetScheduleRow,
+          $$BudgetSchedulesTableFilterComposer,
+          $$BudgetSchedulesTableOrderingComposer,
+          $$BudgetSchedulesTableAnnotationComposer,
+          $$BudgetSchedulesTableCreateCompanionBuilder,
+          $$BudgetSchedulesTableUpdateCompanionBuilder,
+          (
+            BudgetScheduleRow,
+            BaseReferences<
+              _$AppDatabase,
+              $BudgetSchedulesTable,
+              BudgetScheduleRow
+            >,
+          ),
+          BudgetScheduleRow,
+          PrefetchHooks Function()
+        > {
+  $$BudgetSchedulesTableTableManager(
+    _$AppDatabase db,
+    $BudgetSchedulesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BudgetSchedulesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BudgetSchedulesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BudgetSchedulesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<String> cadence = const Value.absent(),
+                Value<int?> anchorDay = const Value.absent(),
+                Value<String?> anchorDate = const Value.absent(),
+                Value<int?> startWeekday = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetSchedulesCompanion(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                cadence: cadence,
+                anchorDay: anchorDay,
+                anchorDate: anchorDate,
+                startWeekday: startWeekday,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String createdAt,
+                required String updatedAt,
+                Value<String?> deletedAt = const Value.absent(),
+                required String cadence,
+                Value<int?> anchorDay = const Value.absent(),
+                Value<String?> anchorDate = const Value.absent(),
+                Value<int?> startWeekday = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetSchedulesCompanion.insert(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                cadence: cadence,
+                anchorDay: anchorDay,
+                anchorDate: anchorDate,
+                startWeekday: startWeekday,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BudgetSchedulesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BudgetSchedulesTable,
+      BudgetScheduleRow,
+      $$BudgetSchedulesTableFilterComposer,
+      $$BudgetSchedulesTableOrderingComposer,
+      $$BudgetSchedulesTableAnnotationComposer,
+      $$BudgetSchedulesTableCreateCompanionBuilder,
+      $$BudgetSchedulesTableUpdateCompanionBuilder,
+      (
+        BudgetScheduleRow,
+        BaseReferences<_$AppDatabase, $BudgetSchedulesTable, BudgetScheduleRow>,
+      ),
+      BudgetScheduleRow,
+      PrefetchHooks Function()
+    >;
+typedef $$BudgetPeriodsTableCreateCompanionBuilder =
+    BudgetPeriodsCompanion Function({
+      required String id,
+      required String userId,
+      required String createdAt,
+      required String updatedAt,
+      Value<String?> deletedAt,
+      required String scheduleId,
+      required String startAt,
+      required String endAt,
+      required String label,
+      Value<int?> overallAmountMinor,
+      Value<bool> carryOver,
+      Value<int> rowid,
+    });
+typedef $$BudgetPeriodsTableUpdateCompanionBuilder =
+    BudgetPeriodsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<String> scheduleId,
+      Value<String> startAt,
+      Value<String> endAt,
+      Value<String> label,
+      Value<int?> overallAmountMinor,
+      Value<bool> carryOver,
+      Value<int> rowid,
+    });
+
+class $$BudgetPeriodsTableFilterComposer
+    extends Composer<_$AppDatabase, $BudgetPeriodsTable> {
+  $$BudgetPeriodsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startAt => $composableBuilder(
+    column: $table.startAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endAt => $composableBuilder(
+    column: $table.endAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get overallAmountMinor => $composableBuilder(
+    column: $table.overallAmountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get carryOver => $composableBuilder(
+    column: $table.carryOver,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BudgetPeriodsTableOrderingComposer
+    extends Composer<_$AppDatabase, $BudgetPeriodsTable> {
+  $$BudgetPeriodsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startAt => $composableBuilder(
+    column: $table.startAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endAt => $composableBuilder(
+    column: $table.endAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get overallAmountMinor => $composableBuilder(
+    column: $table.overallAmountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get carryOver => $composableBuilder(
+    column: $table.carryOver,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BudgetPeriodsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BudgetPeriodsTable> {
+  $$BudgetPeriodsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get scheduleId => $composableBuilder(
+    column: $table.scheduleId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get startAt =>
+      $composableBuilder(column: $table.startAt, builder: (column) => column);
+
+  GeneratedColumn<String> get endAt =>
+      $composableBuilder(column: $table.endAt, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<int> get overallAmountMinor => $composableBuilder(
+    column: $table.overallAmountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get carryOver =>
+      $composableBuilder(column: $table.carryOver, builder: (column) => column);
+}
+
+class $$BudgetPeriodsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BudgetPeriodsTable,
+          BudgetPeriodRow,
+          $$BudgetPeriodsTableFilterComposer,
+          $$BudgetPeriodsTableOrderingComposer,
+          $$BudgetPeriodsTableAnnotationComposer,
+          $$BudgetPeriodsTableCreateCompanionBuilder,
+          $$BudgetPeriodsTableUpdateCompanionBuilder,
+          (
+            BudgetPeriodRow,
+            BaseReferences<_$AppDatabase, $BudgetPeriodsTable, BudgetPeriodRow>,
+          ),
+          BudgetPeriodRow,
+          PrefetchHooks Function()
+        > {
+  $$BudgetPeriodsTableTableManager(_$AppDatabase db, $BudgetPeriodsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BudgetPeriodsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BudgetPeriodsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BudgetPeriodsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<String> scheduleId = const Value.absent(),
+                Value<String> startAt = const Value.absent(),
+                Value<String> endAt = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<int?> overallAmountMinor = const Value.absent(),
+                Value<bool> carryOver = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetPeriodsCompanion(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                scheduleId: scheduleId,
+                startAt: startAt,
+                endAt: endAt,
+                label: label,
+                overallAmountMinor: overallAmountMinor,
+                carryOver: carryOver,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String createdAt,
+                required String updatedAt,
+                Value<String?> deletedAt = const Value.absent(),
+                required String scheduleId,
+                required String startAt,
+                required String endAt,
+                required String label,
+                Value<int?> overallAmountMinor = const Value.absent(),
+                Value<bool> carryOver = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetPeriodsCompanion.insert(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                scheduleId: scheduleId,
+                startAt: startAt,
+                endAt: endAt,
+                label: label,
+                overallAmountMinor: overallAmountMinor,
+                carryOver: carryOver,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BudgetPeriodsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BudgetPeriodsTable,
+      BudgetPeriodRow,
+      $$BudgetPeriodsTableFilterComposer,
+      $$BudgetPeriodsTableOrderingComposer,
+      $$BudgetPeriodsTableAnnotationComposer,
+      $$BudgetPeriodsTableCreateCompanionBuilder,
+      $$BudgetPeriodsTableUpdateCompanionBuilder,
+      (
+        BudgetPeriodRow,
+        BaseReferences<_$AppDatabase, $BudgetPeriodsTable, BudgetPeriodRow>,
+      ),
+      BudgetPeriodRow,
+      PrefetchHooks Function()
+    >;
+typedef $$CategoryBudgetsTableCreateCompanionBuilder =
+    CategoryBudgetsCompanion Function({
+      required String id,
+      required String userId,
+      required String createdAt,
+      required String updatedAt,
+      Value<String?> deletedAt,
+      required String periodId,
+      required String categoryId,
+      required int amountMinor,
+      Value<int> rowid,
+    });
+typedef $$CategoryBudgetsTableUpdateCompanionBuilder =
+    CategoryBudgetsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<String> periodId,
+      Value<String> categoryId,
+      Value<int> amountMinor,
+      Value<int> rowid,
+    });
+
+class $$CategoryBudgetsTableFilterComposer
+    extends Composer<_$AppDatabase, $CategoryBudgetsTable> {
+  $$CategoryBudgetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get periodId => $composableBuilder(
+    column: $table.periodId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CategoryBudgetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CategoryBudgetsTable> {
+  $$CategoryBudgetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get periodId => $composableBuilder(
+    column: $table.periodId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CategoryBudgetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CategoryBudgetsTable> {
+  $$CategoryBudgetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get periodId =>
+      $composableBuilder(column: $table.periodId, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+}
+
+class $$CategoryBudgetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CategoryBudgetsTable,
+          CategoryBudgetRow,
+          $$CategoryBudgetsTableFilterComposer,
+          $$CategoryBudgetsTableOrderingComposer,
+          $$CategoryBudgetsTableAnnotationComposer,
+          $$CategoryBudgetsTableCreateCompanionBuilder,
+          $$CategoryBudgetsTableUpdateCompanionBuilder,
+          (
+            CategoryBudgetRow,
+            BaseReferences<
+              _$AppDatabase,
+              $CategoryBudgetsTable,
+              CategoryBudgetRow
+            >,
+          ),
+          CategoryBudgetRow,
+          PrefetchHooks Function()
+        > {
+  $$CategoryBudgetsTableTableManager(
+    _$AppDatabase db,
+    $CategoryBudgetsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CategoryBudgetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CategoryBudgetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CategoryBudgetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<String> periodId = const Value.absent(),
+                Value<String> categoryId = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CategoryBudgetsCompanion(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                periodId: periodId,
+                categoryId: categoryId,
+                amountMinor: amountMinor,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String createdAt,
+                required String updatedAt,
+                Value<String?> deletedAt = const Value.absent(),
+                required String periodId,
+                required String categoryId,
+                required int amountMinor,
+                Value<int> rowid = const Value.absent(),
+              }) => CategoryBudgetsCompanion.insert(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                periodId: periodId,
+                categoryId: categoryId,
+                amountMinor: amountMinor,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CategoryBudgetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CategoryBudgetsTable,
+      CategoryBudgetRow,
+      $$CategoryBudgetsTableFilterComposer,
+      $$CategoryBudgetsTableOrderingComposer,
+      $$CategoryBudgetsTableAnnotationComposer,
+      $$CategoryBudgetsTableCreateCompanionBuilder,
+      $$CategoryBudgetsTableUpdateCompanionBuilder,
+      (
+        CategoryBudgetRow,
+        BaseReferences<_$AppDatabase, $CategoryBudgetsTable, CategoryBudgetRow>,
+      ),
+      CategoryBudgetRow,
       PrefetchHooks Function()
     >;
 typedef $$PayeesTableCreateCompanionBuilder =
@@ -10292,6 +12949,12 @@ class $AppDatabaseManager {
       $$TransactionsTableTableManager(_db, _db.transactions);
   $$OverallBudgetsTableTableManager get overallBudgets =>
       $$OverallBudgetsTableTableManager(_db, _db.overallBudgets);
+  $$BudgetSchedulesTableTableManager get budgetSchedules =>
+      $$BudgetSchedulesTableTableManager(_db, _db.budgetSchedules);
+  $$BudgetPeriodsTableTableManager get budgetPeriods =>
+      $$BudgetPeriodsTableTableManager(_db, _db.budgetPeriods);
+  $$CategoryBudgetsTableTableManager get categoryBudgets =>
+      $$CategoryBudgetsTableTableManager(_db, _db.categoryBudgets);
   $$PayeesTableTableManager get payees =>
       $$PayeesTableTableManager(_db, _db.payees);
   $$LabelsTableTableManager get labels =>

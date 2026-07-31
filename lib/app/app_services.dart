@@ -3,6 +3,7 @@ import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/db/connection.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
@@ -42,6 +43,7 @@ class AppServices {
     required this.transfers,
     required this.rawCaptures,
     required this.overallBudgets,
+    required this.budgetPeriods,
     required this.payees,
     required this.labels,
     required this.settings,
@@ -115,6 +117,7 @@ class AppServices {
     final transfers = TransferRepository(db, userId: userId);
     final rawCaptures = RawCaptureRepository(db, userId: userId);
     final overallBudgets = OverallBudgetRepository(db, userId: userId);
+    final budgetPeriods = BudgetPeriodRepository(db, userId: userId);
     final payees = PayeeRepository(db, userId: userId);
     final labels = LabelRepository(db, userId: userId);
     final settings = SettingsRepository(db);
@@ -124,6 +127,8 @@ class AppServices {
     // account. Both are no-ops after the first launch.
     await categories.ensureSeeds();
     await accounts.ensureDefaultAccount();
+    await budgetPeriods.ensureSchedule();
+    await budgetPeriods.ensurePeriodContaining(DateTime.now());
 
     final registry = ParserRegistry()
       ..setCustomSenders({
@@ -146,6 +151,7 @@ class AppServices {
       transactions: transactions,
       accounts: accounts,
       categories: categories,
+      budgetPeriods: budgetPeriods,
     );
     final backupService = BackupService(
       transactions: transactions,
@@ -168,6 +174,7 @@ class AppServices {
       transfers: transfers,
       rawCaptures: rawCaptures,
       overallBudgets: overallBudgets,
+      budgetPeriods: budgetPeriods,
       payees: payees,
       labels: labels,
       settings: settings,
@@ -211,6 +218,7 @@ class AppServices {
   final TransferRepository transfers;
   final RawCaptureRepository rawCaptures;
   final OverallBudgetRepository overallBudgets;
+  final BudgetPeriodRepository budgetPeriods;
   final PayeeRepository payees;
   final LabelRepository labels;
   final SettingsRepository settings;
