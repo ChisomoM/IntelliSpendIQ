@@ -220,4 +220,31 @@ void main() {
       },
     );
   });
+
+  group('TransferRepository.create', () {
+    test(
+      'records a transfer with no transaction on either side — the ATM '
+      'cash-withdrawal case, where cash has no way to send its own SMS',
+      () async {
+        final transfer = await services.transfers.create(
+          fromAccountId: bankId,
+          toAccountId: cashId,
+          amountMinor: 20000,
+          transactedAt: DateTime(2026, 7, 30, 14),
+        );
+
+        expect(transfer.fromAccountId, bankId);
+        expect(transfer.toAccountId, cashId);
+        expect(transfer.amountMinor, 20000);
+
+        final balances = await services.accounts.watchComputedBalances().first;
+        expect(balances[bankId], -20000);
+        expect(balances[cashId], 20000);
+
+        final all = await services.transfers.watchAll().first;
+        expect(all, hasLength(1));
+        expect(all.single.id, transfer.id);
+      },
+    );
+  });
 }

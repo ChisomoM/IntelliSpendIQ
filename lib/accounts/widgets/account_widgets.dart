@@ -123,12 +123,14 @@ class AccountEditorSheet extends StatefulWidget {
 
 class _AccountEditorSheetState extends State<AccountEditorSheet> {
   final _nameController = TextEditingController();
+  final _openingBalanceController = TextEditingController();
   AccountType _type = AccountType.mobileMoney;
   String? _error;
 
   @override
   void dispose() {
     _nameController.dispose();
+    _openingBalanceController.dispose();
     super.dispose();
   }
 
@@ -137,6 +139,7 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
     await context.read<AccountsCubit>().add(
       name: _nameController.text,
       type: _type,
+      openingBalance: _openingBalanceController.text,
     );
     if (!mounted) return;
     final state = context.read<AccountsCubit>().state;
@@ -183,6 +186,21 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
                 ),
             ],
             onChanged: (value) => setState(() => _type = value ?? _type),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _openingBalanceController,
+            decoration: const InputDecoration(
+              labelText: 'Opening balance (optional)',
+              helperText:
+                  'What it holds right now — leave blank to start '
+                  'from zero and log transactions as they happen',
+              prefixText: 'ZMW ',
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
+            ],
           ),
           const SizedBox(height: 24),
           FilledButton(onPressed: _save, child: const Text('Add account')),
@@ -288,6 +306,183 @@ class _BalanceEditorSheetState extends State<BalanceEditorSheet> {
           ),
           const SizedBox(height: 24),
           FilledButton(onPressed: _save, child: const Text('Save')),
+        ],
+      ),
+    );
+  }
+}
+
+/// Records money moved between two of the user's own accounts by
+/// hand — the manual counterpart to the transfer suggestions the
+/// Review Inbox detects automatically. Needed for moves that never
+/// produce a matching pair of transactions on their own, like an ATM
+/// cash withdrawal: the bank sends a debit SMS, but the cash account
+/// has no way to send a message announcing its side of it.
+class RecordTransferSheet extends StatefulWidget {
+  const RecordTransferSheet({super.key});
+
+  static Future<void> show(BuildContext context) {
+    final cubit = context.read<AccountsCubit>();
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => BlocProvider.value(
+        value: cubit,
+        child: const RecordTransferSheet(),
+      ),
+    );
+  }
+
+  @override
+  State<RecordTransferSheet> createState() => _RecordTransferSheetState();
+}
+
+class _RecordTransferSheetState extends State<RecordTransferSheet> {
+  final _amountController = TextEditingController();
+  String? _fromAccountId;
+  String? _toAccountId;
+  DateTime _transactedAt = DateTime.now();
+  String? _error;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _transactedAt,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_transactedAt),
+    );
+    if (!mounted) return;
+    setState(() {
+      _transactedAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time?.hour ?? _transactedAt.hour,
+        time?.minute ?? _transactedAt.minute,
+      );
+    });
+  }
+
+  Future<void> _save() async {
+    if (_fromAccountId == null || _toAccountId == null) {
+      setState(() => _error = 'Pick both accounts');
+      return;
+    }
+    final navigator = Navigator.of(context);
+    await context.read<AccountsCubit>().recordTransfer(
+      fromAccountId: _fromAccountId!,
+      toAccountId: _toAccountId!,
+      amount: _amountController.text,
+      transactedAt: _transactedAt,
+    );
+    if (!mounted) return;
+    final state = context.read<AccountsCubit>().state;
+    if (state.status == AccountsStatus.invalid) {
+      setState(() => _error = state.errorMessage);
+      return;
+    }
+    navigator.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = context.watch<AccountsCubit>().state.accounts;
+    if (accounts.length < 2) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          'Add a second account before recording a transfer between them.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Record a transfer',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Money moved between your own accounts — this never counts '
+            'as spend or income.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: _fromAccountId,
+            decoration: const InputDecoration(labelText: 'From'),
+            items: [
+              for (final account in accounts)
+                DropdownMenuItem(value: account.id, child: Text(account.name)),
+            ],
+            onChanged: (value) => setState(() {
+              _fromAccountId = value;
+              if (_toAccountId == value) _toAccountId = null;
+            }),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: _toAccountId,
+            decoration: const InputDecoration(labelText: 'To'),
+            items: [
+              for (final account in accounts)
+                if (account.id != _fromAccountId)
+                  DropdownMenuItem(
+                    value: account.id,
+                    child: Text(account.name),
+                  ),
+            ],
+            onChanged: (value) => setState(() => _toAccountId = value),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _amountController,
+            decoration: InputDecoration(
+              labelText: 'Amount',
+              prefixText: 'ZMW ',
+              errorText: _error,
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
+            ],
+            autofocus: true,
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Date'),
+            subtitle: Text(_transactedAt.toString().split('.').first),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickDate,
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _save,
+            child: const Text('Record transfer'),
+          ),
         ],
       ),
     );

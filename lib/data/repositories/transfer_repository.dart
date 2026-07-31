@@ -84,6 +84,46 @@ class TransferRepository {
     );
   }
 
+  /// Records a transfer directly, without linking it from two existing
+  /// transaction legs. Some moves never generate a matching pair on
+  /// their own — an ATM cash withdrawal is a bank debit SMS with
+  /// nothing on the other side, since a cash account has no way to
+  /// send a message of its own — so this is the manual fallback for
+  /// those.
+  Future<Transfer> create({
+    required String fromAccountId,
+    required String toAccountId,
+    required int amountMinor,
+    required DateTime transactedAt,
+    String? note,
+  }) async {
+    final now = Iso.nowUtc();
+    final id = Ids.newId();
+    await _db
+        .into(_db.transfers)
+        .insert(
+          TransfersCompanion.insert(
+            id: id,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+            fromAccountId: fromAccountId,
+            toAccountId: toAccountId,
+            amountMinor: amountMinor,
+            transactedAt: Iso.fromDateTime(transactedAt),
+            note: Value(note),
+          ),
+        );
+    return Transfer(
+      id: id,
+      fromAccountId: fromAccountId,
+      toAccountId: toAccountId,
+      amountMinor: amountMinor,
+      transactedAt: transactedAt,
+      note: note,
+    );
+  }
+
   /// Re-inserts a transfer from a backup, preserving its original id
   /// so importing the same backup twice does not duplicate anything.
   Future<bool> restoreTransfer(Transfer transfer) async {

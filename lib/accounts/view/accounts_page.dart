@@ -4,6 +4,7 @@ import 'package:intellispendiq/accounts/cubit/cubit.dart';
 import 'package:intellispendiq/accounts/widgets/widgets.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 
 class AccountsPage extends StatelessWidget {
   const AccountsPage({super.key});
@@ -15,8 +16,10 @@ class AccountsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          AccountsCubit(context.read<AccountRepository>())..loadUnawaited(),
+      create: (context) => AccountsCubit(
+        context.read<AccountRepository>(),
+        context.read<TransferRepository>(),
+      )..loadUnawaited(),
       child: const AccountsView(),
     );
   }
@@ -31,6 +34,11 @@ class AccountsView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Accounts'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Record transfer',
+            onPressed: () => RecordTransferSheet.show(context),
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Add account',

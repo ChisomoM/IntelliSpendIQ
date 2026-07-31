@@ -13,7 +13,7 @@ void main() {
   Future<AccountsCubit> cubitWith() async {
     services = await createTestServices();
     addTearDown(services.dispose);
-    final cubit = AccountsCubit(services.accounts);
+    final cubit = AccountsCubit(services.accounts, services.transfers);
     await cubit.load();
     await Future<void>.delayed(Duration.zero);
     return cubit;
@@ -51,6 +51,42 @@ void main() {
 
       expect(cubit.state.status, AccountsStatus.invalid);
       expect(cubit.state.accounts, hasLength(1));
+    });
+
+    test('add() sets an opening balance checkpoint when given one', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+
+      await cubit.add(
+        name: 'Old Bank',
+        type: AccountType.bank,
+        openingBalance: '500.00',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final created = cubit.state.accounts.firstWhere(
+        (a) => a.name == 'Old Bank',
+      );
+      expect(created.balanceMinor, 50000);
+      expect(cubit.state.balanceFor(created.id), 50000);
+    });
+
+    test('add() rejects an invalid opening balance', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+
+      await cubit.add(
+        name: 'Old Bank',
+        type: AccountType.bank,
+        openingBalance: 'not a number',
+      );
+
+      expect(cubit.state.status, AccountsStatus.invalid);
+      expect(
+        cubit.state.accounts.map((a) => a.name),
+        isNot(contains('Old Bank')),
+        reason: 'an invalid opening balance must not create the account',
+      );
     });
 
     test('delete() removes an account', () async {
@@ -156,5 +192,76 @@ void main() {
         expect(cubit.state.balanceFor(account.id), 5000);
       },
     );
+
+    test(
+      'recordTransfer() moves the computed balance between two accounts '
+      'without needing any transaction on either side',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        final mobileMoney = cubit.state.accounts.single;
+        final cash = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        // The ATM-withdrawal case: the bank/mobile money side already
+        // has a debit SMS, but nothing ever tells the app about the
+        // cash side, so there's no transaction pair for auto-detection
+        // to find.
+        await cubit.recordTransfer(
+          fromAccountId: mobileMoney.id,
+          toAccountId: cash.id,
+          amount: '200.00',
+          transactedAt: DateTime.now(),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cubit.state.status, isNot(AccountsStatus.invalid));
+        expect(cubit.state.balanceFor(mobileMoney.id), -20000);
+        expect(cubit.state.balanceFor(cash.id), 20000);
+        final transfers = await services.transfers.watchAll().first;
+        expect(transfers, hasLength(1));
+      },
+    );
+
+    test('recordTransfer() rejects the same account on both sides', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      final account = cubit.state.accounts.single;
+
+      await cubit.recordTransfer(
+        fromAccountId: account.id,
+        toAccountId: account.id,
+        amount: '50.00',
+        transactedAt: DateTime.now(),
+      );
+
+      expect(cubit.state.status, AccountsStatus.invalid);
+      final transfers = await services.transfers.watchAll().first;
+      expect(transfers, isEmpty);
+    });
+
+    test('recordTransfer() rejects a non-positive amount', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      final account = cubit.state.accounts.single;
+      final cash = await services.accounts.create(
+        name: 'Cash',
+        type: AccountType.cash,
+      );
+
+      await cubit.recordTransfer(
+        fromAccountId: account.id,
+        toAccountId: cash.id,
+        amount: '0',
+        transactedAt: DateTime.now(),
+      );
+
+      expect(cubit.state.status, AccountsStatus.invalid);
+      final transfers = await services.transfers.watchAll().first;
+      expect(transfers, isEmpty);
+    });
   });
 }
