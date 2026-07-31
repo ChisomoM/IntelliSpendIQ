@@ -16,6 +16,7 @@ part 'app_database.g.dart';
     Payees,
     Labels,
     TransactionLabels,
+    Transfers,
     RawCaptures,
     Settings,
     CustomSenderIds,
@@ -25,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -50,6 +51,10 @@ class AppDatabase extends _$AppDatabase {
         await _foldBudgetsAndIncomeIntoCategories(this);
         await m.deleteTable('budgets');
         await m.deleteTable('monthly_incomes');
+      }
+      if (from < 6) {
+        await m.addColumn(transactions, transactions.transferDismissedAt);
+        await m.createTable(transfers);
       }
     },
     beforeOpen: (details) async {

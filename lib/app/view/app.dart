@@ -14,6 +14,7 @@ import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
@@ -41,6 +42,9 @@ class App extends StatelessWidget {
         ),
         RepositoryProvider<TransactionRepository>.value(
           value: services.transactions,
+        ),
+        RepositoryProvider<TransferRepository>.value(
+          value: services.transfers,
         ),
         RepositoryProvider<RawCaptureRepository>.value(
           value: services.rawCaptures,

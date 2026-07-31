@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/review/cubit/cubit.dart';
 import 'package:intellispendiq/review/widgets/widgets.dart';
 
@@ -21,6 +22,7 @@ class ReviewInboxPage extends StatelessWidget {
       create: (context) => ReviewInboxCubit(
         transactions: context.read<TransactionRepository>(),
         rawCaptures: context.read<RawCaptureRepository>(),
+        transfers: context.read<TransferRepository>(),
       )..subscribe(),
       child: const ReviewInboxView(),
     );
@@ -41,6 +43,16 @@ class ReviewInboxView extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: [
+              if (state.transferCandidates.isNotEmpty) ...[
+                const SectionHeader(
+                  title: 'Possible transfers',
+                  subtitle:
+                      'A debit and a credit of the same amount on two of '
+                      'your accounts, close together in time.',
+                ),
+                for (final candidate in state.transferCandidates)
+                  TransferCandidateTile(candidate: candidate),
+              ],
               if (state.duplicates.isNotEmpty) ...[
                 const SectionHeader(
                   title: 'Possible duplicates',

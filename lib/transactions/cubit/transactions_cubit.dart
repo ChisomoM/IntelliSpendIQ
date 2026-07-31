@@ -5,28 +5,38 @@ import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
+import 'package:intellispendiq/domain/models/transfer.dart';
+import 'package:intellispendiq/transactions/cubit/activity_entry.dart';
 
 part 'transactions_state.dart';
 
 /// Streams the transaction list, filtered by whatever search text,
-/// category, account, and date range the user has set.
+/// category, account, and date range the user has set. Confirmed
+/// transfers are merged in separately — they're a different entity so
+/// they never count toward spend/income totals, but they still belong
+/// in the Activity feed's history.
 class TransactionsCubit extends Cubit<TransactionsState> {
   TransactionsCubit({
     required TransactionRepository transactions,
     required CategoryRepository categories,
     required AccountRepository accounts,
+    required TransferRepository transfers,
   }) : _transactions = transactions,
        _categories = categories,
        _accounts = accounts,
+       _transfers = transfers,
        super(const TransactionsState());
 
   final TransactionRepository _transactions;
   final CategoryRepository _categories;
   final AccountRepository _accounts;
+  final TransferRepository _transfers;
   StreamSubscription<List<Transaction>>? _subscription;
+  StreamSubscription<List<Transfer>>? _transferSubscription;
   Timer? _debounce;
 
   void subscribeUnawaited() => unawaited(subscribe());
@@ -39,6 +49,9 @@ class TransactionsCubit extends Cubit<TransactionsState> {
         categories: await _categories.getAll(),
         accounts: await _accounts.getAll(),
       ),
+    );
+    _transferSubscription = _transfers.watchAll().listen(
+      (rows) => emit(state.copyWith(transfers: rows)),
     );
     _resubscribe();
   }
@@ -125,6 +138,7 @@ class TransactionsCubit extends Cubit<TransactionsState> {
   Future<void> close() async {
     _debounce?.cancel();
     await _subscription?.cancel();
+    await _transferSubscription?.cancel();
     return super.close();
   }
 }

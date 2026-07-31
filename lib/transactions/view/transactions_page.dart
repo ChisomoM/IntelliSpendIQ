@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
+import 'package:intellispendiq/transactions/cubit/activity_entry.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
 import 'package:intellispendiq/transactions/widgets/widgets.dart';
 
@@ -17,6 +19,7 @@ class TransactionsPage extends StatelessWidget {
         transactions: context.read<TransactionRepository>(),
         categories: context.read<CategoryRepository>(),
         accounts: context.read<AccountRepository>(),
+        transfers: context.read<TransferRepository>(),
       )..subscribeUnawaited(),
       child: const TransactionsView(),
     );
@@ -112,31 +115,49 @@ class _TransactionsViewState extends State<TransactionsView> {
                   return const _NoMatchingTransactions();
                 }
 
+                final feed = state.feed;
+                final accountNames = {
+                  for (final account in state.accounts)
+                    account.id: account.name,
+                };
+
                 return ListView.separated(
                   padding: const EdgeInsets.only(bottom: 96),
-                  itemCount: state.transactions.length,
+                  itemCount: feed.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
-                    final transaction = state.transactions[index];
-                    return Dismissible(
-                      key: ValueKey(transaction.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Theme.of(context).colorScheme.errorContainer,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Icon(
-                          Icons.delete_outline,
-                          color: Theme.of(context).colorScheme.onErrorContainer,
+                    final entry = feed[index];
+                    return switch (entry) {
+                      TransactionEntry(:final transaction) => Dismissible(
+                        key: ValueKey(transaction.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Icon(
+                            Icons.delete_outline,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
+                          ),
                         ),
+                        confirmDismiss: (_) =>
+                            _confirmDelete(context, transaction),
+                        onDismissed: (_) => context
+                            .read<TransactionsCubit>()
+                            .delete(transaction.id),
+                        child: TransactionTile(transaction: transaction),
                       ),
-                      confirmDismiss: (_) =>
-                          _confirmDelete(context, transaction),
-                      onDismissed: (_) => context
-                          .read<TransactionsCubit>()
-                          .delete(transaction.id),
-                      child: TransactionTile(transaction: transaction),
-                    );
+                      TransferEntry(:final transfer) => TransferTile(
+                        key: ValueKey(transfer.id),
+                        transfer: transfer,
+                        fromAccountName:
+                            accountNames[transfer.fromAccountId] ?? 'Unknown',
+                        toAccountName:
+                            accountNames[transfer.toAccountId] ?? 'Unknown',
+                      ),
+                    };
                   },
                 );
               },

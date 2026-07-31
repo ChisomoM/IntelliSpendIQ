@@ -6,6 +6,7 @@ class TransactionsState extends Equatable {
   const TransactionsState({
     this.status = TransactionsStatus.initial,
     this.transactions = const [],
+    this.transfers = const [],
     this.categories = const [],
     this.accounts = const [],
     this.query = '',
@@ -17,6 +18,7 @@ class TransactionsState extends Equatable {
 
   final TransactionsStatus status;
   final List<Transaction> transactions;
+  final List<Transfer> transfers;
 
   /// For the filter sheet's category/account pickers.
   final List<Category> categories;
@@ -28,8 +30,7 @@ class TransactionsState extends Equatable {
   final DateTime? dateFrom;
   final DateTime? dateTo;
 
-  bool get isEmpty =>
-      status == TransactionsStatus.loaded && transactions.isEmpty;
+  bool get isEmpty => status == TransactionsStatus.loaded && feed.isEmpty;
 
   bool get hasFilters =>
       query.isNotEmpty ||
@@ -38,9 +39,46 @@ class TransactionsState extends Equatable {
       dateFrom != null ||
       dateTo != null;
 
+  /// Transfers matching the account and date filters — transfers have
+  /// no category or merchant, so a query or category filter excludes
+  /// them entirely rather than trying to match against nothing.
+  List<Transfer> get visibleTransfers {
+    if (query.isNotEmpty || categoryId != null) return const [];
+    return transfers.where((transfer) {
+      if (accountId != null &&
+          transfer.fromAccountId != accountId &&
+          transfer.toAccountId != accountId) {
+        return false;
+      }
+      if (dateFrom != null &&
+          transfer.transactedAt.isBefore(dateFrom!.toUtc())) {
+        return false;
+      }
+      if (dateTo != null &&
+          !transfer.transactedAt.isBefore(
+            dateTo!.toUtc().add(const Duration(days: 1)),
+          )) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  /// Transactions and transfers merged into one date-sorted feed, so a
+  /// linked transfer stays visible in history instead of disappearing
+  /// once its two original legs are soft-deleted.
+  List<ActivityEntry> get feed {
+    final entries = <ActivityEntry>[
+      for (final transaction in transactions) TransactionEntry(transaction),
+      for (final transfer in visibleTransfers) TransferEntry(transfer),
+    ]..sort((a, b) => b.transactedAt.compareTo(a.transactedAt));
+    return entries;
+  }
+
   TransactionsState copyWith({
     TransactionsStatus? status,
     List<Transaction>? transactions,
+    List<Transfer>? transfers,
     List<Category>? categories,
     List<Account>? accounts,
     String? query,
@@ -56,6 +94,7 @@ class TransactionsState extends Equatable {
     return TransactionsState(
       status: status ?? this.status,
       transactions: transactions ?? this.transactions,
+      transfers: transfers ?? this.transfers,
       categories: categories ?? this.categories,
       accounts: accounts ?? this.accounts,
       query: query ?? this.query,
@@ -70,6 +109,7 @@ class TransactionsState extends Equatable {
   List<Object?> get props => [
     status,
     transactions,
+    transfers,
     categories,
     accounts,
     query,

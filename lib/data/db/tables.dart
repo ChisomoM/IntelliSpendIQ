@@ -96,6 +96,11 @@ class Transactions extends SyncedTable {
   /// Structured payee, when one was picked rather than left as free
   /// text in [merchant]/[description].
   TextColumn get payeeId => text().nullable()();
+
+  /// Set when the user says "not a transfer" on a suggested transfer
+  /// pairing, so the same two legs stop being re-suggested. Never
+  /// cleared back to null.
+  TextColumn get transferDismissedAt => text().nullable()();
 }
 
 /// A structured payee, selectable on the expense form as an
@@ -142,6 +147,27 @@ class OverallBudgets extends SyncedTable {
   List<Set<Column<Object>>> get uniqueKeys => [
     {userId, period},
   ];
+}
+
+/// Money moved between two of the user's own accounts — e.g. a bank
+/// withdrawal into mobile money. Recorded as its own entity rather
+/// than as a debit + credit transaction pair, so it never counts
+/// toward spend or income totals: the two originating transaction
+/// legs are soft-deleted once linked into one of these.
+@DataClassName('TransferRow')
+class Transfers extends SyncedTable {
+  TextColumn get fromAccountId => text()();
+  TextColumn get toAccountId => text()();
+
+  /// Absolute amount in ngwee (D60).
+  IntColumn get amountMinor => integer()();
+  TextColumn get transactedAt => text()();
+  TextColumn get note => text().nullable()();
+
+  /// The two transaction legs this transfer was linked from, if any —
+  /// kept for audit trail (both are soft-deleted, not removed).
+  TextColumn get fromTransactionId => text().nullable()();
+  TextColumn get toTransactionId => text().nullable()();
 }
 
 /// A user-added SMS sender ID routed to an existing provider parser —

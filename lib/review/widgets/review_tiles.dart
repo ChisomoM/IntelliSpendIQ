@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/raw_capture.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
@@ -123,6 +126,81 @@ class DuplicateTile extends StatelessWidget {
               FilledButton(
                 onPressed: () => cubit.confirm(transaction.id),
                 child: const Text('Keep both'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TransferCandidateTile extends StatelessWidget {
+  const TransferCandidateTile({required this.candidate, super.key});
+
+  final TransferCandidate candidate;
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<ReviewInboxCubit>();
+    final debit = candidate.debit;
+    final credit = candidate.credit;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: FutureBuilder<List<Account>>(
+              future: context.read<AccountRepository>().getAll(),
+              builder: (context, snapshot) {
+                final accounts = {
+                  for (final account in snapshot.data ?? const <Account>[])
+                    account.id: account.name,
+                };
+                final fromName = accounts[debit.accountId] ?? 'Unknown';
+                final toName = accounts[credit.accountId] ?? 'Unknown';
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$fromName  →  $toName',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    Text(
+                      Money.format(
+                        debit.amountMinor,
+                        currency: debit.currency,
+                      ),
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              '${DateFormat('d MMM, HH:mm').format(debit.transactedAt.toLocal())}'
+              ' & '
+              '${DateFormat('HH:mm').format(credit.transactedAt.toLocal())}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          OverflowBar(
+            alignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => cubit.dismissTransferCandidate(candidate),
+                child: const Text('Not a transfer'),
+              ),
+              FilledButton(
+                onPressed: () => cubit.linkTransfer(candidate),
+                child: const Text('Link them'),
               ),
             ],
           ),

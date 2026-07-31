@@ -53,6 +53,19 @@ class MonthSpend extends Equatable {
   List<Object?> get props => [period, spentMinor];
 }
 
+/// A debit and a credit that look like the two legs of the user
+/// moving money between their own accounts — same amount, different
+/// accounts, close together in time.
+class TransferCandidate extends Equatable {
+  const TransferCandidate({required this.debit, required this.credit});
+
+  final Transaction debit;
+  final Transaction credit;
+
+  @override
+  List<Object?> get props => [debit, credit];
+}
+
 /// An account's spend within one period, for the Reports account
 /// breakdown.
 class AccountSpend extends Equatable {
@@ -388,6 +401,82 @@ class TransactionRepository {
 
   Future<void> confirm(String id) =>
       updateFields(id, status: TxStatus.confirmed);
+
+  /// Confirmed, undismissed debit/credit pairs that look like a
+  /// transfer between two of the user's own accounts — same amount, a
+  /// different account on each side, transacted within [window] of
+  /// each other. Recomputed reactively as transactions change; a
+  /// transaction is matched to at most one candidate.
+  ///
+  /// [lookback] bounds the query to a recent window rather than the
+  /// user's whole history — comparing every past transaction against
+  /// every other is unnecessary work once a transaction is more than a
+  /// few months old.
+  Stream<List<TransferCandidate>> watchTransferCandidates({
+    Duration window = const Duration(minutes: 30),
+    Duration lookback = const Duration(days: 90),
+  }) {
+    final since = Iso.fromDateTime(DateTime.now().toUtc().subtract(lookback));
+    final query = _db.select(_db.transactions)
+      ..where(
+        (t) =>
+            t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.status.equals(TxStatus.confirmed.dbName) &
+            t.transferDismissedAt.isNull() &
+            t.transactedAt.isBiggerOrEqualValue(since),
+      )
+      ..orderBy([(t) => OrderingTerm.asc(t.transactedAt)]);
+    return query.watch().map((rows) {
+      final transactions = rows.map(_fromRow).toList();
+      final debits = transactions.where(
+        (tx) => tx.direction == TxDirection.debit,
+      );
+      final credits = transactions.where(
+        (tx) => tx.direction == TxDirection.credit,
+      );
+
+      final usedCreditIds = <String>{};
+      final candidates = <TransferCandidate>[];
+      for (final debit in debits) {
+        for (final credit in credits) {
+          if (usedCreditIds.contains(credit.id)) continue;
+          if (credit.accountId == debit.accountId) continue;
+          if (credit.amountMinor != debit.amountMinor) continue;
+          final apart = credit.transactedAt
+              .difference(debit.transactedAt)
+              .abs();
+          if (apart > window) continue;
+
+          candidates.add(TransferCandidate(debit: debit, credit: credit));
+          usedCreditIds.add(credit.id);
+          break;
+        }
+      }
+      return candidates;
+    });
+  }
+
+  /// Marks both legs of a suggested transfer pairing as "not a
+  /// transfer" so they stop being re-suggested on future reloads.
+  Future<void> dismissTransferCandidate({
+    required String debitId,
+    required String creditId,
+  }) async {
+    final now = Iso.nowUtc();
+    await _db.transaction(() async {
+      for (final id in [debitId, creditId]) {
+        await (_db.update(
+          _db.transactions,
+        )..where((t) => t.id.equals(id))).write(
+          TransactionsCompanion(
+            transferDismissedAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+    });
+  }
 
   Future<void> softDelete(String id) async {
     final now = Iso.nowUtc();

@@ -21,6 +21,7 @@ BackupService _testBackupService(AppServices services) => BackupService(
   overallBudgets: services.overallBudgets,
   payees: services.payees,
   labels: services.labels,
+  transfers: services.transfers,
   tempDirectory: () async => Directory.systemTemp,
 );
 
@@ -92,12 +93,48 @@ void main() {
         name: 'Cash',
         type: AccountType.cash,
       );
+      // A second user-created account, not tied to any SMS provider —
+      // its id survives a restore intact, unlike the default seeded
+      // Airtel Money account (which the target already has its own
+      // copy of, so the source's copy is skipped on import).
+      final bank = await source.accounts.create(
+        name: 'Bank',
+        type: AccountType.bank,
+      );
+      final debitLeg = await source.transactions.insertDraft(
+        TransactionDraft(
+          amountMinor: 15000,
+          direction: TxDirection.debit,
+          source: TxSource.manual,
+          transactedAt: DateTime(2026, 7, 15, 9),
+          merchant: 'To Cash',
+        ),
+        accountId: bank.id,
+        idempotencyKey: 'test:${Ids.newId()}',
+        status: TxStatus.confirmed,
+      );
+      final creditLeg = await source.transactions.insertDraft(
+        TransactionDraft(
+          amountMinor: 15000,
+          direction: TxDirection.credit,
+          source: TxSource.manual,
+          transactedAt: DateTime(2026, 7, 15, 9, 5),
+          merchant: 'From Bank',
+        ),
+        accountId: cash.id,
+        idempotencyKey: 'test:${Ids.newId()}',
+        status: TxStatus.confirmed,
+      );
+      await source.transfers.linkTransfer(
+        fromTransaction: debitLeg,
+        toTransaction: creditLeg,
+      );
 
       final file = await _testBackupService(source).exportBackupJson();
       addTearDown(file.delete);
       final document =
           jsonDecode(await file.readAsString()) as Map<String, Object?>;
-      expect(document['version'], 2);
+      expect(document['version'], 3);
 
       // A brand-new install: its own seeded categories and default
       // account already exist before the backup is ever touched.
@@ -106,12 +143,19 @@ void main() {
 
       final summary = await _testBackupService(target).importBackupJson(file);
 
-      expect(summary.transactionsImported, 2);
+      expect(
+        summary.transactionsImported,
+        2,
+        reason:
+            'Shoprite and Vet only — the transfer legs were soft-deleted '
+            'on the source once linked, so they were never exported',
+      );
+      expect(summary.transfersImported, 1);
       expect(summary.overallBudgetsImported, 1);
       expect(
         summary.accountsImported,
-        1,
-        reason: 'only the Cash account is new',
+        2,
+        reason: 'only Cash and Bank are new',
       );
       expect(
         summary.categoriesImported,
@@ -157,6 +201,12 @@ void main() {
         targetTransactions.map((tx) => tx.merchant),
         containsAll(['Shoprite', 'Vet']),
       );
+
+      final targetTransfers = await target.transfers.watchAll().first;
+      expect(targetTransfers, hasLength(1));
+      expect(targetTransfers.single.amountMinor, 15000);
+      expect(targetTransfers.single.fromAccountId, bank.id);
+      expect(targetTransfers.single.toAccountId, cash.id);
     });
 
     test(

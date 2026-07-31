@@ -11,6 +11,7 @@ import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/ai/ai_provider.dart';
 import 'package:intellispendiq/domain/ai/anthropic_chat_provider.dart';
@@ -38,6 +39,7 @@ class AppServices {
     required this.accounts,
     required this.categories,
     required this.transactions,
+    required this.transfers,
     required this.rawCaptures,
     required this.overallBudgets,
     required this.payees,
@@ -110,6 +112,7 @@ class AppServices {
     final accounts = AccountRepository(db, userId: userId);
     final categories = CategoryRepository(db, userId: userId);
     final transactions = TransactionRepository(db, userId: userId);
+    final transfers = TransferRepository(db, userId: userId);
     final rawCaptures = RawCaptureRepository(db, userId: userId);
     final overallBudgets = OverallBudgetRepository(db, userId: userId);
     final payees = PayeeRepository(db, userId: userId);
@@ -151,6 +154,7 @@ class AppServices {
       overallBudgets: overallBudgets,
       payees: payees,
       labels: labels,
+      transfers: transfers,
     );
 
     return AppServices._(
@@ -161,6 +165,7 @@ class AppServices {
       accounts: accounts,
       categories: categories,
       transactions: transactions,
+      transfers: transfers,
       rawCaptures: rawCaptures,
       overallBudgets: overallBudgets,
       payees: payees,
@@ -203,6 +208,7 @@ class AppServices {
   final AccountRepository accounts;
   final CategoryRepository categories;
   final TransactionRepository transactions;
+  final TransferRepository transfers;
   final RawCaptureRepository rawCaptures;
   final OverallBudgetRepository overallBudgets;
   final PayeeRepository payees;

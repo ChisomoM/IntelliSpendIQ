@@ -3,6 +3,7 @@ import 'package:intellispendiq/app/app_services.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
+import 'package:intellispendiq/transactions/cubit/activity_entry.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
 
 import '../../support/test_harness.dart';
@@ -19,6 +20,7 @@ void main() {
       transactions: services.transactions,
       categories: services.categories,
       accounts: services.accounts,
+      transfers: services.transfers,
     );
   }
 
@@ -163,5 +165,56 @@ void main() {
       expect(cubit.state.hasFilters, isFalse);
       expect(cubit.state.transactions, hasLength(2));
     });
+
+    test(
+      'feed merges a linked transfer alongside ordinary transactions',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        await addTransaction(merchant: 'Shoprite', at: DateTime(2026, 7, 20));
+
+        final cash = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+        final debit = await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 20000,
+            direction: TxDirection.debit,
+            source: TxSource.manual,
+            transactedAt: DateTime(2026, 7, 25, 9),
+          ),
+          accountId: accountId,
+          idempotencyKey: 'test:${Ids.newId()}',
+          status: TxStatus.confirmed,
+        );
+        final credit = await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 20000,
+            direction: TxDirection.credit,
+            source: TxSource.manual,
+            transactedAt: DateTime(2026, 7, 25, 9, 5),
+          ),
+          accountId: cash.id,
+          idempotencyKey: 'test:${Ids.newId()}',
+          status: TxStatus.confirmed,
+        );
+        await services.transfers.linkTransfer(
+          fromTransaction: debit,
+          toTransaction: credit,
+        );
+
+        await cubit.subscribe();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          cubit.state.transactions,
+          hasLength(1),
+          reason: 'the transfer legs were soft-deleted once linked',
+        );
+        expect(cubit.state.feed, hasLength(2));
+        expect(cubit.state.feed.first, isA<TransferEntry>());
+      },
+    );
   });
 }

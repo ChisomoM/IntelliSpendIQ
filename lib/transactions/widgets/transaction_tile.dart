@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
+import 'package:intellispendiq/domain/models/transfer.dart';
 import 'package:intellispendiq/transactions/view/view.dart';
 import 'package:intl/intl.dart';
 
@@ -81,6 +82,49 @@ class TransactionTile extends StatelessWidget {
       onTap: () => Navigator.of(
         context,
       ).push<void>(TransactionEntryPage.route(existing: transaction)),
+    );
+  }
+}
+
+/// Renders a confirmed [Transfer] — money moved between two of the
+/// user's own accounts — as a neutral row, distinct from a debit or
+/// credit transaction. Not dismissible: unlinking a transfer back into
+/// two separate transactions isn't supported.
+class TransferTile extends StatelessWidget {
+  const TransferTile({
+    required this.transfer,
+    required this.fromAccountName,
+    required this.toAccountName,
+    super.key,
+  });
+
+  final Transfer transfer;
+  final String fromAccountName;
+  final String toAccountName;
+
+  static final _dateFormat = DateFormat('d MMM, HH:mm');
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        child: const Icon(Icons.swap_horiz, size: 20),
+      ),
+      title: Text(
+        '$fromAccountName  →  $toAccountName',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(_dateFormat.format(transfer.transactedAt.toLocal())),
+      trailing: Text(
+        Money.format(transfer.amountMinor),
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intellispendiq/app/app_services.dart';
+import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 import 'package:intellispendiq/review/review.dart';
@@ -17,6 +18,7 @@ void main() {
   ReviewInboxCubit buildCubit() => ReviewInboxCubit(
     transactions: services.transactions,
     rawCaptures: services.rawCaptures,
+    transfers: services.transfers,
   );
 
   group('ReviewInboxCubit', () {
@@ -194,6 +196,153 @@ void main() {
         expect(cubit.state.isEmpty, isTrue);
         final counts = await services.rawCaptures.countByParseStatus();
         expect(counts[ParseStatus.ignored.name], 1);
+      },
+    );
+
+    blocTest<ReviewInboxCubit, ReviewInboxState>(
+      'surfaces a same-amount debit/credit pair on different accounts as '
+      'a transfer candidate',
+      setUp: () async {
+        final cash = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+        final airtel = await services.accounts.getDefault();
+        await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 30000,
+            direction: TxDirection.debit,
+            source: TxSource.manual,
+            transactedAt: DateTime(2026, 7, 30, 9),
+            merchant: 'Withdrawal',
+          ),
+          accountId: airtel.id,
+          idempotencyKey: 'test:${Ids.newId()}',
+          status: TxStatus.confirmed,
+        );
+        await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 30000,
+            direction: TxDirection.credit,
+            source: TxSource.manual,
+            transactedAt: DateTime(2026, 7, 30, 9, 10),
+            merchant: 'Deposit',
+          ),
+          accountId: cash.id,
+          idempotencyKey: 'test:${Ids.newId()}',
+          status: TxStatus.confirmed,
+        );
+      },
+      build: buildCubit,
+      act: (cubit) => cubit.subscribe(),
+      wait: const Duration(milliseconds: 100),
+      verify: (cubit) {
+        expect(cubit.state.transferCandidates, hasLength(1));
+        expect(cubit.state.pendingCount, 1);
+      },
+    );
+
+    blocTest<ReviewInboxCubit, ReviewInboxState>(
+      'linking a transfer candidate removes it from the inbox and creates '
+      'a Transfer',
+      setUp: () async {
+        final cash = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+        final airtel = await services.accounts.getDefault();
+        await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 30000,
+            direction: TxDirection.debit,
+            source: TxSource.manual,
+            transactedAt: DateTime(2026, 7, 30, 9),
+            merchant: 'Withdrawal',
+          ),
+          accountId: airtel.id,
+          idempotencyKey: 'test:${Ids.newId()}',
+          status: TxStatus.confirmed,
+        );
+        await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 30000,
+            direction: TxDirection.credit,
+            source: TxSource.manual,
+            transactedAt: DateTime(2026, 7, 30, 9, 10),
+            merchant: 'Deposit',
+          ),
+          accountId: cash.id,
+          idempotencyKey: 'test:${Ids.newId()}',
+          status: TxStatus.confirmed,
+        );
+      },
+      build: buildCubit,
+      act: (cubit) async {
+        cubit.subscribe();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await cubit.linkTransfer(cubit.state.transferCandidates.single);
+      },
+      wait: const Duration(milliseconds: 100),
+      verify: (cubit) async {
+        expect(cubit.state.transferCandidates, isEmpty);
+        expect(cubit.state.isEmpty, isTrue);
+        final transfers = await services.transfers.watchAll().first;
+        expect(transfers, hasLength(1));
+        expect(transfers.single.amountMinor, 30000);
+      },
+    );
+
+    blocTest<ReviewInboxCubit, ReviewInboxState>(
+      'dismissing a transfer candidate keeps both transactions and stops '
+      're-suggesting them',
+      setUp: () async {
+        final cash = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+        final airtel = await services.accounts.getDefault();
+        await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 30000,
+            direction: TxDirection.debit,
+            source: TxSource.manual,
+            transactedAt: DateTime(2026, 7, 30, 9),
+            merchant: 'Withdrawal',
+          ),
+          accountId: airtel.id,
+          idempotencyKey: 'test:${Ids.newId()}',
+          status: TxStatus.confirmed,
+        );
+        await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 30000,
+            direction: TxDirection.credit,
+            source: TxSource.manual,
+            transactedAt: DateTime(2026, 7, 30, 9, 10),
+            merchant: 'Deposit',
+          ),
+          accountId: cash.id,
+          idempotencyKey: 'test:${Ids.newId()}',
+          status: TxStatus.confirmed,
+        );
+      },
+      build: buildCubit,
+      act: (cubit) async {
+        cubit.subscribe();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await cubit.dismissTransferCandidate(
+          cubit.state.transferCandidates.single,
+        );
+      },
+      wait: const Duration(milliseconds: 100),
+      verify: (cubit) async {
+        expect(cubit.state.transferCandidates, isEmpty);
+        expect(cubit.state.isEmpty, isTrue);
+        expect(
+          await services.transactions.watchRecent().first,
+          hasLength(2),
+          reason: 'dismissing must not delete either transaction',
+        );
       },
     );
   });

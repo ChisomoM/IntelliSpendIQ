@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/raw_capture.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
@@ -13,21 +14,24 @@ part 'review_inbox_state.dart';
 /// Drives the Review Inbox: the one screen that must show everything a
 /// human still needs to look at (plan §10.1).
 ///
-/// Three repository streams feed one state object, so the view renders
+/// Four repository streams feed one state object, so the view renders
 /// from a single snapshot instead of nesting builders.
 class ReviewInboxCubit extends Cubit<ReviewInboxState> {
   ReviewInboxCubit({
     required TransactionRepository transactions,
     required RawCaptureRepository rawCaptures,
+    required TransferRepository transfers,
   }) : _transactions = transactions,
        _rawCaptures = rawCaptures,
+       _transfers = transfers,
        super(const ReviewInboxState());
 
   final TransactionRepository _transactions;
   final RawCaptureRepository _rawCaptures;
+  final TransferRepository _transfers;
   final _subscriptions = <StreamSubscription<void>>[];
 
-  /// Starts watching the three review sources.
+  /// Starts watching the four review sources.
   void subscribe() {
     if (_subscriptions.isNotEmpty) return;
     emit(state.copyWith(status: ReviewInboxStatus.loading));
@@ -61,6 +65,14 @@ class ReviewInboxCubit extends Cubit<ReviewInboxState> {
           ),
         ),
       ),
+      _transactions.watchTransferCandidates().listen(
+        (rows) => emit(
+          state.copyWith(
+            status: ReviewInboxStatus.loaded,
+            transferCandidates: rows,
+          ),
+        ),
+      ),
     ]);
   }
 
@@ -85,6 +97,23 @@ class ReviewInboxCubit extends Cubit<ReviewInboxState> {
   /// without deleting the original text.
   Future<void> ignoreCapture(String captureId) =>
       _rawCaptures.markIgnored(captureId, error: 'not_a_transaction');
+
+  /// Confirms a suggested transfer pairing: links the two legs into a
+  /// [Transfer] and soft-deletes them, which is what removes them from
+  /// spend/income totals.
+  Future<void> linkTransfer(TransferCandidate candidate) =>
+      _transfers.linkTransfer(
+        fromTransaction: candidate.debit,
+        toTransaction: candidate.credit,
+      );
+
+  /// Declines a suggested transfer pairing — both legs stay as
+  /// ordinary transactions and stop being re-suggested.
+  Future<void> dismissTransferCandidate(TransferCandidate candidate) =>
+      _transactions.dismissTransferCandidate(
+        debitId: candidate.debit.id,
+        creditId: candidate.credit.id,
+      );
 
   @override
   Future<void> close() async {

@@ -7,6 +7,7 @@ import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -14,13 +15,14 @@ import 'package:intellispendiq/domain/models/label.dart';
 import 'package:intellispendiq/domain/models/overall_budget.dart';
 import 'package:intellispendiq/domain/models/payee.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
+import 'package:intellispendiq/domain/models/transfer.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 /// The current backup file's schema version. Bump this only if a
 /// future field is required for correct restore — `importBackupJson`
 /// should keep reading older versions rather than refusing them.
-const _backupSchemaVersion = 2;
+const _backupSchemaVersion = 3;
 
 /// How many rows `importBackupJson` actually wrote, versus how many
 /// it left alone because they (or something they collide with) were
@@ -33,6 +35,7 @@ class RestoreSummary {
     required this.payeesImported,
     required this.labelsImported,
     required this.transactionsImported,
+    required this.transfersImported,
     required this.skipped,
   });
 
@@ -42,6 +45,7 @@ class RestoreSummary {
   final int payeesImported;
   final int labelsImported;
   final int transactionsImported;
+  final int transfersImported;
 
   /// Rows that already existed (by id) or collided with an existing
   /// row's unique key — not an error, just nothing new to add.
@@ -53,7 +57,8 @@ class RestoreSummary {
       overallBudgetsImported +
       payeesImported +
       labelsImported +
-      transactionsImported;
+      transactionsImported +
+      transfersImported;
 }
 
 /// Exports the user's data for their own records and for moving it to
@@ -70,6 +75,7 @@ class BackupService {
     required OverallBudgetRepository overallBudgets,
     required PayeeRepository payees,
     required LabelRepository labels,
+    required TransferRepository transfers,
     Future<Directory> Function()? tempDirectory,
   }) : _transactions = transactions,
        _accounts = accounts,
@@ -77,6 +83,7 @@ class BackupService {
        _overallBudgets = overallBudgets,
        _payees = payees,
        _labels = labels,
+       _transfers = transfers,
        _tempDirectory = tempDirectory ?? getTemporaryDirectory;
 
   final TransactionRepository _transactions;
@@ -85,6 +92,7 @@ class BackupService {
   final OverallBudgetRepository _overallBudgets;
   final PayeeRepository _payees;
   final LabelRepository _labels;
+  final TransferRepository _transfers;
 
   /// Defaults to `path_provider`'s temp directory; overridable so
   /// tests never need a platform channel just to write a file.
@@ -149,6 +157,9 @@ class BackupService {
       'transactions': (await _transactions.getAllForExport())
           .map(_transactionToJson)
           .toList(),
+      'transfers': (await _transfers.getAllForExport())
+          .map(_transferToJson)
+          .toList(),
       'transactionLabels': (await _transactions.getAllLabelLinksForExport())
           .map(
             (link) => {'transactionId': link.$1, 'labelId': link.$2},
@@ -176,6 +187,7 @@ class BackupService {
     var payeesImported = 0;
     var labelsImported = 0;
     var transactionsImported = 0;
+    var transfersImported = 0;
     var skipped = 0;
 
     // Accounts, categories, payees and labels first — transactions
@@ -224,6 +236,13 @@ class BackupService {
         skipped++;
       }
     }
+    for (final entry in _listOf(document, 'transfers')) {
+      if (await _transfers.restoreTransfer(_transferFromJson(entry))) {
+        transfersImported++;
+      } else {
+        skipped++;
+      }
+    }
     for (final entry in _listOf(document, 'transactionLabels')) {
       final transactionId = entry['transactionId'] as String?;
       final labelId = entry['labelId'] as String?;
@@ -240,6 +259,7 @@ class BackupService {
       payeesImported: payeesImported,
       labelsImported: labelsImported,
       transactionsImported: transactionsImported,
+      transfersImported: transfersImported,
       skipped: skipped,
     );
   }
@@ -358,6 +378,24 @@ class BackupService {
     id: json['id']! as String,
     name: json['name']! as String,
     color: json['color'] as String?,
+  );
+
+  Map<String, Object?> _transferToJson(Transfer transfer) => {
+    'id': transfer.id,
+    'fromAccountId': transfer.fromAccountId,
+    'toAccountId': transfer.toAccountId,
+    'amountMinor': transfer.amountMinor,
+    'transactedAt': transfer.transactedAt.toIso8601String(),
+    'note': transfer.note,
+  };
+
+  Transfer _transferFromJson(Map<String, Object?> json) => Transfer(
+    id: json['id']! as String,
+    fromAccountId: json['fromAccountId']! as String,
+    toAccountId: json['toAccountId']! as String,
+    amountMinor: json['amountMinor']! as int,
+    transactedAt: DateTime.parse(json['transactedAt']! as String),
+    note: json['note'] as String?,
   );
 
   Map<String, Object?> _transactionToJson(Transaction tx) => {
