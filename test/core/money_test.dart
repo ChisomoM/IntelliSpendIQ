@@ -69,4 +69,37 @@ void main() {
       expect(Money.format(Money.tryParseToMinor(input)!), expected);
     });
   });
+
+  group('display', () {
+    test('formats with the K symbol, no space, no ISO code', () {
+      expect(Money.display(1000), 'K10.00');
+      expect(Money.display(135000), 'K1,350.00');
+      expect(Money.display(0), 'K0.00');
+    });
+
+    test('uses a true minus for negative amounts', () {
+      expect(Money.display(-8900), '−K89.00');
+    });
+  });
+
+  group('displaySigned', () {
+    test('prefixes inflow with a plus', () {
+      expect(Money.displaySigned(300000, isInflow: true), '+K3,000.00');
+    });
+
+    test('prefixes outflow with a true minus', () {
+      expect(Money.displaySigned(8900, isInflow: false), '−K89.00');
+    });
+  });
+
+  group('displayCompact', () {
+    test('keeps sub-thousand amounts whole', () {
+      expect(Money.displayCompact(25000), 'K250');
+    });
+
+    test('compacts thousands with one decimal, dropping a trailing .0', () {
+      expect(Money.displayCompact(1248000), 'K12.5k');
+      expect(Money.displayCompact(1200000), 'K12k');
+    });
+  });
 }

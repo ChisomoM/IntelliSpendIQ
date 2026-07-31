@@ -3,6 +3,7 @@ import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/category_icon_key.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 
 class CategoryRepository {
@@ -27,16 +28,16 @@ class CategoryRepository {
   /// "Income" is the only seed on the income side — everything else
   /// is an expense category.
   static const seedNames = [
-    ('Food', '🍲', CategoryType.expense),
-    ('Transport', '🚌', CategoryType.expense),
-    ('Airtime/Data', '📱', CategoryType.expense),
-    ('Transfers', '🔁', CategoryType.expense),
-    ('Shopping', '🛍️', CategoryType.expense),
-    ('Bills', '🧾', CategoryType.expense),
-    ('Income', '💰', CategoryType.income),
-    ('Fees/Charges', '🏦', CategoryType.expense),
-    ('Uncategorized', '❓', CategoryType.expense),
-    ('Other', '📦', CategoryType.expense),
+    ('Food', CategoryIconKey.food, CategoryType.expense),
+    ('Transport', CategoryIconKey.transport, CategoryType.expense),
+    ('Airtime/Data', CategoryIconKey.mobile, CategoryType.expense),
+    ('Transfers', CategoryIconKey.transfer, CategoryType.expense),
+    ('Shopping', CategoryIconKey.shopping, CategoryType.expense),
+    ('Bills', CategoryIconKey.bills, CategoryType.expense),
+    ('Income', CategoryIconKey.income, CategoryType.income),
+    ('Fees/Charges', CategoryIconKey.bank, CategoryType.expense),
+    ('Uncategorized', CategoryIconKey.other, CategoryType.expense),
+    ('Other', CategoryIconKey.other, CategoryType.expense),
   ];
 
   Future<void> ensureSeeds() async {
