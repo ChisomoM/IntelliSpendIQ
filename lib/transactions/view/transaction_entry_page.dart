@@ -226,7 +226,7 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
                   controller: _amountController,
                   decoration: InputDecoration(
                     labelText: 'Amount',
-                    prefixText: 'ZMW ',
+                    prefixText: 'K',
                     errorText: state.status == TransactionEntryStatus.invalid
                         ? state.errorMessage
                         : null,

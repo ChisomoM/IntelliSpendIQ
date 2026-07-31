@@ -49,9 +49,12 @@ class ProposedTransaction extends ProposedAction {
 
   @override
   String get title {
-    final sign = direction == TxDirection.debit ? '-' : '+';
+    final amount = Money.signed(
+      amountMinor,
+      isInflow: direction == TxDirection.credit,
+    );
     final who = merchant?.isNotEmpty ?? false ? ' · $merchant' : '';
-    return '$sign${Money.format(amountMinor)}$who';
+    return '$amount$who';
   }
 
   @override

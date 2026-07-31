@@ -54,117 +54,114 @@ class _TransactionsViewState extends State<TransactionsView> {
   Widget build(BuildContext context) {
     final cubit = context.read<TransactionsCubit>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Activity'),
-        actions: [
-          BlocBuilder<TransactionsCubit, TransactionsState>(
+    // The shell owns the Scaffold and the app bar. Search and filtering
+    // stay here in the body, right above the list they act on, rather
+    // than as an icon in shared chrome where an active filter could only
+    // ever be a dot.
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: BlocBuilder<TransactionsCubit, TransactionsState>(
             buildWhen: (previous, current) =>
+                previous.query != current.query ||
                 previous.hasFilters != current.hasFilters,
             builder: (context, state) {
-              return IconButton(
-                icon: Badge(
-                  isLabelVisible: state.hasFilters,
-                  child: const Icon(Icons.filter_list),
-                ),
-                tooltip: 'Filter',
-                onPressed: () => TransactionFilterSheet.show(context),
+              if (_searchController.text != state.query) {
+                _searchController.text = state.query;
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search merchant or note',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: state.query.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.clear),
+                                tooltip: 'Clear search',
+                                onPressed: () => cubit.queryChanged(''),
+                              ),
+                        isDense: true,
+                      ),
+                      onChanged: cubit.queryChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: Badge(
+                      isLabelVisible: state.hasFilters,
+                      child: const Icon(Icons.filter_list),
+                    ),
+                    tooltip: state.hasFilters ? 'Filters are on' : 'Filter',
+                    onPressed: () => TransactionFilterSheet.show(context),
+                  ),
+                ],
               );
             },
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: BlocBuilder<TransactionsCubit, TransactionsState>(
-              buildWhen: (previous, current) => previous.query != current.query,
-              builder: (context, state) {
-                if (_searchController.text != state.query) {
-                  _searchController.text = state.query;
-                }
-                return TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search merchant or note',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: state.query.isEmpty
-                        ? null
-                        : IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => cubit.queryChanged(''),
-                          ),
-                    isDense: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onChanged: cubit.queryChanged,
-                );
-              },
-            ),
-          ),
-          Expanded(
-            child: BlocBuilder<TransactionsCubit, TransactionsState>(
-              builder: (context, state) {
-                if (state.isEmpty && !state.hasFilters) {
-                  return const NoTransactionsYet();
-                }
-                if (state.isEmpty) {
-                  return const _NoMatchingTransactions();
-                }
+        ),
+        Expanded(
+          child: BlocBuilder<TransactionsCubit, TransactionsState>(
+            builder: (context, state) {
+              if (state.isEmpty && !state.hasFilters) {
+                return const NoTransactionsYet();
+              }
+              if (state.isEmpty) {
+                return const _NoMatchingTransactions();
+              }
 
-                final feed = state.feed;
-                final accountNames = {
-                  for (final account in state.accounts)
-                    account.id: account.name,
-                };
+              final feed = state.feed;
+              final accountNames = {
+                for (final account in state.accounts) account.id: account.name,
+              };
 
-                return ListView.separated(
-                  padding: const EdgeInsets.only(bottom: 96),
-                  itemCount: feed.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final entry = feed[index];
-                    return switch (entry) {
-                      TransactionEntry(:final transaction) => Dismissible(
-                        key: ValueKey(transaction.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Theme.of(context).colorScheme.errorContainer,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Icon(
-                            Icons.delete_outline,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onErrorContainer,
-                          ),
+              return ListView.separated(
+                padding: const EdgeInsets.only(bottom: 96),
+                itemCount: feed.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final entry = feed[index];
+                  return switch (entry) {
+                    TransactionEntry(:final transaction) => Dismissible(
+                      key: ValueKey(transaction.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Icon(
+                          Icons.delete_outline,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onErrorContainer,
                         ),
-                        confirmDismiss: (_) =>
-                            _confirmDelete(context, transaction),
-                        onDismissed: (_) => context
-                            .read<TransactionsCubit>()
-                            .delete(transaction.id),
-                        child: TransactionTile(transaction: transaction),
                       ),
-                      TransferEntry(:final transfer) => TransferTile(
-                        key: ValueKey(transfer.id),
-                        transfer: transfer,
-                        fromAccountName:
-                            accountNames[transfer.fromAccountId] ?? 'Unknown',
-                        toAccountName:
-                            accountNames[transfer.toAccountId] ?? 'Unknown',
-                      ),
-                    };
-                  },
-                );
-              },
-            ),
+                      confirmDismiss: (_) =>
+                          _confirmDelete(context, transaction),
+                      onDismissed: (_) => context
+                          .read<TransactionsCubit>()
+                          .delete(transaction.id),
+                      child: TransactionTile(transaction: transaction),
+                    ),
+                    TransferEntry(:final transfer) => TransferTile(
+                      key: ValueKey(transfer.id),
+                      transfer: transfer,
+                      fromAccountName:
+                          accountNames[transfer.fromAccountId] ?? 'Unknown',
+                      toAccountName:
+                          accountNames[transfer.toAccountId] ?? 'Unknown',
+                    ),
+                  };
+                },
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

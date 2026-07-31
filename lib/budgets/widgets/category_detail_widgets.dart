@@ -257,7 +257,7 @@ class _BudgetTransferSheetState extends State<BudgetTransferSheet> {
               controller: _amountController,
               decoration: InputDecoration(
                 labelText: 'Amount',
-                prefixText: 'ZMW ',
+                prefixText: 'K',
                 errorText: _error,
               ),
               keyboardType: const TextInputType.numberWithOptions(

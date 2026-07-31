@@ -10,6 +10,7 @@ import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/home/cubit/cubit.dart';
+import 'package:intellispendiq/home/widgets/widgets.dart';
 import 'package:intellispendiq/reports/reports.dart';
 import 'package:intellispendiq/review/review.dart';
 import 'package:intellispendiq/settings/settings.dart';
@@ -35,12 +36,23 @@ class HomePage extends StatelessWidget {
   }
 }
 
+/// The application shell.
+///
+/// Owns the only [Scaffold] and the only [AppBar] in the tabbed part of
+/// the app. Tab pages used to each build their own, which meant four
+/// different app bars with four different action sets and a Settings
+/// button that existed on exactly one screen. Here the chrome is
+/// constant and the tabs are just bodies, so Review, the Assistant and
+/// Settings are one tap from anywhere.
+///
+/// A tab's *own* controls — Activity's search and filters, Reports'
+/// month stepper — stay inside its body, next to the thing they act on,
+/// rather than being hoisted into a shared bar they would have to
+/// negotiate for space in.
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
 
   /// Indexed by [AppSection.tabs], so the tab order has one definition.
-  /// Review, Assistant, and Settings are reached by push instead of a
-  /// nav slot — see [_openLink].
   static const List<Widget> _pages = [
     DashboardPage(),
     TransactionsPage(),
@@ -61,59 +73,54 @@ class HomeView extends StatelessWidget {
       listener: (context, state) => _openLink(context, state.pending!),
       child: BlocBuilder<HomeCubit, HomeState>(
         builder: (context, state) {
+          final section = AppSection.fromTabIndex(state.tabIndex);
+
           return Scaffold(
-            body: IndexedStack(index: state.tabIndex, children: _pages),
-            floatingActionButton: state.tabIndex == AppSection.activity.tabIndex
-                ? const QuickAddButtons()
-                : null,
-            bottomNavigationBar: NavigationBar(
-              selectedIndex: state.tabIndex,
-              onDestinationSelected: cubit.tabSelected,
-              destinations: [
-                for (final section in AppSection.tabs)
-                  _destinationFor(section, state),
+            appBar: AppBar(
+              title: Text(section.label),
+              actions: [
+                // Rendered only when something is actually waiting, so
+                // an empty inbox leaves no residue in the chrome — and
+                // when it is not empty, it is visible from every tab
+                // rather than only from Home.
+                if (state.pendingCount > 0)
+                  IconButton(
+                    tooltip: '${state.pendingCount} need you',
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).push<void>(ReviewInboxPage.route()),
+                    icon: Badge.count(
+                      count: state.pendingCount,
+                      child: const Icon(Icons.inbox_outlined),
+                    ),
+                  ),
+                IconButton(
+                  tooltip: 'Assistant',
+                  onPressed: () =>
+                      Navigator.of(context).push<void>(ChatPage.route()),
+                  icon: const Icon(Icons.forum_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Settings',
+                  onPressed: () =>
+                      Navigator.of(context).push<void>(SettingsPage.route()),
+                  icon: const Icon(Icons.settings_outlined),
+                ),
               ],
+            ),
+            body: IndexedStack(index: state.tabIndex, children: _pages),
+            floatingActionButton: const CaptureFab(),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerDocked,
+            bottomNavigationBar: AppBottomBar(
+              currentIndex: state.tabIndex,
+              onSelected: cubit.tabSelected,
             ),
           );
         },
       ),
     );
   }
-
-  /// Only ever called with an [AppSection.tabs] member — Review,
-  /// Assistant, and Settings have no nav slot to build here.
-  NavigationDestination _destinationFor(AppSection section, HomeState state) {
-    return switch (section) {
-      AppSection.home => NavigationDestination(
-        icon: _reviewBadge(state, const Icon(Icons.dashboard_outlined)),
-        selectedIcon: _reviewBadge(state, const Icon(Icons.dashboard)),
-        label: 'Home',
-      ),
-      AppSection.activity => const NavigationDestination(
-        icon: Icon(Icons.receipt_long_outlined),
-        selectedIcon: Icon(Icons.receipt_long),
-        label: 'Activity',
-      ),
-      AppSection.budgets => const NavigationDestination(
-        icon: Icon(Icons.savings_outlined),
-        selectedIcon: Icon(Icons.savings),
-        label: 'Budgets',
-      ),
-      AppSection.reports => const NavigationDestination(
-        icon: Icon(Icons.pie_chart_outline),
-        selectedIcon: Icon(Icons.pie_chart),
-        label: 'Reports',
-      ),
-      AppSection.review || AppSection.chat || AppSection.settings =>
-        throw UnimplementedError('${section.name} is not a nav tab'),
-    };
-  }
-
-  Widget _reviewBadge(HomeState state, Icon icon) => Badge.count(
-    count: state.pendingCount,
-    isLabelVisible: state.pendingCount > 0,
-    child: icon,
-  );
 
   Future<void> _openLink(BuildContext context, DeepLink link) async {
     final home = context.read<HomeCubit>();
@@ -152,33 +159,5 @@ class HomeView extends StatelessWidget {
           context,
         ).push<void>(TransactionEntryPage.route(existing: existing));
     }
-  }
-}
-
-class QuickAddButtons extends StatelessWidget {
-  const QuickAddButtons({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        FloatingActionButton.small(
-          heroTag: 'voice',
-          tooltip: 'Voice entry',
-          onPressed: () => VoiceEntrySheet.show(context),
-          child: const Icon(Icons.mic),
-        ),
-        const SizedBox(height: 12),
-        FloatingActionButton(
-          heroTag: 'manual',
-          tooltip: 'Add transaction',
-          onPressed: () =>
-              Navigator.of(context).push<void>(TransactionEntryPage.route()),
-          child: const Icon(Icons.add),
-        ),
-      ],
-    );
   }
 }

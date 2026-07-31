@@ -4,6 +4,7 @@ import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/reports/cubit/cubit.dart';
 import 'package:intellispendiq/reports/widgets/widgets.dart';
+import 'package:intellispendiq/ui/ui.dart';
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -27,101 +28,100 @@ class ReportsView extends StatelessWidget {
     final transactions = context.read<TransactionRepository>();
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
-      body: BlocBuilder<ReportsCubit, ReportsState>(
-        builder: (context, state) {
-          return Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: () => cubit.shiftMonth(-1),
-                  ),
-                  Text(state.period, style: theme.textTheme.titleMedium),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right),
-                    onPressed: () => cubit.shiftMonth(1),
-                  ),
-                ],
-              ),
-              Expanded(
-                child: state.isEmpty
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Text(
-                            'No confirmed spending recorded for this month.',
-                            textAlign: TextAlign.center,
+    // The shell owns the Scaffold and the app bar; the month stepper is
+    // this screen's own control and stays in the body.
+    return BlocBuilder<ReportsCubit, ReportsState>(
+      builder: (context, state) {
+        return Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  tooltip: 'Previous month',
+                  onPressed: () => cubit.shiftMonth(-1),
+                ),
+                Text(state.period, style: theme.textTheme.titleMedium),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  tooltip: 'Next month',
+                  onPressed: () => cubit.shiftMonth(1),
+                ),
+              ],
+            ),
+            Expanded(
+              child: state.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.insights_outlined,
+                      title: 'Nothing to report yet',
+                      message:
+                          'Once spending is recorded for this month, the '
+                          'breakdown and trends show up here.',
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                      children: [
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Total spent',
+                                  style: theme.textTheme.labelMedium,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  Money.format(state.totalMinor),
+                                  style: theme.textTheme.headlineSmall,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                        children: [
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Total spent',
-                                    style: theme.textTheme.labelMedium,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    Money.format(state.totalMinor),
-                                    style: theme.textTheme.headlineSmall,
-                                  ),
-                                ],
+                        const SizedBox(height: 16),
+                        _BreakdownSection(state: state, cubit: cubit),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Last 6 months',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 12),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: MonthTrendChart(trend: state.monthTrend),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Daily spend',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 12),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: SpendCalendarHeatmap(
+                              period: state.period,
+                              dailySpend: state.dailySpend,
+                              maxDailyMinor: state.maxDailyMinor,
+                              onDayTap: (day) => showDaySpendSheet(
+                                context,
+                                transactions,
+                                day,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          _BreakdownSection(state: state, cubit: cubit),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Last 6 months',
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: 12),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: MonthTrendChart(trend: state.monthTrend),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Daily spend',
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: 12),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: SpendCalendarHeatmap(
-                                period: state.period,
-                                dailySpend: state.dailySpend,
-                                maxDailyMinor: state.maxDailyMinor,
-                                onDayTap: (day) => showDaySpendSheet(
-                                  context,
-                                  transactions,
-                                  day,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ],
-          );
-        },
-      ),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

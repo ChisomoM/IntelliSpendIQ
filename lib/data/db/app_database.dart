@@ -26,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -68,6 +68,20 @@ class AppDatabase extends _$AppDatabase {
           [Variable.withString(Iso.nowUtc())],
         );
       }
+      if (from < 8) {
+        // Category icons used to be emoji glyphs. Rewrite the ones we
+        // seeded into the icon-registry keys that replaced them.
+        //
+        // A custom category whose icon the user pasted themselves has no
+        // key to map to and is left alone — `CategoryIcons.resolve`
+        // still renders it, falling back to a generic icon.
+        for (final pair in _v8EmojiToIconKey.entries) {
+          await customStatement(
+            'UPDATE categories SET icon = ? WHERE icon = ?',
+            [Variable.withString(pair.value), Variable.withString(pair.key)],
+          );
+        }
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -79,6 +93,27 @@ class AppDatabase extends _$AppDatabase {
 /// query once dropped from `tables:` above, so this reads them with
 /// raw SQL — the last thing that happens before [m.deleteTable] below
 /// removes them for good.
+/// The emoji the v1 seeds shipped with, mapped to the icon-registry keys
+/// that replaced them in v8.
+///
+/// Deliberately a frozen literal rather than a read of
+/// `CategoryIcons.legacyPairs`: a migration describes one historical
+/// moment, so it must not change behaviour when someone later edits the
+/// live registry. It also keeps the data layer from importing `ui/`.
+const _v8EmojiToIconKey = <String, String>{
+  '🍲': 'food',
+  '🚌': 'transport',
+  '📱': 'airtime',
+  '🔁': 'transfer',
+  '🛍️': 'shopping',
+  '🛍': 'shopping',
+  '🧾': 'bills',
+  '💰': 'income',
+  '🏦': 'fees',
+  '❓': 'unknown',
+  '📦': 'other',
+};
+
 Future<void> _foldBudgetsAndIncomeIntoCategories(AppDatabase db) async {
   final budgetRows = await db
       .customSelect(

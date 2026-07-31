@@ -247,78 +247,25 @@ class ReviewBanner extends StatelessWidget {
   }
 }
 
-class QuickActionsRow extends StatelessWidget {
-  const QuickActionsRow({
-    required this.onAddTransaction,
-    required this.onVoiceEntry,
-    required this.onAskAssistant,
-    super.key,
-  });
+/// Speaking an entry, as an explicit button.
+///
+/// The capture FAB records voice on a long press, but a gesture is a
+/// shortcut for people who already know it — never the only way in. This
+/// is the discoverable route, and it is why the long press is allowed to
+/// stay hidden.
+class VoiceCaptureButton extends StatelessWidget {
+  const VoiceCaptureButton({required this.onPressed, super.key});
 
-  final VoidCallback onAddTransaction;
-  final VoidCallback onVoiceEntry;
-  final VoidCallback onAskAssistant;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.add,
-            label: 'Add',
-            onTap: onAddTransaction,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.mic_none,
-            label: 'Voice',
-            onTap: onVoiceEntry,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.forum_outlined,
-            label: 'Assistant',
-            onTap: onAskAssistant,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            children: [
-              Icon(icon, color: theme.colorScheme.primary),
-              const SizedBox(height: 6),
-              Text(label, style: theme.textTheme.labelMedium),
-            ],
-          ),
-        ),
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.mic_none, size: 20),
+        label: const Text('Say what you spent'),
       ),
     );
   }

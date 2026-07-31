@@ -26,17 +26,21 @@ class CategoryRepository {
   /// Default system categories seeded on first launch (plan §6.2).
   /// "Income" is the only seed on the income side — everything else
   /// is an expense category.
-  static const seedNames = [
-    ('Food', '🍲', CategoryType.expense),
-    ('Transport', '🚌', CategoryType.expense),
-    ('Airtime/Data', '📱', CategoryType.expense),
-    ('Transfers', '🔁', CategoryType.expense),
-    ('Shopping', '🛍️', CategoryType.expense),
-    ('Bills', '🧾', CategoryType.expense),
-    ('Income', '💰', CategoryType.income),
-    ('Fees/Charges', '🏦', CategoryType.expense),
-    ('Uncategorized', '❓', CategoryType.expense),
-    ('Other', '📦', CategoryType.expense),
+  ///
+  /// The middle field is a `CategoryIcons` key, not an emoji: the brand
+  /// guide bans emoji, and a key renders identically on every Android
+  /// version where a glyph does not.
+  static const seedNames = <(String, String, CategoryType)>[
+    ('Food', 'food', CategoryType.expense),
+    ('Transport', 'transport', CategoryType.expense),
+    ('Airtime/Data', 'airtime', CategoryType.expense),
+    ('Transfers', 'transfer', CategoryType.expense),
+    ('Shopping', 'shopping', CategoryType.expense),
+    ('Bills', 'bills', CategoryType.expense),
+    ('Income', 'income', CategoryType.income),
+    ('Fees/Charges', 'fees', CategoryType.expense),
+    ('Uncategorized', 'unknown', CategoryType.expense),
+    ('Other', 'other', CategoryType.expense),
   ];
 
   Future<void> ensureSeeds() async {

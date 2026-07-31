@@ -6,6 +6,7 @@ import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/ui/ui.dart';
 
 class CategoryTile extends StatelessWidget {
   const CategoryTile({required this.category, super.key});
@@ -22,11 +23,7 @@ class CategoryTile extends StatelessWidget {
     ];
 
     return ListTile(
-      leading: CircleAvatar(
-        child: category.icon == null
-            ? const Icon(Icons.label_outline)
-            : Text(category.icon!),
-      ),
+      leading: RowIcon(CategoryIcons.resolve(category.icon)),
       title: Text(category.name),
       subtitle: subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · ')),
       trailing: Row(
@@ -166,9 +163,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
   late final TextEditingController _nameController = TextEditingController(
     text: widget.existing?.name ?? '',
   );
-  late final TextEditingController _iconController = TextEditingController(
-    text: widget.existing?.icon ?? '',
-  );
+  late String? _iconKey = widget.existing?.icon;
   late final TextEditingController _budgetController = TextEditingController(
     text: widget.existing?.budgetedAmountMinor == null
         ? ''
@@ -182,7 +177,6 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
   @override
   void dispose() {
     _nameController.dispose();
-    _iconController.dispose();
     _budgetController.dispose();
     super.dispose();
   }
@@ -195,7 +189,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
     if (existing == null) {
       final created = await cubit.add(
         name: _nameController.text,
-        icon: _iconController.text,
+        icon: _iconKey,
         parentId: _parentId,
         type: _type,
         budgetedAmount: _budgetController.text,
@@ -205,7 +199,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
       await cubit.rename(
         existing.id,
         name: _nameController.text,
-        icon: _iconController.text,
+        icon: _iconKey,
         parentId: _parentId,
         type: _type,
         budgetedAmount: _budgetController.text,
@@ -276,12 +270,11 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                 autofocus: true,
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _iconController,
-                decoration: const InputDecoration(
-                  labelText: 'Icon (optional)',
-                  hintText: 'Paste an emoji, e.g. 🎮',
-                ),
+              Text('Icon', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              CategoryIconPicker(
+                selectedKey: _iconKey,
+                onSelected: (key) => setState(() => _iconKey = key),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -290,7 +283,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                   labelText: _type == CategoryType.income
                       ? 'Planned amount (optional)'
                       : 'Budgeted amount (optional)',
-                  prefixText: 'ZMW ',
+                  prefixText: 'K',
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,

@@ -44,15 +44,56 @@ void main() {
   });
 
   group('format', () {
-    test('formats minor units as ZMW with two decimals', () {
-      expect(Money.format(1000), 'ZMW 10.00');
-      expect(Money.format(135000), 'ZMW 1,350.00');
-      expect(Money.format(75), 'ZMW 0.75');
-      expect(Money.format(0), 'ZMW 0.00');
+    test('uses the K symbol with no space, and always shows ngwee', () {
+      expect(Money.format(1000), 'K10.00');
+      expect(Money.format(135000), 'K1,350.00');
+      expect(Money.format(75), 'K0.75');
+      expect(Money.format(0), 'K0.00');
     });
 
-    test('keeps the sign outside the currency code', () {
-      expect(Money.format(-1000), '-ZMW 10.00');
+    test('groups thousands', () {
+      expect(Money.format(1248000), 'K12,480.00');
+    });
+
+    test('signs a negative with a true minus, not a hyphen', () {
+      expect(Money.format(-1000), '−K10.00');
+      expect(Money.format(-1000).contains('-'), isFalse);
+    });
+
+    test('names a foreign currency instead of showing a bare K', () {
+      expect(Money.format(135000, currency: 'USD'), 'USD 1,350.00');
+    });
+  });
+
+  group('signed', () {
+    test('marks direction explicitly rather than reading the sign', () {
+      expect(Money.signed(8900, isInflow: false), '−K89.00');
+      expect(Money.signed(300000, isInflow: true), '+K3,000.00');
+    });
+
+    test('signs off the direction, not the stored magnitude', () {
+      // The ledger stores every amount as a positive magnitude with a
+      // separate direction column, so an outflow is still positive here.
+      expect(Money.signed(8900, isInflow: false), startsWith(Money.minus));
+    });
+  });
+
+  group('compact', () {
+    test('drops ngwee and abbreviates for axes and headlines', () {
+      expect(Money.compact(1248000), 'K12.5k');
+      expect(Money.compact(99900), 'K999');
+      expect(Money.compact(250000000), 'K2.5m');
+      expect(Money.compact(0), 'K0');
+    });
+
+    test('keeps the true minus', () {
+      expect(Money.compact(-1248000), '−K12.5k');
+    });
+  });
+
+  group('withIsoCode', () {
+    test('is the only form that shows ZMW', () {
+      expect(Money.withIsoCode(135000), 'ZMW 1,350.00');
     });
   });
 
@@ -60,10 +101,10 @@ void main() {
     // Formatting adds thousands separators, so compare against the
     // grouped form rather than the raw input.
     const cases = {
-      '10.00': 'ZMW 10.00',
-      '1,350.00': 'ZMW 1,350.00',
-      '0.75': 'ZMW 0.75',
-      '999999.99': 'ZMW 999,999.99',
+      '10.00': 'K10.00',
+      '1,350.00': 'K1,350.00',
+      '0.75': 'K0.75',
+      '999999.99': 'K999,999.99',
     };
     cases.forEach((input, expected) {
       expect(Money.format(Money.tryParseToMinor(input)!), expected);

@@ -191,7 +191,7 @@ class _OverallBudgetEditorSheetState extends State<OverallBudgetEditorSheet> {
             controller: _amountController,
             decoration: InputDecoration(
               labelText: 'Monthly budget',
-              prefixText: 'ZMW ',
+              prefixText: 'K',
               errorText: _error,
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
