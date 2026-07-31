@@ -193,9 +193,11 @@ class CaptureService {
           idempotencyKey: idempotencyKey,
           rawCaptureId: raw.id,
         );
-        if (draft.balanceMinor != null) {
-          await _accounts.updateBalance(account.id, draft.balanceMinor!);
-        }
+        // draft.balanceMinor (the provider's stated balance, if the
+        // message included one) is deliberately not applied here — SMS
+        // delivery isn't reliable enough to treat as ground truth. The
+        // account's balance is computed from its transaction ledger
+        // instead (AccountRepository.watchComputedBalances).
         return IngestResult(
           IngestStatus.saved,
           rawCapture: raw,

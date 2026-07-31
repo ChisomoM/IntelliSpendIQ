@@ -16,15 +16,20 @@ class AccountsCubit extends Cubit<AccountsState> {
 
   final AccountRepository _accounts;
   StreamSubscription<List<Account>>? _subscription;
+  StreamSubscription<Map<String, int>>? _balanceSubscription;
 
   void loadUnawaited() => unawaited(load());
 
   Future<void> load() async {
     emit(state.copyWith(status: AccountsStatus.loading));
     await _subscription?.cancel();
+    await _balanceSubscription?.cancel();
     _subscription = _accounts.watchAll().listen(
       (rows) =>
           emit(state.copyWith(status: AccountsStatus.loaded, accounts: rows)),
+    );
+    _balanceSubscription = _accounts.watchComputedBalances().listen(
+      (balances) => emit(state.copyWith(computedBalances: balances)),
     );
   }
 
@@ -80,6 +85,7 @@ class AccountsCubit extends Cubit<AccountsState> {
   @override
   Future<void> close() async {
     await _subscription?.cancel();
+    await _balanceSubscription?.cancel();
     return super.close();
   }
 }

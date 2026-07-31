@@ -98,7 +98,7 @@ class AccountsView extends StatelessWidget {
                         Money.format(
                           entry.value.fold(
                             0,
-                            (sum, a) => sum + (a.balanceMinor ?? 0),
+                            (sum, a) => sum + state.balanceFor(a.id),
                           ),
                         ),
                         style: theme.textTheme.titleSmall,
@@ -107,7 +107,10 @@ class AccountsView extends StatelessWidget {
                   ),
                 ),
                 for (final account in entry.value)
-                  AccountTile(account: account),
+                  AccountTile(
+                    account: account,
+                    balanceMinor: state.balanceFor(account.id),
+                  ),
                 const Divider(height: 1),
               ],
               const SizedBox(height: 80),

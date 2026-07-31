@@ -21,9 +21,17 @@ IconData accountTypeIcon(AccountType type) => switch (type) {
 };
 
 class AccountTile extends StatelessWidget {
-  const AccountTile({required this.account, super.key});
+  const AccountTile({
+    required this.account,
+    required this.balanceMinor,
+    super.key,
+  });
 
   final Account account;
+
+  /// The account's live computed balance — see
+  /// `AccountRepository.watchComputedBalances`.
+  final int balanceMinor;
 
   @override
   Widget build(BuildContext context) {
@@ -31,9 +39,8 @@ class AccountTile extends StatelessWidget {
       leading: CircleAvatar(child: Icon(accountTypeIcon(account.type))),
       title: Text(account.name),
       subtitle: Text(
-        account.balanceMinor == null
-            ? accountTypeLabel(account.type)
-            : '${accountTypeLabel(account.type)} · ${Money.format(account.balanceMinor!, currency: account.currency)}',
+        '${accountTypeLabel(account.type)} · '
+        '${Money.format(balanceMinor, currency: account.currency)}',
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -51,7 +58,11 @@ class AccountTile extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Edit balance',
-            onPressed: () => BalanceEditorSheet.show(context, account: account),
+            onPressed: () => BalanceEditorSheet.show(
+              context,
+              account: account,
+              currentBalanceMinor: balanceMinor,
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
@@ -181,22 +192,34 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
   }
 }
 
-/// Sets an account's balance by hand — the same figure SMS parsing
-/// keeps current automatically, but editable directly for an account
-/// with no linked provider, or just to correct it.
+/// Sets a new balance checkpoint by hand. Everything logged after this
+/// point — SMS, manual, voice, transfers alike — adds on top of
+/// whatever figure is entered here; nothing resets it automatically.
 class BalanceEditorSheet extends StatefulWidget {
-  const BalanceEditorSheet({required this.account, super.key});
+  const BalanceEditorSheet({
+    required this.account,
+    required this.currentBalanceMinor,
+    super.key,
+  });
 
   final Account account;
+  final int currentBalanceMinor;
 
-  static Future<void> show(BuildContext context, {required Account account}) {
+  static Future<void> show(
+    BuildContext context, {
+    required Account account,
+    required int currentBalanceMinor,
+  }) {
     final cubit = context.read<AccountsCubit>();
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => BlocProvider.value(
         value: cubit,
-        child: BalanceEditorSheet(account: account),
+        child: BalanceEditorSheet(
+          account: account,
+          currentBalanceMinor: currentBalanceMinor,
+        ),
       ),
     );
   }
@@ -207,9 +230,7 @@ class BalanceEditorSheet extends StatefulWidget {
 
 class _BalanceEditorSheetState extends State<BalanceEditorSheet> {
   late final TextEditingController _amountController = TextEditingController(
-    text: widget.account.balanceMinor == null
-        ? ''
-        : (widget.account.balanceMinor! / 100).toStringAsFixed(2),
+    text: (widget.currentBalanceMinor / 100).toStringAsFixed(2),
   );
   String? _error;
 

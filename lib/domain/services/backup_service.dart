@@ -305,6 +305,7 @@ class BackupService {
     'isDefault': account.isDefault,
     'providerKey': account.providerKey,
     'balanceMinor': account.balanceMinor,
+    'balanceAsOf': account.balanceAsOf?.toIso8601String(),
   };
 
   Account _accountFromJson(Map<String, Object?> json) => Account(
@@ -315,6 +316,9 @@ class BackupService {
     isDefault: json['isDefault'] as bool? ?? false,
     providerKey: json['providerKey'] as String?,
     balanceMinor: json['balanceMinor'] as int?,
+    balanceAsOf: json['balanceAsOf'] == null
+        ? null
+        : DateTime.parse(json['balanceAsOf']! as String),
   );
 
   Map<String, Object?> _categoryToJson(Category category) => {

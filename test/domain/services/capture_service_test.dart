@@ -40,16 +40,34 @@ void main() {
       expect(result.transaction!.rawCaptureId, raw.id);
     });
 
-    test('updates the account balance reported by the message', () async {
-      await services.captureService.ingest(
-        Corpus.capture(Corpus.paymentTillNamed),
-      );
+    test(
+      'does not treat the balance reported by the message as ground '
+      'truth — SMS delivery is not reliable enough for that',
+      () async {
+        await services.captureService.ingest(
+          Corpus.capture(Corpus.paymentTillNamed),
+        );
 
-      final account = await services.accounts.findOrCreateForProvider(
-        AirtelMoneyParser.providerKey,
-      );
-      expect(account.balanceMinor, 4523);
-    });
+        final account = await services.accounts.findOrCreateForProvider(
+          AirtelMoneyParser.providerKey,
+        );
+        expect(
+          account.balanceMinor,
+          isNull,
+          reason: 'balanceMinor is a manual checkpoint only, never SMS-set',
+        );
+
+        final computed = await services.accounts.watchComputedBalances().first;
+        expect(
+          computed[account.id],
+          -1000,
+          reason:
+              'with no checkpoint set, the computed balance is just the '
+              'ledger from account creation — one confirmed debit of '
+              '10.00 kwacha',
+        );
+      },
+    );
 
     test('creates the StanChart account on its first parsed message', () async {
       final before = await services.accounts.getAll();

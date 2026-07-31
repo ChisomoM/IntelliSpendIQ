@@ -28,8 +28,17 @@ class Accounts extends SyncedTable {
   /// e.g. `airtel_money` | `stan_chart`.
   TextColumn get providerKey => text().nullable()();
 
-  /// Cached balance from the latest provider SMS, informational only.
+  /// A manually-set balance checkpoint, in ngwee. SMS delivery isn't
+  /// reliable enough to treat a reported balance as ground truth, so
+  /// this only moves when the user explicitly sets it — the app's
+  /// displayed balance is this figure plus every transaction/transfer
+  /// recorded against the account since [balanceAsOf].
   IntColumn get balanceMinor => integer().nullable()();
+
+  /// When [balanceMinor] was set. Null means no checkpoint has ever
+  /// been set, so the displayed balance sums the account's entire
+  /// transaction history instead.
+  TextColumn get balanceAsOf => text().nullable()();
 }
 
 @DataClassName('CategoryRow')

@@ -26,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -55,6 +55,18 @@ class AppDatabase extends _$AppDatabase {
       if (from < 6) {
         await m.addColumn(transactions, transactions.transferDismissedAt);
         await m.createTable(transfers);
+      }
+      if (from < 7) {
+        await m.addColumn(accounts, accounts.balanceAsOf);
+        // Any account with an existing cached balance already reflects
+        // every transaction recorded up to now — anchoring it to the
+        // present moment (rather than leaving it null, which would
+        // default to the account's creation date) stops that history
+        // from being summed a second time on top of it.
+        await customStatement(
+          'UPDATE accounts SET balance_as_of = ? WHERE balance_minor IS NOT NULL',
+          [Variable.withString(Iso.nowUtc())],
+        );
       }
     },
     beforeOpen: (details) async {

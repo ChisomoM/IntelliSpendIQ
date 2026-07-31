@@ -127,6 +127,17 @@ class $AccountsTable extends Accounts
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _balanceAsOfMeta = const VerificationMeta(
+    'balanceAsOf',
+  );
+  @override
+  late final GeneratedColumn<String> balanceAsOf = GeneratedColumn<String>(
+    'balance_as_of',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -140,6 +151,7 @@ class $AccountsTable extends Accounts
     isDefault,
     providerKey,
     balanceMinor,
+    balanceAsOf,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -234,6 +246,15 @@ class $AccountsTable extends Accounts
         ),
       );
     }
+    if (data.containsKey('balance_as_of')) {
+      context.handle(
+        _balanceAsOfMeta,
+        balanceAsOf.isAcceptableOrUnknown(
+          data['balance_as_of']!,
+          _balanceAsOfMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -287,6 +308,10 @@ class $AccountsTable extends Accounts
         DriftSqlType.int,
         data['${effectivePrefix}balance_minor'],
       ),
+      balanceAsOf: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}balance_as_of'],
+      ),
     );
   }
 
@@ -313,8 +338,17 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
   /// e.g. `airtel_money` | `stan_chart`.
   final String? providerKey;
 
-  /// Cached balance from the latest provider SMS, informational only.
+  /// A manually-set balance checkpoint, in ngwee. SMS delivery isn't
+  /// reliable enough to treat a reported balance as ground truth, so
+  /// this only moves when the user explicitly sets it — the app's
+  /// displayed balance is this figure plus every transaction/transfer
+  /// recorded against the account since [balanceAsOf].
   final int? balanceMinor;
+
+  /// When [balanceMinor] was set. Null means no checkpoint has ever
+  /// been set, so the displayed balance sums the account's entire
+  /// history from [SyncedTable.createdAt] instead.
+  final String? balanceAsOf;
   const AccountRow({
     required this.id,
     required this.userId,
@@ -327,6 +361,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     required this.isDefault,
     this.providerKey,
     this.balanceMinor,
+    this.balanceAsOf,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -347,6 +382,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     }
     if (!nullToAbsent || balanceMinor != null) {
       map['balance_minor'] = Variable<int>(balanceMinor);
+    }
+    if (!nullToAbsent || balanceAsOf != null) {
+      map['balance_as_of'] = Variable<String>(balanceAsOf);
     }
     return map;
   }
@@ -370,6 +408,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       balanceMinor: balanceMinor == null && nullToAbsent
           ? const Value.absent()
           : Value(balanceMinor),
+      balanceAsOf: balanceAsOf == null && nullToAbsent
+          ? const Value.absent()
+          : Value(balanceAsOf),
     );
   }
 
@@ -390,6 +431,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       isDefault: serializer.fromJson<bool>(json['isDefault']),
       providerKey: serializer.fromJson<String?>(json['providerKey']),
       balanceMinor: serializer.fromJson<int?>(json['balanceMinor']),
+      balanceAsOf: serializer.fromJson<String?>(json['balanceAsOf']),
     );
   }
   @override
@@ -407,6 +449,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       'isDefault': serializer.toJson<bool>(isDefault),
       'providerKey': serializer.toJson<String?>(providerKey),
       'balanceMinor': serializer.toJson<int?>(balanceMinor),
+      'balanceAsOf': serializer.toJson<String?>(balanceAsOf),
     };
   }
 
@@ -422,6 +465,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     bool? isDefault,
     Value<String?> providerKey = const Value.absent(),
     Value<int?> balanceMinor = const Value.absent(),
+    Value<String?> balanceAsOf = const Value.absent(),
   }) => AccountRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -434,6 +478,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     isDefault: isDefault ?? this.isDefault,
     providerKey: providerKey.present ? providerKey.value : this.providerKey,
     balanceMinor: balanceMinor.present ? balanceMinor.value : this.balanceMinor,
+    balanceAsOf: balanceAsOf.present ? balanceAsOf.value : this.balanceAsOf,
   );
   AccountRow copyWithCompanion(AccountsCompanion data) {
     return AccountRow(
@@ -452,6 +497,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       balanceMinor: data.balanceMinor.present
           ? data.balanceMinor.value
           : this.balanceMinor,
+      balanceAsOf: data.balanceAsOf.present
+          ? data.balanceAsOf.value
+          : this.balanceAsOf,
     );
   }
 
@@ -468,7 +516,8 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
           ..write('currency: $currency, ')
           ..write('isDefault: $isDefault, ')
           ..write('providerKey: $providerKey, ')
-          ..write('balanceMinor: $balanceMinor')
+          ..write('balanceMinor: $balanceMinor, ')
+          ..write('balanceAsOf: $balanceAsOf')
           ..write(')'))
         .toString();
   }
@@ -486,6 +535,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     isDefault,
     providerKey,
     balanceMinor,
+    balanceAsOf,
   );
   @override
   bool operator ==(Object other) =>
@@ -501,7 +551,8 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
           other.currency == this.currency &&
           other.isDefault == this.isDefault &&
           other.providerKey == this.providerKey &&
-          other.balanceMinor == this.balanceMinor);
+          other.balanceMinor == this.balanceMinor &&
+          other.balanceAsOf == this.balanceAsOf);
 }
 
 class AccountsCompanion extends UpdateCompanion<AccountRow> {
@@ -516,6 +567,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
   final Value<bool> isDefault;
   final Value<String?> providerKey;
   final Value<int?> balanceMinor;
+  final Value<String?> balanceAsOf;
   final Value<int> rowid;
   const AccountsCompanion({
     this.id = const Value.absent(),
@@ -529,6 +581,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     this.isDefault = const Value.absent(),
     this.providerKey = const Value.absent(),
     this.balanceMinor = const Value.absent(),
+    this.balanceAsOf = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsCompanion.insert({
@@ -543,6 +596,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     this.isDefault = const Value.absent(),
     this.providerKey = const Value.absent(),
     this.balanceMinor = const Value.absent(),
+    this.balanceAsOf = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -562,6 +616,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     Expression<bool>? isDefault,
     Expression<String>? providerKey,
     Expression<int>? balanceMinor,
+    Expression<String>? balanceAsOf,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -576,6 +631,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
       if (isDefault != null) 'is_default': isDefault,
       if (providerKey != null) 'provider_key': providerKey,
       if (balanceMinor != null) 'balance_minor': balanceMinor,
+      if (balanceAsOf != null) 'balance_as_of': balanceAsOf,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -592,6 +648,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     Value<bool>? isDefault,
     Value<String?>? providerKey,
     Value<int?>? balanceMinor,
+    Value<String?>? balanceAsOf,
     Value<int>? rowid,
   }) {
     return AccountsCompanion(
@@ -606,6 +663,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
       isDefault: isDefault ?? this.isDefault,
       providerKey: providerKey ?? this.providerKey,
       balanceMinor: balanceMinor ?? this.balanceMinor,
+      balanceAsOf: balanceAsOf ?? this.balanceAsOf,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -646,6 +704,9 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     if (balanceMinor.present) {
       map['balance_minor'] = Variable<int>(balanceMinor.value);
     }
+    if (balanceAsOf.present) {
+      map['balance_as_of'] = Variable<String>(balanceAsOf.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -666,6 +727,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
           ..write('isDefault: $isDefault, ')
           ..write('providerKey: $providerKey, ')
           ..write('balanceMinor: $balanceMinor, ')
+          ..write('balanceAsOf: $balanceAsOf, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6915,6 +6977,7 @@ typedef $$AccountsTableCreateCompanionBuilder =
       Value<bool> isDefault,
       Value<String?> providerKey,
       Value<int?> balanceMinor,
+      Value<String?> balanceAsOf,
       Value<int> rowid,
     });
 typedef $$AccountsTableUpdateCompanionBuilder =
@@ -6930,6 +6993,7 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<bool> isDefault,
       Value<String?> providerKey,
       Value<int?> balanceMinor,
+      Value<String?> balanceAsOf,
       Value<int> rowid,
     });
 
@@ -6994,6 +7058,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<int> get balanceMinor => $composableBuilder(
     column: $table.balanceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get balanceAsOf => $composableBuilder(
+    column: $table.balanceAsOf,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7061,6 +7130,11 @@ class $$AccountsTableOrderingComposer
     column: $table.balanceMinor,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get balanceAsOf => $composableBuilder(
+    column: $table.balanceAsOf,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -7108,6 +7182,11 @@ class $$AccountsTableAnnotationComposer
     column: $table.balanceMinor,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get balanceAsOf => $composableBuilder(
+    column: $table.balanceAsOf,
+    builder: (column) => column,
+  );
 }
 
 class $$AccountsTableTableManager
@@ -7152,6 +7231,7 @@ class $$AccountsTableTableManager
                 Value<bool> isDefault = const Value.absent(),
                 Value<String?> providerKey = const Value.absent(),
                 Value<int?> balanceMinor = const Value.absent(),
+                Value<String?> balanceAsOf = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
@@ -7165,6 +7245,7 @@ class $$AccountsTableTableManager
                 isDefault: isDefault,
                 providerKey: providerKey,
                 balanceMinor: balanceMinor,
+                balanceAsOf: balanceAsOf,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7180,6 +7261,7 @@ class $$AccountsTableTableManager
                 Value<bool> isDefault = const Value.absent(),
                 Value<String?> providerKey = const Value.absent(),
                 Value<int?> balanceMinor = const Value.absent(),
+                Value<String?> balanceAsOf = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
@@ -7193,6 +7275,7 @@ class $$AccountsTableTableManager
                 isDefault: isDefault,
                 providerKey: providerKey,
                 balanceMinor: balanceMinor,
+                balanceAsOf: balanceAsOf,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
