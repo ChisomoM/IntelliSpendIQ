@@ -62,6 +62,17 @@ abstract final class AppIcons {
   static const senders = HugeIcons.strokeRoundedSmartPhone01;
   static const share = HugeIcons.strokeRoundedShare08;
 
+  // Account types.
+  static const accountCash = HugeIcons.strokeRoundedCash01;
+  static const accountBank = HugeIcons.strokeRoundedBank;
+  static const accountMobileMoney = HugeIcons.strokeRoundedSmartPhone01;
+  static const accountCard = HugeIcons.strokeRoundedCreditCard;
+
+  // Empty / zero states.
+  static const inbox = HugeIcons.strokeRoundedNotification03;
+  static const emptyWallet = HugeIcons.strokeRoundedWallet01;
+  static const emptyActivity = HugeIcons.strokeRoundedTransactionHistory;
+
   // Fallback for an unrecognised category icon key.
   static const unknown = HugeIcons.strokeRoundedHelpCircle;
 }

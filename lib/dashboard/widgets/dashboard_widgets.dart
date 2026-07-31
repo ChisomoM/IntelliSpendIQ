@@ -1,15 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/dashboard/cubit/cubit.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
-import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/models/account.dart';
+import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
-import 'package:intellispendiq/transactions/widgets/widgets.dart';
+import 'package:intl/intl.dart';
+
+/// Wordmark, review entry, and settings — the persistent chrome at the
+/// top of Home. Review's badge lives here rather than on the Home tab
+/// icon, where it used to point at a destination that was not the
+/// inbox.
+class DashboardHeader extends StatelessWidget {
+  const DashboardHeader({
+    required this.pendingReviewCount,
+    required this.onOpenReview,
+    required this.onOpenSettings,
+    super.key,
+  });
+
+  final int pendingReviewCount;
+  final VoidCallback onOpenReview;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Wordmark(size: 22)),
+        IconButton(
+          onPressed: onOpenReview,
+          tooltip: pendingReviewCount == 0
+              ? 'Review inbox'
+              : '$pendingReviewCount waiting in the review inbox',
+          icon: Badge(
+            // Counts above 99 would push the badge wider than the icon
+            // it sits on; the exact number stops mattering long before
+            // that and the banner below carries it in full anyway.
+            label: Text(pendingReviewCount > 99 ? '99+' : '$pendingReviewCount'),
+            isLabelVisible: pendingReviewCount > 0,
+            child: AppIcon(AppIcons.bell),
+          ),
+        ),
+        IconButton(
+          onPressed: onOpenSettings,
+          tooltip: 'Settings',
+          icon: AppIcon(AppIcons.settings),
+        ),
+      ],
+    );
+  }
+}
 
 class GreetingHeader extends StatelessWidget {
-  const GreetingHeader({required this.periodLabel, super.key});
+  const GreetingHeader({
+    required this.periodLabel,
+    required this.isCurrentPeriod,
+    super.key,
+  });
 
-  /// Budget period label, e.g. `01/07/2026 – 31/07/2026`.
+  /// Human-readable window, e.g. `1 – 31 Jul`.
   final String periodLabel;
+
+  /// Whether [periodLabel] covers today, which decides the tense.
+  final bool isCurrentPeriod;
 
   String get _greeting => switch (DateTime.now().hour) {
     < 12 => 'Good morning',
@@ -19,17 +74,224 @@ class GreetingHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    // The stored period label is machine output (`01/07/2026 –
+    // 31/07/2026`) and used to be dropped straight into this sentence.
+    final subtitle = periodLabel.isEmpty
+        ? "Here's how your money is doing"
+        : isCurrentPeriod
+        ? "Here's how $periodLabel is going"
+        : "Here's how $periodLabel went";
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_greeting, style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 2),
+        Text(_greeting, style: AppTypography.screenTitle(color: colors.onSurface)),
+        const SizedBox(height: 4),
         Text(
-          periodLabel.isEmpty
-              ? 'Here is how this period is looking'
-              : 'Here is how $periodLabel is looking',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          subtitle,
+          style: AppTypography.body(color: colors.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+}
+
+/// Spend for the period against whatever it is measured against, on a
+/// dark card in both themes — the one place cyan/violet-300 are allowed
+/// as a fill, because the surface under them is dark either way.
+class SpendHeroCard extends StatelessWidget {
+  const SpendHeroCard({
+    required this.totalSpent,
+    required this.planMinor,
+    required this.planSource,
+    required this.planRatio,
+    required this.isOverPlan,
+    required this.daysLeft,
+    required this.isCurrentPeriod,
+    required this.onTap,
+    super.key,
+  });
+
+  final int totalSpent;
+  final int? planMinor;
+  final PlanSource planSource;
+  final double planRatio;
+  final bool isOverPlan;
+  final int daysLeft;
+  final bool isCurrentPeriod;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? AppColors.night800 : AppColors.ink900;
+    const onSurface = AppColors.nightText;
+    const onSurfaceMuted = AppColors.nightText2;
+    // This card is dark in both themes, so it takes the dark-mode
+    // money colours regardless of brightness rather than reading
+    // MoneyColors — light mode's outflow (#B91C1C) on an ink900 card
+    // would be a dark red on near-black.
+    const overColor = AppColors.outflowD;
+
+    return Material(
+      color: surface,
+      borderRadius: Radii.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(Space.cardPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'SPENT THIS PERIOD',
+                style: AppTypography.chipOverline(color: onSurfaceMuted),
+              ),
+              const SizedBox(height: Space.x1),
+              MoneyText(
+                totalSpent,
+                size: MoneySize.display,
+                color: onSurface,
+              ),
+              if (planMinor != null) ...[
+                const SizedBox(height: Space.x2),
+                ProgressMeter(
+                  value: planRatio,
+                  isOver: isOverPlan,
+                  onDarkSurface: true,
+                ),
+                const SizedBox(height: Space.x1),
+                // Colour never stands alone: the overspend is stated in
+                // words as well as carried by the meter's hue.
+                Text(
+                  _planSentence(),
+                  style: AppTypography.metadata(
+                    color: isOverPlan ? overColor : onSurfaceMuted,
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: Space.x1),
+                Text(
+                  'Set a budget to track this against a plan.',
+                  style: AppTypography.metadata(color: onSurfaceMuted),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _planSentence() {
+    final plan = planMinor!;
+    final source = planSource == PlanSource.income ? 'income' : 'budget';
+    final tail = isCurrentPeriod
+        ? ', ${daysLeft == 1 ? '1 day' : '$daysLeft days'} left'
+        : '';
+
+    if (isOverPlan) {
+      return '${Money.display(totalSpent - plan)} over $source$tail';
+    }
+    return '${Money.display(plan - totalSpent)} left of '
+        '${Money.display(plan)} $source$tail';
+  }
+}
+
+/// Every account's ledger-derived balance, scrolled horizontally. Was
+/// three taps deep under Settings before this.
+class AccountBalanceStrip extends StatelessWidget {
+  const AccountBalanceStrip({
+    required this.accounts,
+    required this.balances,
+    required this.onOpenAccounts,
+    super.key,
+  });
+
+  final List<Account> accounts;
+  final Map<String, int> balances;
+  final VoidCallback onOpenAccounts;
+
+  static List<List<dynamic>> _iconFor(AccountType type) => switch (type) {
+    AccountType.cash => AppIcons.accountCash,
+    AccountType.bank => AppIcons.accountBank,
+    AccountType.mobileMoney => AppIcons.accountMobileMoney,
+    AccountType.card => AppIcons.accountCard,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    if (accounts.isEmpty) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+
+    // A horizontal list needs a bound height, so it has to be derived
+    // rather than left to the content: card padding + icon + gaps,
+    // plus the two text lines at whatever the system font scale is.
+    // A fixed height would clip the balance at large scales.
+    final textScaler = MediaQuery.textScalerOf(context);
+    final stripHeight =
+        Space.cardPadding * 2 +
+        20 +
+        Space.x1 +
+        2 +
+        textScaler.scale(18) +
+        textScaler.scale(22);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Accounts',
+          action: 'Manage',
+          onActionTap: onOpenAccounts,
+        ),
+        SizedBox(
+          height: stripHeight,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: accounts.length,
+            separatorBuilder: (_, _) => const SizedBox(width: Space.x1),
+            itemBuilder: (context, index) {
+              final account = accounts[index];
+              final balance = balances[account.id] ?? 0;
+
+              return SizedBox(
+                width: 168,
+                child: AppCard(
+                  onTap: onOpenAccounts,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppIcon(
+                        _iconFor(account.type),
+                        size: 20,
+                        color: colors.secondary,
+                      ),
+                      const SizedBox(height: Space.x1),
+                      Text(
+                        account.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.metadata(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      // A negative balance is real — an overdrawn
+                      // account, or spend logged against an account
+                      // whose opening balance was never set — so it
+                      // renders as a true minus rather than being
+                      // clamped to zero.
+                      MoneyText(balance),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -37,165 +299,81 @@ class GreetingHeader extends StatelessWidget {
   }
 }
 
-/// Read-only spend-vs-income summary. Tapping opens Budgets, which
-/// owns the actual income figure and its editor.
-class IncomeOverviewCard extends StatelessWidget {
-  const IncomeOverviewCard({
-    required this.hasIncome,
-    required this.incomeMinor,
-    required this.totalSpent,
-    required this.onTap,
-    this.periodLabel = '',
-    this.incomeCategories = const [],
-    super.key,
-  });
-
-  final bool hasIncome;
-  final int incomeMinor;
-  final int totalSpent;
-  final VoidCallback onTap;
-  final String periodLabel;
-  final List<Category> incomeCategories;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    if (!hasIncome) {
-      return Card(
-        child: ListTile(
-          leading: const Icon(Icons.payments_outlined),
-          title: const Text('Add income sources for this period'),
-          subtitle: const Text(
-            'Track spend against salary, side hustles, and more.',
-          ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: onTap,
-        ),
-      );
-    }
-
-    final ratio = incomeMinor == 0 ? 0.0 : totalSpent / incomeMinor;
-    final over = totalSpent > incomeMinor;
-
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      periodLabel.isEmpty ? 'This period' : periodLabel,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: ratio.clamp(0.0, 1.0),
-                color: over ? theme.colorScheme.error : null,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${Money.format(totalSpent)} spent of ${Money.format(incomeMinor)}'
-                '${over ? ' · over by ${Money.format(totalSpent - incomeMinor)}' : ' · ${Money.format(incomeMinor - totalSpent)} left'}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: over ? theme.colorScheme.error : null,
-                ),
-              ),
-              if (incomeCategories.length > 1) ...[
-                const SizedBox(height: 12),
-                for (final category in incomeCategories)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            category.displayName,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          Money.format(category.budgetedAmountMinor!),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class TopCategoriesCard extends StatelessWidget {
   const TopCategoriesCard({
     required this.categories,
+    required this.categoryIcons,
     required this.onSeeAll,
     super.key,
   });
 
   final List<CategorySpend> categories;
+  final Map<String, String?> categoryIcons;
   final VoidCallback onSeeAll;
 
   @override
   Widget build(BuildContext context) {
     if (categories.isEmpty) return const SizedBox.shrink();
-    final theme = Theme.of(context);
+    final colors = Theme.of(context).colorScheme;
     final largest = categories.first.spentMinor;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Top categories',
-                    style: theme.textTheme.titleSmall,
-                  ),
-                ),
-                TextButton(onPressed: onSeeAll, child: const Text('See all')),
-              ],
-            ),
-            for (final category in categories) ...[
-              const SizedBox(height: 8),
-              Text(category.categoryName, style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 4),
-              LinearProgressIndicator(
-                value: largest == 0 ? 0 : category.spentMinor / largest,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                Money.format(category.spentMinor),
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Top categories',
+          action: 'See all',
+          onActionTap: onSeeAll,
         ),
-      ),
+        AppCard(
+          child: Column(
+            children: [
+              for (final (index, category) in categories.indexed) ...[
+                if (index > 0) const SizedBox(height: Space.x2),
+                Row(
+                  children: [
+                    CategoryAvatar(
+                      iconKey: categoryIcons[category.categoryId],
+                      size: 32,
+                    ),
+                    const SizedBox(width: Space.x1),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  category.categoryName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.rowTitle(
+                                    color: colors.onSurface,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: Space.x1),
+                              MoneyText(category.spentMinor, size: MoneySize.meta),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          ProgressMeter(
+                            value: largest == 0
+                                ? 0
+                                : category.spentMinor / largest,
+                            height: 6,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -203,43 +381,78 @@ class TopCategoriesCard extends StatelessWidget {
 class RecentActivityCard extends StatelessWidget {
   const RecentActivityCard({
     required this.transactions,
+    required this.categoryIcons,
     required this.onSeeAll,
+    required this.onOpenTransaction,
     super.key,
   });
 
   final List<Transaction> transactions;
+  final Map<String, String?> categoryIcons;
   final VoidCallback onSeeAll;
+  final ValueChanged<Transaction> onOpenTransaction;
+
+  static final _timeFormat = DateFormat('d MMM, HH:mm');
 
   @override
   Widget build(BuildContext context) {
     if (transactions.isEmpty) return const SizedBox.shrink();
+    final money = Theme.of(context).extension<MoneyColors>()!;
 
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 8, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Recent activity',
-                    style: Theme.of(context).textTheme.titleSmall,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Recent activity',
+          action: 'See all',
+          onActionTap: onSeeAll,
+        ),
+        AppCard(
+          padding: const EdgeInsets.symmetric(vertical: Space.x1),
+          child: Column(
+            children: [
+              for (final transaction in transactions)
+                AppListRow(
+                  leading: CategoryAvatar(
+                    iconKey: categoryIcons[transaction.categoryId],
+                    size: 36,
                   ),
+                  title: Text(
+                    transaction.merchant?.isNotEmpty ?? false
+                        ? transaction.merchant!
+                        : 'Unknown',
+                  ),
+                  subtitle: Text(
+                    _subtitleFor(transaction),
+                    style: transaction.status == TxStatus.confirmed
+                        ? null
+                        // An entry the app is unsure of is marked in
+                        // the review colour and named in words — it
+                        // still counts toward the totals above, so
+                        // silence here would overstate confidence.
+                        : AppTypography.metadata(color: money.review),
+                  ),
+                  trailing: MoneyText.signed(
+                    transaction.amountMinor,
+                    isInflow: transaction.direction == TxDirection.credit,
+                  ),
+                  onTap: () => onOpenTransaction(transaction),
                 ),
-                TextButton(
-                  onPressed: onSeeAll,
-                  child: const Text('See all'),
-                ),
-              ],
-            ),
+            ],
           ),
-          for (final transaction in transactions)
-            TransactionTile(transaction: transaction),
-        ],
-      ),
+        ),
+      ],
     );
+  }
+
+  String _subtitleFor(Transaction transaction) {
+    final time = _timeFormat.format(transaction.transactedAt.toLocal());
+    return switch (transaction.status) {
+      TxStatus.confirmed => time,
+      TxStatus.needsReview => '$time · needs a detail',
+      TxStatus.duplicateSuspect => '$time · possible duplicate',
+      TxStatus.planned => '$time · planned',
+    };
   }
 }
 
@@ -255,106 +468,114 @@ class ReviewBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (count == 0) return const SizedBox.shrink();
-    final theme = Theme.of(context);
+    final colors = Theme.of(context).colorScheme;
 
-    return Card(
-      color: theme.colorScheme.tertiaryContainer,
-      child: ListTile(
-        leading: Icon(
-          Icons.inbox_outlined,
-          color: theme.colorScheme.onTertiaryContainer,
-        ),
-        title: Text(
-          count == 1 ? '1 item needs a look' : '$count items need a look',
-          style: TextStyle(color: theme.colorScheme.onTertiaryContainer),
-        ),
-        subtitle: Text(
-          'Duplicates, low-confidence entries, and unparsed messages',
-          style: TextStyle(color: theme.colorScheme.onTertiaryContainer),
-        ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: theme.colorScheme.onTertiaryContainer,
-        ),
-        onTap: onTap,
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          AppIcon(AppIcons.inbox, color: colors.secondary),
+          const SizedBox(width: Space.x2),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  count == 1 ? '1 entry needs you' : '$count entries need you',
+                  style: AppTypography.rowTitle(color: colors.onSurface),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Duplicates, missing details, and messages we could '
+                  'not read',
+                  style: AppTypography.metadata(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Space.x1),
+          AppIcon(
+            AppIcons.chevronRight,
+            size: 20,
+            color: colors.onSurfaceVariant,
+          ),
+        ],
       ),
     );
   }
 }
 
-class QuickActionsRow extends StatelessWidget {
-  const QuickActionsRow({
-    required this.onAddTransaction,
-    required this.onVoiceEntry,
-    required this.onAskAssistant,
-    super.key,
-  });
+/// Entry point to the assistant, with a few openers so the field is
+/// not a blank prompt. Previously a single unlabelled chip in a row of
+/// three, which is why nobody found it.
+class AssistantPromptCard extends StatelessWidget {
+  const AssistantPromptCard({required this.onAsk, super.key});
 
-  final VoidCallback onAddTransaction;
-  final VoidCallback onVoiceEntry;
-  final VoidCallback onAskAssistant;
+  /// Called with the tapped suggestion, or null for a blank start.
+  final ValueChanged<String?> onAsk;
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.add,
-            label: 'Add',
-            onTap: onAddTransaction,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.mic_none,
-            label: 'Voice',
-            onTap: onVoiceEntry,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.forum_outlined,
-            label: 'Assistant',
-            onTap: onAskAssistant,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+  static const _suggestions = [
+    'Where did I spend most?',
+    "What's left this period?",
+    'How can I save more?',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
+    final colors = Theme.of(context).colorScheme;
+
+    return AppCard(
+      onTap: () => onAsk(null),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Icon(icon, color: theme.colorScheme.primary),
-              const SizedBox(height: 6),
-              Text(label, style: theme.textTheme.labelMedium),
+              AppIcon(AppIcons.assistant, size: 20, color: colors.secondary),
+              const SizedBox(width: Space.x1),
+              Expanded(
+                child: Text(
+                  'Ask about your money',
+                  style: AppTypography.rowTitle(color: colors.onSurface),
+                ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: Space.x1),
+          Wrap(
+            spacing: Space.x1,
+            runSpacing: Space.x1,
+            children: [
+              for (final suggestion in _suggestions)
+                ActionChip(
+                  label: Text(suggestion),
+                  onPressed: () => onAsk(suggestion),
+                ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+}
+
+/// Shown on a first launch, before anything has been captured.
+class DashboardEmptyState extends StatelessWidget {
+  const DashboardEmptyState({required this.onAddTransaction, super.key});
+
+  final VoidCallback onAddTransaction;
+
+  @override
+  Widget build(BuildContext context) {
+    return EmptyState(
+      icon: AppIcons.emptyActivity,
+      title: 'Nothing captured yet',
+      message: 'Messages from your bank and mobile money land here on '
+          'their own. Add one by hand to get started.',
+      actionLabel: 'Add a transaction',
+      onAction: onAddTransaction,
     );
   }
 }

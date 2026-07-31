@@ -8,16 +8,30 @@ import 'package:intellispendiq/domain/models/chat_message.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 
 class ChatPage extends StatelessWidget {
-  const ChatPage({super.key});
+  const ChatPage({this.initialPrompt, super.key});
 
-  static Route<void> route() {
-    return MaterialPageRoute<void>(builder: (_) => const ChatPage());
+  /// Pre-fills the input box, for the suggested openers on Home.
+  ///
+  /// Fills rather than sends: the user still presses send, so a
+  /// mis-tapped suggestion costs nothing and the question can be
+  /// edited first. That also keeps a tap on Home from silently
+  /// spending an API call.
+  final String? initialPrompt;
+
+  static Route<void> route({String? initialPrompt}) {
+    return MaterialPageRoute<void>(
+      builder: (_) => ChatPage(initialPrompt: initialPrompt),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => ChatCubit(context.read<FinanceChatService>()),
+      create: (context) {
+        final cubit = ChatCubit(context.read<FinanceChatService>());
+        if (initialPrompt != null) cubit.draftChanged(initialPrompt!);
+        return cubit;
+      },
       child: const ChatView(),
     );
   }

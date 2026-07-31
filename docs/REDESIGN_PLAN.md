@@ -355,12 +355,33 @@ skipping straight to screens is how the current fragmentation happened.
 **Dependencies:** Phase 1 (items 1, 18).
 **UX improvement:** primary action reachable in 1 tap from anywhere; nothing unreachable.
 
-### Phase 3 — Home dashboard
+### Phase 3 — Home dashboard ✅ *shipped*
 **Objectives:** rebuild as a genuine landing screen — greeting, balance/spend hero, review
 entry, account strip, period summary, top categories, recent activity, assistant prompt.
 **Screens:** `DashboardPage` + `dashboard_widgets.dart` (360 lines, largely replaced).
 **Dependencies:** Phases 1–2.
 **UX improvement:** the answer to "how am I doing" without scrolling or tapping.
+
+Delivered, with three changes worth recording:
+
+- **The spend bar was measuring against the wrong number.** It always used planned income.
+  A user who had set an overall budget saw Budgets honour it and Home ignore it. `planSource`
+  now prefers the period's own budget and falls back to income only when no budget is set —
+  see `PlanSource` in `dashboard_state.dart`.
+- **`StatTile` was not built.** The hero states its position in a sentence
+  ("K240.00 over budget, 9 days left") rather than three tiles, which satisfies the
+  colour-never-alone rule better than a tile row. Budgets already has a private `_StatTile`;
+  Phase 7 lifts that one into the design system, where screenshot 1 actually calls for it.
+- **`ProgressMeter` gained an `onDarkSurface` flag.** The hero card is dark in *both* themes,
+  which is the one case `MoneyColors` cannot express — it is keyed on the theme's brightness,
+  so in light mode it returns `outflow` (#B91C1C), a dark red that disappears against ink900.
+  The flag switches to `outflowD`/`violet300`. The same reasoning already applied to the
+  snackbar theme.
+
+`QuickActionsRow` was removed — the centre FAB has owned Add/Voice since Phase 2, and the
+Assistant now has its own prompt card with three suggested openers. `ChatPage.route` gained
+an `initialPrompt` that fills the input rather than sending, so a mis-tapped suggestion
+costs nothing and never silently spends an API call.
 
 ### Phase 4 — Transaction flows
 **Objectives:** entry becomes a sheet with amount-first keypad; smart defaults for date,
