@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/settings/budget_cadence_labels.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
@@ -52,61 +53,51 @@ class BudgetCycleView extends StatelessWidget {
       builder: (context, state) {
         final schedule = state.schedule;
         final saving = state.status == BudgetCycleStatus.saving;
+        final colors = Theme.of(context).colorScheme;
 
         return Scaffold(
           appBar: AppBar(title: const Text('Budget cycle')),
           body: schedule == null
               ? const Center(child: CircularProgressIndicator())
               : ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    Space.gutter,
+                    Space.x1,
+                    Space.gutter,
+                    Space.x4,
+                  ),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Text(
-                        'Budgets, spending progress, and the home summary '
-                        'follow this cycle. Reports stay on calendar months.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                    Text(
+                      'Budgets, spending progress, and the home summary '
+                      'follow this cycle. Reports stay on calendar months.',
+                      style: AppTypography.body(color: colors.onSurfaceVariant),
                     ),
-                    for (final cadence in _selectable)
-                      ListTile(
-                        enabled: !saving,
-                        title: Text(BudgetCadenceLabels.title(cadence)),
-                        subtitle: Text(BudgetCadenceLabels.subtitle(cadence)),
-                        trailing: cadence == schedule.cadence
-                            ? Icon(
-                                Icons.check,
-                                color: Theme.of(context).colorScheme.primary,
-                              )
-                            : null,
-                        onTap: () => context
-                            .read<BudgetCycleCubit>()
-                            .selectCadence(cadence),
-                      ),
+                    const SizedBox(height: Space.x2),
+                    _CadenceGroup(
+                      cadences: _selectable,
+                      selected: schedule.cadence,
+                      enabled: !saving,
+                      onSelected: (cadence) =>
+                          context.read<BudgetCycleCubit>().selectCadence(cadence),
+                    ),
                     if (schedule.cadence == BudgetCadence.payday) ...[
-                      const Divider(height: 32),
-                      ListTile(
+                      const SizedBox(height: Space.sectionGap),
+                      _DetailGroup(
+                        title: 'Payday day of month',
+                        value: 'Currently the ${schedule.anchorDay ?? 25}',
                         enabled: !saving,
-                        title: const Text('Payday day of month'),
-                        subtitle: Text(
-                          'Currently the ${schedule.anchorDay ?? 25}',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _pickAnchorDay(context, schedule.anchorDay ?? 25),
+                        onTap: () =>
+                            _pickAnchorDay(context, schedule.anchorDay ?? 25),
                       ),
                     ],
                     if (schedule.cadence == BudgetCadence.weekly) ...[
-                      const Divider(height: 32),
-                      ListTile(
-                        enabled: !saving,
-                        title: const Text('Week starts on'),
-                        subtitle: Text(
-                          BudgetCadenceLabels.weekday(
-                            schedule.startWeekday ?? DateTime.monday,
-                          ),
+                      const SizedBox(height: Space.sectionGap),
+                      _DetailGroup(
+                        title: 'Week starts on',
+                        value: BudgetCadenceLabels.weekday(
+                          schedule.startWeekday ?? DateTime.monday,
                         ),
-                        trailing: const Icon(Icons.chevron_right),
+                        enabled: !saving,
                         onTap: () => _pickWeekday(
                           context,
                           schedule.startWeekday ?? DateTime.monday,
@@ -115,23 +106,19 @@ class BudgetCycleView extends StatelessWidget {
                     ],
                     if (schedule.cadence == BudgetCadence.biweekly ||
                         schedule.cadence == BudgetCadence.everyFourWeeks) ...[
-                      const Divider(height: 32),
-                      ListTile(
+                      const SizedBox(height: Space.sectionGap),
+                      _DetailGroup(
+                        title: 'Anchor date',
+                        value: _formatAnchor(schedule.anchorDate) ??
+                            'Pick the start of a known period',
                         enabled: !saving,
-                        title: const Text('Anchor date'),
-                        subtitle: Text(
-                          _formatAnchor(schedule.anchorDate) ??
-                              'Pick the start of a known period',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
                         onTap: () => _pickAnchorDate(context, schedule.anchorDate),
                       ),
                     ],
-                    if (saving)
-                      const Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
+                    if (saving) ...[
+                      const SizedBox(height: Space.x2),
+                      const Center(child: CircularProgressIndicator()),
+                    ],
                   ],
                 ),
         );
@@ -229,5 +216,81 @@ class BudgetCycleView extends StatelessWidget {
       helpText: 'Anchor date (DD/MM/YYYY)',
     );
     if (picked != null) await cubit.setAnchorDate(picked);
+  }
+}
+
+/// Every selectable cadence, grouped into one card with a checkmark on
+/// the active one — the shape Settings' own sections use, so this page
+/// reads as a continuation of it rather than a different screen.
+class _CadenceGroup extends StatelessWidget {
+  const _CadenceGroup({
+    required this.cadences,
+    required this.selected,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  final List<BudgetCadence> cadences;
+  final BudgetCadence selected;
+  final bool enabled;
+  final ValueChanged<BudgetCadence> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var i = 0; i < cadences.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: colors.outlineVariant),
+            AppListRow(
+              title: Text(BudgetCadenceLabels.title(cadences[i])),
+              subtitle: Text(BudgetCadenceLabels.subtitle(cadences[i])),
+              trailing: cadences[i] == selected
+                  ? AppIcon(AppIcons.check, size: 20, color: colors.primary)
+                  : null,
+              onTap: enabled ? () => onSelected(cadences[i]) : null,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One tappable detail row (payday, week start, anchor date) in its own
+/// card, matching the group shape above.
+class _DetailGroup extends StatelessWidget {
+  const _DetailGroup({
+    required this.title,
+    required this.value,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String title;
+  final String value;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: AppListRow(
+        title: Text(title),
+        subtitle: Text(value),
+        trailing: AppIcon(
+          AppIcons.chevronRight,
+          size: 18,
+          color: colors.onSurfaceVariant,
+        ),
+        onTap: enabled ? onTap : null,
+      ),
+    );
   }
 }

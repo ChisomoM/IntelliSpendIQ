@@ -234,7 +234,7 @@ class _BudgetTransferSheetState extends State<BudgetTransferSheet> {
             errorText: _error,
           ),
           const SizedBox(height: Space.x3),
-          FilledButton(onPressed: _transfer, child: const Text('Move')),
+          AppButton.primary(label: 'Move', onPressed: _transfer),
         ],
       ],
     );

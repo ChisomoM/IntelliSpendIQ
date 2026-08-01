@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
-import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/raw_capture.dart';
@@ -12,34 +12,114 @@ import 'package:intellispendiq/review/cubit/cubit.dart';
 import 'package:intellispendiq/transactions/transactions.dart';
 import 'package:intl/intl.dart';
 
-class SectionHeader extends StatelessWidget {
-  const SectionHeader({required this.title, required this.subtitle, super.key});
+/// A round icon chip carrying the review reason — mirrors
+/// [CategoryAvatar]'s shape so a review tile reads as a sibling of the
+/// rest of the app rather than a stock `ListTile`.
+class _ReasonAvatar extends StatelessWidget {
+  const _ReasonAvatar({required this.icon, required this.color});
 
-  final String title;
-  final String subtitle;
+  final List<List<dynamic>> icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(44 * 0.3),
+      ),
+      alignment: Alignment.center,
+      child: AppIcon(icon, size: 22, color: color),
+    );
+  }
+}
+
+/// One review item's shell: reason avatar + title/subtitle row, an
+/// optional body slot (category picker, raw text), and a bottom-right
+/// action pair. Every tile in this inbox is one of these, so the list
+/// reads as a set rather than four independently-styled cards.
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.secondaryLabel,
+    required this.onSecondary,
+    required this.primaryLabel,
+    required this.onPrimary,
+    this.trailing,
+    this.body,
+  });
+
+  final List<List<dynamic>> icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final Widget? trailing;
+  final Widget? body;
+  final String secondaryLabel;
+  final VoidCallback onSecondary;
+  final String primaryLabel;
+  final VoidCallback onPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+      padding: const EdgeInsets.only(bottom: Space.cardGap),
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _ReasonAvatar(icon: icon, color: iconColor),
+                const SizedBox(width: Space.x2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.rowTitle(color: colors.onSurface),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.metadata(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: Space.x1),
+                  trailing!,
+                ],
+              ],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            if (body != null) ...[const SizedBox(height: Space.x1), body!],
+            const SizedBox(height: Space.x1),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AppButton.tertiary(label: secondaryLabel, onPressed: onSecondary),
+                const SizedBox(width: Space.x1),
+                AppButton.primary(label: primaryLabel, onPressed: onPrimary),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -53,45 +133,50 @@ class NeedsReviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ReviewInboxCubit>();
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Column(
-        children: [
-          ListTile(
-            title: Text(transaction.merchant ?? 'Unknown merchant'),
-            subtitle: Text(
-              Money.displayIn(
-                transaction.amountMinor,
-                transaction.currency,
-              ),
-            ),
-            trailing: transaction.confidence == null
-                ? null
-                : Chip(
-                    label: Text('${(transaction.confidence! * 100).round()}%'),
-                  ),
-          ),
-          if (transaction.categoryId == null)
-            CategoryPicker(
+    final money = Theme.of(context).extension<MoneyColors>()!;
+
+    return _ReviewCard(
+      icon: AppIcons.review,
+      iconColor: money.review,
+      title: transaction.merchant ?? 'Unknown merchant',
+      subtitle: Money.displayIn(transaction.amountMinor, transaction.currency),
+      trailing: transaction.confidence == null
+          ? null
+          : _ConfidenceChip(confidence: transaction.confidence!),
+      body: transaction.categoryId == null
+          ? CategoryPicker(
               onSelected: (categoryId) =>
                   cubit.categorize(transaction.id, categoryId),
-            ),
-          OverflowBar(
-            alignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.of(context).push<void>(
-                  TransactionEntryPage.route(existing: transaction),
-                ),
-                child: const Text('Edit'),
-              ),
-              FilledButton(
-                onPressed: () => cubit.confirm(transaction.id),
-                child: const Text('Confirm'),
-              ),
-            ],
-          ),
-        ],
+            )
+          : null,
+      secondaryLabel: 'Edit',
+      onSecondary: () => Navigator.of(
+        context,
+      ).push<void>(TransactionEntryPage.route(existing: transaction)),
+      primaryLabel: 'Confirm',
+      onPrimary: () => cubit.confirm(transaction.id),
+    );
+  }
+}
+
+class _ConfidenceChip extends StatelessWidget {
+  const _ConfidenceChip({required this.confidence});
+
+  final double confidence;
+
+  @override
+  Widget build(BuildContext context) {
+    final money = Theme.of(context).extension<MoneyColors>()!;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: money.review.withValues(alpha: 0.12),
+        borderRadius: Radii.chipRadius,
+      ),
+      child: Text(
+        '${(confidence * 100).round()}%',
+        style: AppTypography.chipOverline(color: money.review),
       ),
     );
   }
@@ -105,32 +190,19 @@ class DuplicateTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ReviewInboxCubit>();
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Column(
-        children: [
-          ListTile(
-            title: Text(transaction.merchant ?? 'Unknown merchant'),
-            subtitle: Text(
-              '${Money.displayIn(transaction.amountMinor, transaction.currency)} · '
-              '${DateFormat('d MMM, HH:mm').format(transaction.transactedAt.toLocal())}',
-            ),
-          ),
-          OverflowBar(
-            alignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => cubit.discardDuplicate(transaction.id),
-                child: const Text('Discard duplicate'),
-              ),
-              FilledButton(
-                onPressed: () => cubit.confirm(transaction.id),
-                child: const Text('Keep both'),
-              ),
-            ],
-          ),
-        ],
-      ),
+    final money = Theme.of(context).extension<MoneyColors>()!;
+
+    return _ReviewCard(
+      icon: AppIcons.moneyOut,
+      iconColor: money.review,
+      title: transaction.merchant ?? 'Unknown merchant',
+      subtitle:
+          '${Money.displayIn(transaction.amountMinor, transaction.currency)} · '
+          '${DateFormat('d MMM, HH:mm').format(transaction.transactedAt.toLocal())}',
+      secondaryLabel: 'Discard duplicate',
+      onSecondary: () => cubit.discardDuplicate(transaction.id),
+      primaryLabel: 'Keep both',
+      onPrimary: () => cubit.confirm(transaction.id),
     );
   }
 }
@@ -143,65 +215,77 @@ class TransferCandidateTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ReviewInboxCubit>();
+    final colors = Theme.of(context).colorScheme;
     final debit = candidate.debit;
     final credit = candidate.credit;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: FutureBuilder<List<Account>>(
-              future: context.read<AccountRepository>().getAll(),
-              builder: (context, snapshot) {
-                final accounts = {
-                  for (final account in snapshot.data ?? const <Account>[])
-                    account.id: account.name,
-                };
-                final fromName = accounts[debit.accountId] ?? 'Unknown';
-                final toName = accounts[credit.accountId] ?? 'Unknown';
-                return Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '$fromName  →  $toName',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                    ),
-                    Text(
-                      Money.displayIn(debit.amountMinor, debit.currency),
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                  ],
-                );
-              },
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.cardGap),
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _ReasonAvatar(icon: AppIcons.transfer, color: colors.primary),
+                const SizedBox(width: Space.x2),
+                Expanded(
+                  child: FutureBuilder<List<Account>>(
+                    future: context.read<AccountRepository>().getAll(),
+                    builder: (context, snapshot) {
+                      final accounts = {
+                        for (final account in snapshot.data ?? const <Account>[])
+                          account.id: account.name,
+                      };
+                      final fromName = accounts[debit.accountId] ?? 'Unknown';
+                      final toName = accounts[credit.accountId] ?? 'Unknown';
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$fromName  →  $toName',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.rowTitle(
+                              color: colors.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${DateFormat('d MMM, HH:mm').format(debit.transactedAt.toLocal())}'
+                            ' & '
+                            '${DateFormat('HH:mm').format(credit.transactedAt.toLocal())}',
+                            style: AppTypography.metadata(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: Space.x1),
+                MoneyText(debit.amountMinor, size: MoneySize.meta),
+              ],
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              '${DateFormat('d MMM, HH:mm').format(debit.transactedAt.toLocal())}'
-              ' & '
-              '${DateFormat('HH:mm').format(credit.transactedAt.toLocal())}',
-              style: Theme.of(context).textTheme.bodySmall,
+            const SizedBox(height: Space.x1),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AppButton.tertiary(
+                  label: 'Not a transfer',
+                  onPressed: () => cubit.dismissTransferCandidate(candidate),
+                ),
+                const SizedBox(width: Space.x1),
+                AppButton.primary(
+                  label: 'Link them',
+                  onPressed: () => cubit.linkTransfer(candidate),
+                ),
+              ],
             ),
-          ),
-          OverflowBar(
-            alignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => cubit.dismissTransferCandidate(candidate),
-                child: const Text('Not a transfer'),
-              ),
-              FilledButton(
-                onPressed: () => cubit.linkTransfer(candidate),
-                child: const Text('Link them'),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -215,40 +299,33 @@ class FailedCaptureTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ReviewInboxCubit>();
-    final theme = Theme.of(context);
+    final colors = Theme.of(context).colorScheme;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ListTile(
-            title: Text(capture.sender ?? 'Unknown sender'),
-            subtitle: Text(
-              DateFormat('d MMM, HH:mm').format(capture.receivedAt.toLocal()),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(capture.body, style: theme.textTheme.bodySmall),
-          ),
-          OverflowBar(
-            alignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => cubit.ignoreCapture(capture.id),
-                child: const Text('Not a transaction'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).push<void>(
-                  TransactionEntryPage.route(rawCaptureId: capture.id),
-                ),
-                child: const Text('Enter manually'),
-              ),
-            ],
-          ),
-        ],
+    return _ReviewCard(
+      icon: AppIcons.close,
+      iconColor: colors.onSurfaceVariant,
+      title: capture.sender ?? 'Unknown sender',
+      subtitle: DateFormat(
+        'd MMM, HH:mm',
+      ).format(capture.receivedAt.toLocal()),
+      body: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(Space.x1),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: Radii.inputRadius,
+        ),
+        child: Text(
+          capture.body,
+          style: AppTypography.metadata(color: colors.onSurfaceVariant),
+        ),
       ),
+      secondaryLabel: 'Not a transaction',
+      onSecondary: () => cubit.ignoreCapture(capture.id),
+      primaryLabel: 'Enter manually',
+      onPrimary: () => Navigator.of(
+        context,
+      ).push<void>(TransactionEntryPage.route(rawCaptureId: capture.id)),
     );
   }
 }
@@ -268,12 +345,11 @@ class CategoryPicker extends StatelessWidget {
         final categories = snapshot.data ?? const <Category>[];
         if (categories.isEmpty) return const SizedBox.shrink();
         return SizedBox(
-          height: 48,
+          height: 40,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: categories.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            separatorBuilder: (_, _) => const SizedBox(width: Space.x1),
             itemBuilder: (context, index) {
               final category = categories[index];
               return ActionChip(
@@ -293,26 +369,10 @@ class InboxZero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inbox_outlined, size: 48),
-            SizedBox(height: 16),
-            Text(
-              'Nothing to review',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Everything captured so far was read and saved automatically.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    return const EmptyState(
+      icon: AppIcons.check,
+      title: 'Nothing to review',
+      message: 'Everything captured so far was read and saved automatically.',
     );
   }
 }

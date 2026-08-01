@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/auth/cubit/cubit.dart';
 import 'package:intellispendiq/auth/widgets/widgets.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 
 /// Sets a PIN for the first time, or replaces an existing one.
 class PinSetupPage extends StatelessWidget {
@@ -55,21 +56,29 @@ class PinSetupView extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    AppIcon(
+                      AppIcons.lock,
+                      size: 48,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(height: Space.x2),
                     Text(
                       state.title,
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: AppTypography.screenTitle(),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Space.x1),
                     Text(
                       '${AppLockRepository.minPinLength}'
                       '–${AppLockRepository.maxPinLength} digits. '
                       'There is no way to recover a forgotten PIN, '
                       'because nothing about it leaves this phone.',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: AppTypography.metadata(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: Space.x4),
                     PinEntryField(
                       // Remounts between steps so the field genuinely
                       // starts empty rather than reusing the last value.
@@ -80,16 +89,16 @@ class PinSetupView extends StatelessWidget {
                       onSubmitted: cubit.submitUnawaited,
                     ),
                     if (state.errorMessage != null) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: Space.x1),
                       Text(
                         state.errorMessage!,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: AppTypography.metadata(
                           color: Theme.of(context).colorScheme.error,
                         ),
                       ),
                     ],
-                    const SizedBox(height: 24),
+                    const SizedBox(height: Space.x2),
                     FilledButton(
                       onPressed: state.isBusy ? null : cubit.submitUnawaited,
                       child: Text(
