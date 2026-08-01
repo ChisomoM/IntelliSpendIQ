@@ -40,7 +40,7 @@ class AccountTile extends StatelessWidget {
       title: Text(account.name),
       subtitle: Text(
         '${accountTypeLabel(account.type)} · '
-        '${Money.format(balanceMinor, currency: account.currency)}',
+        '${Money.displayIn(balanceMinor, account.currency)}',
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

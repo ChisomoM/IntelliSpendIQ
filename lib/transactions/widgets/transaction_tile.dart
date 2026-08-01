@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
@@ -17,16 +18,18 @@ import 'package:intl/intl.dart';
 class TransactionTile extends StatelessWidget {
   const TransactionTile({
     required this.transaction,
-    this.categoryIcon,
+    this.category,
     this.showSource = true,
     super.key,
   });
 
   final Transaction transaction;
 
-  /// Icon key from the entry's category, resolved by the caller — a
-  /// [Transaction] carries only the category id.
-  final String? categoryIcon;
+  /// The entry's category, resolved by the caller — a [Transaction]
+  /// carries only the id. Supplies the avatar's glyph *and* its hue, so
+  /// a ledger reads as a set of distinguishable categories rather than
+  /// one repeated swatch.
+  final Category? category;
 
   /// Whether to show the capture-source chip. Off in compact previews
   /// where the extra mark is noise.
@@ -57,7 +60,11 @@ class TransactionTile extends StatelessWidget {
     final hasMerchant = transaction.merchant?.isNotEmpty ?? false;
 
     return AppListRow(
-      leading: CategoryAvatar(iconKey: categoryIcon),
+      leading: CategoryAvatar(
+        iconKey: category?.icon,
+        categoryId: category?.id ?? transaction.categoryId,
+        colorName: category?.color,
+      ),
       title: Row(
         children: [
           Flexible(

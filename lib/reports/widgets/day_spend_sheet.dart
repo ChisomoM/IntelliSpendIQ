@@ -57,7 +57,7 @@ class _DaySpendSheet extends StatelessWidget {
                   ),
                   if (transactions.isNotEmpty)
                     Text(
-                      Money.format(total),
+                      Money.display(total),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),

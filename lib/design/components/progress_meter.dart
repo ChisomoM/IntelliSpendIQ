@@ -19,8 +19,16 @@ class ProgressMeter extends StatelessWidget {
     this.isOver = false,
     this.onDarkSurface = false,
     this.height = 8,
+    this.fillColor,
     super.key,
   });
+
+  /// Overrides the fill when the bar belongs to something that already
+  /// has a colour — a category envelope wears its own hue, so a screen
+  /// of envelopes reads as a set rather than a column of identical
+  /// violet bars. Ignored when [isOver], because overspend outranks
+  /// identity.
+  final Color? fillColor;
 
   /// Fraction spent, 0..1. Values above 1 are clamped — [isOver]
   /// carries the overspend, not a bar longer than its track.
@@ -52,7 +60,8 @@ class ProgressMeter extends StatelessWidget {
     final overFill = onDarkSurface ? AppColors.outflowD : money.outflow;
     final fill = isOver
         ? overFill
-        : (onDarkSurface ? AppColors.violet300 : colors.primary);
+        : (fillColor ??
+              (onDarkSurface ? AppColors.violet300 : colors.primary));
     final track = onDarkSurface
         ? Colors.white.withValues(alpha: 0.16)
         : colors.surfaceContainerHigh;

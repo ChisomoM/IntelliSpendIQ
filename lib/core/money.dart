@@ -74,6 +74,16 @@ abstract final class Money {
     return '$sign${_symbolPrefix(amountMinor.abs())}';
   }
 
+  /// [display], but for an amount that may not be in kwacha.
+  ///
+  /// Accounts carry their own currency, so a balance held in something
+  /// else must not be printed with a `K` in front of it. Anything other
+  /// than the home currency falls back to the ISO code.
+  static String displayIn(int amountMinor, String currency) {
+    if (currency == defaultCurrency) return display(amountMinor);
+    return format(amountMinor, currency: currency);
+  }
+
   /// Compact form for chart axes and headlines: `K12.5k` rather than
   /// `K12,480.00`. Ngwee are always dropped here, even when non-zero.
   static String displayCompact(int amountMinor) {

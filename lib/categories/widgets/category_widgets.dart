@@ -38,7 +38,11 @@ class CategoryTile extends StatelessWidget {
 
     return AppListRow(
       onTap: onTap,
-      leading: CategoryAvatar(iconKey: category.icon),
+      leading: CategoryAvatar(
+        iconKey: category.icon,
+        categoryId: category.id,
+        colorName: category.color,
+      ),
       title: Text(category.name),
       subtitle: subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · ')),
       trailing: Row(

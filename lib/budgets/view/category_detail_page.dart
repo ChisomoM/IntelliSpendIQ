@@ -102,7 +102,12 @@ class CategoryDetailView extends StatelessWidget {
           appBar: AppBar(
             title: Row(
               children: [
-                CategoryAvatar(iconKey: category.icon, size: 28),
+                CategoryAvatar(
+                  iconKey: category.icon,
+                  categoryId: category.id,
+                  colorName: category.color,
+                  size: 28,
+                ),
                 const SizedBox(width: Space.x1),
                 Expanded(
                   child: Text(
@@ -142,6 +147,11 @@ class CategoryDetailView extends StatelessWidget {
                   child: MoneyGauge(
                     spentMinor: state.spentMinor,
                     budgetedMinor: state.budgetedMinor,
+                    arcColor: CategoryPalette.forCategory(
+                      categoryId: category.id,
+                      storedColor: category.color,
+                      brightness: Theme.of(context).brightness,
+                    ).series,
                   ),
                 ),
               ],

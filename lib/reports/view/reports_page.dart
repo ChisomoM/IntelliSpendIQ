@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/reports/cubit/cubit.dart';
 import 'package:intellispendiq/reports/widgets/widgets.dart';
 
@@ -21,101 +21,62 @@ class ReportsPage extends StatelessWidget {
 class ReportsView extends StatelessWidget {
   const ReportsView({super.key});
 
+  /// Clears the bottom nav bar and the docked FAB.
+  static const _bottomInset = 96.0;
+
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ReportsCubit>();
     final transactions = context.read<TransactionRepository>();
-    final theme = Theme.of(context);
 
     return Scaffold(
-      // Nav label is "Insights" (redesign plan §3.1) — matched here so
-      // the tab and the screen it opens agree. The Reports/Assistant
-      // content merge that name anticipates is Phase 8, separate from
-      // this label change.
       appBar: AppBar(title: const Text('Insights')),
       body: BlocBuilder<ReportsCubit, ReportsState>(
         builder: (context, state) {
           return Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: () => cubit.shiftMonth(-1),
-                  ),
-                  Text(state.period, style: theme.textTheme.titleMedium),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right),
-                    onPressed: () => cubit.shiftMonth(1),
-                  ),
-                ],
+              PeriodSelector(
+                // Was printing the raw `YYYY-MM` key to the screen.
+                label: state.periodLabel,
+                onPrevious: () => cubit.shiftMonth(-1),
+                onNext: () => cubit.shiftMonth(1),
               ),
               Expanded(
                 child: state.isEmpty
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Text(
-                            'No confirmed spending recorded for this month.',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+                    ? const EmptyState(
+                        icon: AppIcons.insights,
+                        title: 'Nothing to show for this month',
+                        message: 'Once spending is captured, the breakdown '
+                            'and trends appear here.',
                       )
                     : ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                        padding: const EdgeInsets.fromLTRB(
+                          Space.gutter,
+                          0,
+                          Space.gutter,
+                          _bottomInset,
+                        ),
                         children: [
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Total spent',
-                                    style: theme.textTheme.labelMedium,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    Money.format(state.totalMinor),
-                                    style: theme.textTheme.headlineSmall,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
                           _BreakdownSection(state: state, cubit: cubit),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Last 6 months',
-                            style: theme.textTheme.titleSmall,
+                          const SizedBox(height: Space.sectionGap),
+                          const SectionHeader(title: 'Last 6 months'),
+                          AppCard(
+                            child: MonthTrendChart(trend: state.monthTrend),
                           ),
-                          const SizedBox(height: 12),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: MonthTrendChart(trend: state.monthTrend),
-                            ),
+                          const SizedBox(height: Space.sectionGap),
+                          SectionHeader(
+                            title: 'Day by day',
+                            subtitle: 'Tap a day to see what was captured',
                           ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Daily spend',
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: 12),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: SpendCalendarHeatmap(
-                                period: state.period,
-                                dailySpend: state.dailySpend,
-                                maxDailyMinor: state.maxDailyMinor,
-                                onDayTap: (day) => showDaySpendSheet(
-                                  context,
-                                  transactions,
-                                  day,
-                                ),
+                          AppCard(
+                            child: SpendCalendarHeatmap(
+                              period: state.period,
+                              dailySpend: state.dailySpend,
+                              maxDailyMinor: state.maxDailyMinor,
+                              onDayTap: (day) => showDaySpendSheet(
+                                context,
+                                transactions,
+                                day,
                               ),
                             ),
                           ),
@@ -130,6 +91,11 @@ class ReportsView extends StatelessWidget {
   }
 }
 
+/// Spend composition for the month.
+///
+/// The exact-figures list that used to sit under the donut is gone: the
+/// donut's own legend already carries every label, share and amount, so
+/// the two were printing the same table twice with different bars.
 class _BreakdownSection extends StatelessWidget {
   const _BreakdownSection({required this.state, required this.cubit});
 
@@ -140,70 +106,57 @@ class _BreakdownSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final byCategory = state.breakdown == ReportsBreakdown.category;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SegmentedButton<ReportsBreakdown>(
-              segments: const [
-                ButtonSegment(
-                  value: ReportsBreakdown.category,
-                  label: Text('By category'),
-                ),
-                ButtonSegment(
-                  value: ReportsBreakdown.account,
-                  label: Text('By account'),
-                ),
-              ],
-              selected: {state.breakdown},
-              onSelectionChanged: (values) =>
-                  cubit.breakdownChanged(values.first),
-            ),
-            const SizedBox(height: 16),
-            if (byCategory)
-              SpendDonutChart(
-                slices: [
-                  for (final row in state.rows)
-                    DonutSlice(
-                      label: row.categoryName,
-                      amountMinor: row.spentMinor,
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Where it went'),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SegmentedButton<ReportsBreakdown>(
+                segments: const [
+                  ButtonSegment(
+                    value: ReportsBreakdown.category,
+                    label: Text('Category'),
+                  ),
+                  ButtonSegment(
+                    value: ReportsBreakdown.account,
+                    label: Text('Account'),
+                  ),
                 ],
-              )
-            else
-              SpendDonutChart(
-                slices: [
-                  for (final row in state.accountRows)
-                    DonutSlice(
-                      label: row.accountName,
-                      amountMinor: row.spentMinor,
-                    ),
-                ],
+                selected: {state.breakdown},
+                showSelectedIcon: false,
+                onSelectionChanged: (values) =>
+                    cubit.breakdownChanged(values.first),
               ),
-            const SizedBox(height: 8),
-            const Divider(),
-            const SizedBox(height: 8),
-            if (byCategory)
-              for (final row in state.rows)
-                SpendListRow(
-                  label: row.categoryName,
-                  amountMinor: row.spentMinor,
-                  share: state.shareOf(row),
-                  barWidth: state.barWidthOf(row),
+              const SizedBox(height: Space.x3),
+              if (byCategory)
+                SpendDonutChart(
+                  slices: [
+                    for (final row in state.rows)
+                      DonutSlice(
+                        label: row.categoryName,
+                        amountMinor: row.spentMinor,
+                        entityId: row.categoryId,
+                      ),
+                  ],
                 )
-            else
-              for (final row in state.accountRows)
-                SpendListRow(
-                  label: row.accountName,
-                  amountMinor: row.spentMinor,
-                  share: state.accountShareOf(row),
-                  barWidth: state.accountBarWidthOf(row),
+              else
+                SpendDonutChart(
+                  slices: [
+                    for (final row in state.accountRows)
+                      DonutSlice(
+                        label: row.accountName,
+                        amountMinor: row.spentMinor,
+                        entityId: row.accountId,
+                      ),
+                  ],
                 ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

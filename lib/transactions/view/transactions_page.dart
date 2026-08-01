@@ -5,6 +5,7 @@ import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/transactions/cubit/activity_entry.dart';
@@ -154,7 +155,7 @@ class _TransactionsViewState extends State<TransactionsView> {
                 }
 
                 final groups = state.dayGroups;
-                final categoryIcons = state.categoryIcons;
+                final categoriesById = state.categoriesById;
                 final accountNames = {
                   for (final account in state.accounts)
                     account.id: account.name,
@@ -173,7 +174,7 @@ class _TransactionsViewState extends State<TransactionsView> {
                           _entryRow(
                             context,
                             entry,
-                            categoryIcons: categoryIcons,
+                            categoriesById: categoriesById,
                             accountNames: accountNames,
                           ),
                       ],
@@ -191,7 +192,7 @@ class _TransactionsViewState extends State<TransactionsView> {
   Widget _entryRow(
     BuildContext context,
     ActivityEntry entry, {
-    required Map<String, String?> categoryIcons,
+    required Map<String, Category> categoriesById,
     required Map<String, String> accountNames,
   }) {
     return switch (entry) {
@@ -226,7 +227,7 @@ class _TransactionsViewState extends State<TransactionsView> {
             context.read<TransactionsCubit>().delete(transaction.id),
         child: TransactionTile(
           transaction: transaction,
-          categoryIcon: categoryIcons[transaction.categoryId],
+          category: categoriesById[transaction.categoryId],
         ),
       ),
       TransferEntry(:final transfer) => TransferTile(

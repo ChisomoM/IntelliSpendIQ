@@ -40,7 +40,7 @@ class VoiceEntrySheet extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Saved ${Money.format(state.transaction!.amountMinor)}',
+                  'Saved ${Money.display(state.transaction!.amountMinor)}',
                 ),
               ),
             );

@@ -13,6 +13,7 @@ class MoneyGauge extends StatelessWidget {
     required this.budgetedMinor,
     this.size = 148,
     this.caption = 'of budget spent',
+    this.arcColor,
     super.key,
   });
 
@@ -20,6 +21,10 @@ class MoneyGauge extends StatelessWidget {
   final int budgetedMinor;
   final double size;
   final String caption;
+
+  /// The arc's colour when the thing being measured has one of its own
+  /// — a category gauge wears the category's hue. Overspend still wins.
+  final Color? arcColor;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +50,7 @@ class MoneyGauge extends StatelessWidget {
               strokeCap: StrokeCap.round,
               backgroundColor: colors.surfaceContainerHigh,
               valueColor: AlwaysStoppedAnimation<Color>(
-                isOver ? money.outflow : colors.primary,
+                isOver ? money.outflow : (arcColor ?? colors.primary),
               ),
             ),
           ),
