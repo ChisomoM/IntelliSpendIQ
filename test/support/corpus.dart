@@ -11,24 +11,24 @@ abstract final class Corpus {
   static const stanChartNumericSender = '78262427896';
 
   static const paymentTillNamed =
-      'Payment of ZMW 10.00 Till Number SOCHESCARE AIRTEL NETWORKS SELF CARE '
-      'SOCHE. Airtel Money bal is ZMW 45.23. TID : MP260728.0729.D08222.';
+      'Payment of K10.00 Till Number SOCHESCARE AIRTEL NETWORKS SELF CARE '
+      'SOCHE. Airtel Money bal is K45.23. TID : MP260728.0729.D08222.';
 
   static const withdrawal =
-      'You have withdrawn ZMW 200.00 from 20068466 FELIX MONDE. Bal is '
-      'ZMW 55.23. TID: CO260727.1954.D21146.';
+      'You have withdrawn K200.00 from 20068466 FELIX MONDE. Bal is '
+      'K55.23. TID: CO260727.1954.D21146.';
 
   static const moneySent =
-      'Money sent to Sibeso Nyumbu on 979142832.Amount ZMW 205.00. Your bal '
-      'is ZMW 260.23.TID: PP260727.1512.M73944';
+      'Money sent to Sibeso Nyumbu on 979142832.Amount K205.00. Your bal '
+      'is K260.23.TID: PP260727.1512.M73944';
 
   static const paymentTillNumeric =
-      'Payment of ZMW 1.00 Till Number 300770 GOODFELLOW DIGITAL LIMITED. '
-      'Airtel Money bal is ZMW 466.53. TID : MP260727.1129.Y34799.';
+      'Payment of K1.00 Till Number 300770 GOODFELLOW DIGITAL LIMITED. '
+      'Airtel Money bal is K466.53. TID : MP260727.1129.Y34799.';
 
   static const paidWithCharge =
-      'PAID ZMW 600.00 to GLOBAL PAY COLLECTIONS Charge ZMW 0.00, '
-      'TID XX260726.1524.M81597. Bal ZMW 601.35 Date: 26-July-2026 15:24. '
+      'PAID K600.00 to GLOBAL PAY COLLECTIONS Charge K0.00, '
+      'TID XX260726.1524.M81597. Bal K601.35 Date: 26-July-2026 15:24. '
       'https://bit.ly/3ZgpiNw';
 
   static const receivedShorthand =
@@ -36,11 +36,11 @@ abstract final class Corpus {
       'CI260726.1522.A37452. Reason: Mobile Money Transfer.';
 
   static const moneyReceived =
-      'Money received ZMW 1350.00 from 0245970 NFS SETTLEMENT ACCOUNT. Dial '
+      'Money received K1350.00 from 0245970 NFS SETTLEMENT ACCOUNT. Dial '
       '*115# to check balance. Deposits are free. TID: CI260726.1451.D36552';
 
   static const stanChartTransfer =
-      'Dear Client, transaction of ZMW 300.00 to Airtel has been processed '
+      'Dear Client, transaction of K300.00 to Airtel has been processed '
       'successfully, ref. ZM2607260050941958 For any queries contact us on  '
       '5247';
 

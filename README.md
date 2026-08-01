@@ -46,7 +46,7 @@ Two layers, because the failure modes differ:
   This is what makes re-running the inbox backfill safe.
 - **Fuzzy** — same amount, same normalized merchant, within 30 minutes gets
   flagged as `duplicate_suspect` and shown in the inbox. It is never auto-merged
-  or discarded: two ZMW 200 withdrawals from the same agent minutes apart is a
+  or discarded: two K200 withdrawals from the same agent minutes apart is a
   real thing that happens.
 
 ## Project layout

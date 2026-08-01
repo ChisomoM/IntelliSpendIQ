@@ -500,7 +500,7 @@ class FinanceChatService {
         'properties': {
           'amount': {
             'type': 'number',
-            'description': 'Amount in major units, e.g. 50.0 for ZMW 50.',
+            'description': 'Amount in major units, e.g. 50.0 for K50.',
           },
           'direction': {
             'type': 'string',

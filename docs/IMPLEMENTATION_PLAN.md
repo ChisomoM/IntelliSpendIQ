@@ -78,7 +78,7 @@ Priority order (non-negotiable):
 | D03 | Play Store later | Possible later; design hybrid so NotificationListener remains available | Avoid painting into a corner |
 | D04 | Default SMS app pivot | **No** | Out of product scope |
 | D05 | Multi-device sync | **Single-device fine for Phase 1** | Defer PowerSync / Supabase until local loop trusted |
-| D06 | Currency | **ZMW only** for now | Matches real SMS corpus |
+| D06 | Currency | **Konly** for now | Matches real SMS corpus |
 | D07 | Default account | **One mobile-money account** day one; schema supports expansion | Matches Airtel Money as primary capture source |
 | D08 | Voice language | **English only** | Simplifies Whisper model choice |
 | D09 | Voice auto-save threshold | **0.85** | Conservative; uncertain → review inbox |
@@ -132,8 +132,8 @@ Priority order (non-negotiable):
 
 | ID | Decision | Choice | Rationale |
 |---|---|---|---|
-| D60 | Storage | **Integer minor units** (`amount_minor`) — ngwee (1 ZMW = 100) | Avoid float rounding bugs |
-| D61 | Display | Format as `ZMW x.xx` in UI | Existing template already hardcodes ZMW |
+| D60 | Storage | **Integer minor units** (`amount_minor`) — ngwee (1 K= 100) | Avoid float rounding bugs |
+| D61 | Display | Format as `Kx.xx` in UI | Existing template already hardcodes K|
 
 ### 3.7 Approach ratings (from architecture review)
 
@@ -168,7 +168,7 @@ Priority order (non-negotiable):
 | Idempotency helper | Exists (`lib/utils/idempotency_key.dart`) — rework for finance IDs |
 | Finance domain | **None** — no transactions, parsers, voice, budgets, Drift, SQLCipher, Supabase, PowerSync |
 
-**Reusable:** Flutter scaffold, BLoC pattern, flavors, CI, repository package layout, permission client shell, ZMW display concept.
+**Reusable:** Flutter scaffold, BLoC pattern, flavors, CI, repository package layout, permission client shell, Kdisplay concept.
 
 **Must replace / build:** Persistence layer, auth path (later), entire finance domain, native SMS/notification bridge, parsers, voice, review inbox, budgets, reports, encryption.
 
@@ -336,10 +336,10 @@ Prefer **`transactions.status = needs_review`** plus raw_captures with `parse_st
 
 | Display | `amount_minor` | `direction` |
 |---|---|---|
-| ZMW 10.00 payment | `1000` | `debit` |
+| K10.00 payment | `1000` | `debit` |
 | K300 received | `30000` | `credit` |
-| ZMW 1350.00 received | `135000` | `credit` |
-| Charge ZMW 0.00 | store as fee line only if non-zero; ignore zero charges |
+| K1350.00 received | `135000` | `credit` |
+| Charge K0.00 | store as fee line only if non-zero; ignore zero charges |
 
 ---
 
@@ -412,7 +412,7 @@ Parser routing: match `address` (normalized, strip `+`, spaces) against either f
 #### Airtel Money — Payment (till, named)
 
 ```
-Payment of ZMW 10.00 Till Number SOCHESCARE AIRTEL NETWORKS SELF CARE SOCHE. Airtel Money bal is ZMW 45.23. TID : MP260728.0729.D08222.
+Payment of K10.00 Till Number SOCHESCARE AIRTEL NETWORKS SELF CARE SOCHE. Airtel Money bal is K45.23. TID : MP260728.0729.D08222.
 ```
 
 | Field | Value |
@@ -427,7 +427,7 @@ Payment of ZMW 10.00 Till Number SOCHESCARE AIRTEL NETWORKS SELF CARE SOCHE. Air
 #### Airtel Money — Withdrawal
 
 ```
-You have withdrawn ZMW 200.00 from 20068466 FELIX MONDE. Bal is ZMW 55.23. TID: CO260727.1954.D21146.
+You have withdrawn K200.00 from 20068466 FELIX MONDE. Bal is K55.23. TID: CO260727.1954.D21146.
 ```
 
 | Field | Value |
@@ -441,7 +441,7 @@ You have withdrawn ZMW 200.00 from 20068466 FELIX MONDE. Bal is ZMW 55.23. TID: 
 #### Airtel Money — Money sent
 
 ```
-Money sent to Sibeso Nyumbu on 979142832.Amount ZMW 205.00. Your bal is ZMW 260.23.TID: PP260727.1512.M73944
+Money sent to Sibeso Nyumbu on 979142832.Amount K205.00. Your bal is K260.23.TID: PP260727.1512.M73944
 ```
 
 | Field | Value |
@@ -456,7 +456,7 @@ Money sent to Sibeso Nyumbu on 979142832.Amount ZMW 205.00. Your bal is ZMW 260.
 #### Airtel Money — Payment (numeric till)
 
 ```
-Payment of ZMW 1.00 Till Number 300770 GOODFELLOW DIGITAL LIMITED. Airtel Money bal is ZMW 466.53. TID : MP260727.1129.Y34799.
+Payment of K1.00 Till Number 300770 GOODFELLOW DIGITAL LIMITED. Airtel Money bal is K466.53. TID : MP260727.1129.Y34799.
 ```
 
 | Field | Value |
@@ -470,7 +470,7 @@ Payment of ZMW 1.00 Till Number 300770 GOODFELLOW DIGITAL LIMITED. Airtel Money 
 #### Airtel Money — PAID + charge + date + link
 
 ```
-PAID ZMW 600.00 to GLOBAL PAY COLLECTIONS Charge ZMW 0.00, TID XX260726.1524.M81597. Bal ZMW 601.35 Date: 26-July-2026 15:24. https://bit.ly/3ZgpiNw
+PAID K600.00 to GLOBAL PAY COLLECTIONS Charge K0.00, TID XX260726.1524.M81597. Bal K601.35 Date: 26-July-2026 15:24. https://bit.ly/3ZgpiNw
 ```
 
 | Field | Value |
@@ -499,7 +499,7 @@ You have received K300 from CHISOMO MUTALE. Txn. ID: CI260726.1522.A37452. Reaso
 #### Airtel Money — Money received (settlement)
 
 ```
-Money received ZMW 1350.00 from 0245970 NFS SETTLEMENT ACCOUNT. Dial *115# to check balance. Deposits are free. TID: CI260726.1451.D36552
+Money received K1350.00 from 0245970 NFS SETTLEMENT ACCOUNT. Dial *115# to check balance. Deposits are free. TID: CI260726.1451.D36552
 ```
 
 | Field | Value |
@@ -512,7 +512,7 @@ Money received ZMW 1350.00 from 0245970 NFS SETTLEMENT ACCOUNT. Dial *115# to ch
 #### Standard Chartered — Bank → Airtel transfer
 
 ```
-Dear Client, transaction of ZMW 300.00 to Airtel has been processed successfully, ref. ZM2607260050941958 For any queries contact us on  5247
+Dear Client, transaction of K300.00 to Airtel has been processed successfully, ref. ZM2607260050941958 For any queries contact us on  5247
 ```
 
 | Field | Value |
@@ -550,15 +550,15 @@ ParseResult
 - One provider package / file per bank; adding a third provider = new class + register — no engine rewrite.
 - Prefer `external_ref` (TID) as `idempotency_key` when present.
 - Strip trailing marketing links from body before merchant extraction when needed.
-- Normalize amounts: `ZMW 1,350.00`, `ZMW 1350.00`, `K300`, `K 300.00`.
+- Normalize amounts: `K1,350.00`, `K1350.00`, `K300`, `K 300.00`.
 - If parse fails → `raw_captures.parse_status=failed` + appear in Review Inbox.
 
 ### 8.4 Suggested Airtel rule families (implementation hints)
 
 | Family | Triggers (examples) | Direction |
 |---|---|---|
-| `payment_till` | `Payment of ZMW … Till Number` | debit |
-| `paid_to` | `PAID ZMW … to` | debit |
+| `payment_till` | `Payment of K… Till Number` | debit |
+| `paid_to` | `PAID K… to` | debit |
 | `withdrawn` | `You have withdrawn` | debit |
 | `money_sent` | `Money sent to` | debit |
 | `received_k` | `You have received K` / `received ZMW` | credit |
@@ -570,7 +570,7 @@ TID patterns observed: `MP`, `CO`, `PP`, `XX`, `CI` + date-time-like suffix.
 
 | Family | Triggers | Direction |
 |---|---|---|
-| `txn_to_airtel` | `Dear Client, transaction of ZMW … to Airtel` | debit |
+| `txn_to_airtel` | `Dear Client, transaction of K… to Airtel` | debit |
 
 **Flag for later:** collect 5–10 more StanChart samples (POS, ATM, incoming, card, failed).
 
@@ -929,23 +929,23 @@ Before Phase 2:
 [
   {
     "sender_candidates": ["AirtelMoney", "24783566639"],
-    "body": "Payment of ZMW 10.00 Till Number SOCHESCARE AIRTEL NETWORKS SELF CARE SOCHE. Airtel Money bal is ZMW 45.23. TID : MP260728.0729.D08222."
+    "body": "Payment of K10.00 Till Number SOCHESCARE AIRTEL NETWORKS SELF CARE SOCHE. Airtel Money bal is K45.23. TID : MP260728.0729.D08222."
   },
   {
     "sender_candidates": ["AirtelMoney", "24783566639"],
-    "body": "You have withdrawn ZMW 200.00 from 20068466 FELIX MONDE. Bal is ZMW 55.23. TID: CO260727.1954.D21146."
+    "body": "You have withdrawn K200.00 from 20068466 FELIX MONDE. Bal is K55.23. TID: CO260727.1954.D21146."
   },
   {
     "sender_candidates": ["AirtelMoney", "24783566639"],
-    "body": "Money sent to Sibeso Nyumbu on 979142832.Amount ZMW 205.00. Your bal is ZMW 260.23.TID: PP260727.1512.M73944"
+    "body": "Money sent to Sibeso Nyumbu on 979142832.Amount K205.00. Your bal is K260.23.TID: PP260727.1512.M73944"
   },
   {
     "sender_candidates": ["AirtelMoney", "24783566639"],
-    "body": "Payment of ZMW 1.00 Till Number 300770 GOODFELLOW DIGITAL LIMITED. Airtel Money bal is ZMW 466.53. TID : MP260727.1129.Y34799."
+    "body": "Payment of K1.00 Till Number 300770 GOODFELLOW DIGITAL LIMITED. Airtel Money bal is K466.53. TID : MP260727.1129.Y34799."
   },
   {
     "sender_candidates": ["AirtelMoney", "24783566639"],
-    "body": "PAID ZMW 600.00 to GLOBAL PAY COLLECTIONS Charge ZMW 0.00, TID XX260726.1524.M81597. Bal ZMW 601.35 Date: 26-July-2026 15:24. https://bit.ly/3ZgpiNw"
+    "body": "PAID K600.00 to GLOBAL PAY COLLECTIONS Charge K0.00, TID XX260726.1524.M81597. Bal K601.35 Date: 26-July-2026 15:24. https://bit.ly/3ZgpiNw"
   },
   {
     "sender_candidates": ["AirtelMoney", "24783566639"],
@@ -953,11 +953,11 @@ Before Phase 2:
   },
   {
     "sender_candidates": ["AirtelMoney", "24783566639"],
-    "body": "Money received ZMW 1350.00 from 0245970 NFS SETTLEMENT ACCOUNT. Dial *115# to check balance. Deposits are free. TID: CI260726.1451.D36552"
+    "body": "Money received K1350.00 from 0245970 NFS SETTLEMENT ACCOUNT. Dial *115# to check balance. Deposits are free. TID: CI260726.1451.D36552"
   },
   {
     "sender_candidates": ["StanChartZM", "78262427896"],
-    "body": "Dear Client, transaction of ZMW 300.00 to Airtel has been processed successfully, ref. ZM2607260050941958 For any queries contact us on  5247"
+    "body": "Dear Client, transaction of K300.00 to Airtel has been processed successfully, ref. ZM2607260050941958 For any queries contact us on  5247"
   }
 ]
 ```

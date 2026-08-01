@@ -2,7 +2,7 @@ import 'package:intellispendiq/core/money.dart';
 
 /// Shared deterministic tokens used by provider parsers.
 abstract final class ParsingUtils {
-  /// Amount preceded by a currency marker: `ZMW 1,350.00`, `K300`, `K 300.00`.
+  /// Amount preceded by a currency marker: `K1,350.00`, `K300`, `K 300.00`.
   static const String currencyAmount =
       r'(?:ZMW|K)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)';
 
@@ -12,8 +12,8 @@ abstract final class ParsingUtils {
     r'(?:TID|Txn\.?\s*ID)\s*:?\s*([A-Z]{2}[0-9]{6}\.[0-9]{4}\.[A-Z][0-9]+)',
   );
 
-  /// Reported balance: `bal is ZMW 45.23`, `Bal ZMW 601.35`,
-  /// `Your bal is ZMW 260.23`.
+  /// Reported balance: `bal is K45.23`, `Bal K601.35`,
+  /// `Your bal is K260.23`.
   static final RegExp balance = RegExp(
     r'[Bb]al(?:ance)?\s+(?:is\s+)?' + currencyAmount,
   );

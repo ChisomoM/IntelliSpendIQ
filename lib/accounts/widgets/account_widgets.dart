@@ -195,7 +195,7 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
               helperText:
                   'What it holds right now — leave blank to start '
                   'from zero and log transactions as they happen',
-              prefixText: 'ZMW ',
+              prefixText: 'K',
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
@@ -461,7 +461,7 @@ class _RecordTransferSheetState extends State<RecordTransferSheet> {
             controller: _amountController,
             decoration: InputDecoration(
               labelText: 'Amount',
-              prefixText: 'ZMW ',
+              prefixText: 'K',
               errorText: _error,
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),

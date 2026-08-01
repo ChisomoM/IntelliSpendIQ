@@ -13,7 +13,7 @@ Source of truth for visual decisions: *IntelliSpendIQ · Flutter Build Spec · d
 | **G1** | Token hex values | **Resolved** — full ramp supplied, recorded in §2.1 below. Grid unit is **8dp**, not 4dp. |
 | **G2** | Palette conflict (violet guide vs teal screenshots) | **Resolved — violet.** The uploaded screens are not a colour reference at all; they inform layout, hierarchy and density only. The current `0xFF00695C` teal seed is retired. |
 | **G3** | IBM Plex not in the repo | **Open.** Proposal: bundle the `.ttf` faces (SIL OFL) rather than `google_fonts`, because §8 requires no network for core function. Needs a yes to put ~1.4 MB of binary in-repo. |
-| **G4** | Money format break (`ZMW 1,350.00` → `K1,350.00`) | Proceeding per the guide. Export paths keep `ZMW`. Touches ~30 call sites and several test assertions. |
+| **G4** | Money format break (`K1,350.00` → `K1,350.00`) | Proceeding per the guide. Export paths keep `ZMW`. Touches ~30 call sites and several test assertions. |
 | **G5** | Savings goals | **Out of scope.** Does not exist in the codebase; scoped separately as a feature build after this effort. Phase list renumbered accordingly. |
 | **G6** | Review inbox placement | **Badged entry point on Home**, not a fifth tab. Nav stays four tabs plus the centre FAB. |
 
@@ -99,7 +99,7 @@ to centre it in the nav bar is right, and it also fixes the inconsistency.
 `TransactionEntryPage` (496 lines) is a full-screen push containing a vertical stack of
 labelled `TextField`s and two `DropdownButtonFormField`s. Specific costs:
 
-- **Amount is a plain text field** with `prefixText: 'ZMW '` and a regex input filter. The
+- **Amount is a plain text field** with `prefixText: 'K'` and a regex input filter. The
   most important field on the screen gets the same visual weight as "Description".
 - **Date/time costs two modals.** `_pickDate` chains `showDatePicker` then `showTimePicker`
   — for a value that is "now" in the overwhelming majority of manual entries.
@@ -469,7 +469,7 @@ truncate the amount.
 ### 5.3 Add / edit transaction — Phase 4
 
 **Critique.** The single highest-friction flow. Full-screen push for what is a 4-field task.
-Amount is a plain field with a `ZMW ` prefix. Date requires two chained modals. Category is
+Amount is a plain field with a `K` prefix. Date requires two chained modals. Category is
 a flat dropdown that discards the subcategory hierarchy the data model supports. Payee/label
 creation opens an `AlertDialog` mid-form. Direction arrows point the wrong way for a ledger.
 
@@ -525,7 +525,7 @@ budgeted" row).
 
 Screenshot 1 is close to right already: three stat tiles, a donut, budget transfer, and a
 subcategory list. Fixes needed: stat tile amounts use alarm-red for ordinary spend; percent
-ring should not animate its number (§7 — never animate an amount); `ZMW 50.00` → `K50.00`;
+ring should not animate its number (§7 — never animate an amount); `K50.00` → `K50.00`;
 the empty subcategory state duplicates its CTA (a dashed card *and* a header link).
 
 ### 5.7 Accounts — Phase 6

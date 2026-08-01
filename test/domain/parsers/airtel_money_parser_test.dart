@@ -126,8 +126,8 @@ void main() {
 
     test('records a non-zero charge as a fee', () {
       final draft = parse(
-        'PAID ZMW 600.00 to GLOBAL PAY COLLECTIONS Charge ZMW 2.50, '
-        'TID XX260726.1524.M81598. Bal ZMW 601.35 '
+        'PAID K600.00 to GLOBAL PAY COLLECTIONS Charge K2.50, '
+        'TID XX260726.1524.M81598. Bal K601.35 '
         'Date: 26-July-2026 15:24.',
       );
 
@@ -165,7 +165,7 @@ void main() {
   group('amount normalization', () {
     test('handles thousands separators', () {
       final draft = parse(
-        'Money received ZMW 1,350.00 from 0245970 NFS SETTLEMENT ACCOUNT. '
+        'Money received K1,350.00 from 0245970 NFS SETTLEMENT ACCOUNT. '
         'TID: CI260726.1451.D36553',
       );
       expect(draft.amountMinor, 135000);

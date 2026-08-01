@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 
 /// Money helpers. All amounts are stored as integer minor units
-/// (ngwee — 1 ZMW = 100 ngwee) to avoid float rounding bugs (D60).
+/// (ngwee — 1 K= 100 ngwee) to avoid float rounding bugs (D60).
 abstract final class Money {
   static const String defaultCurrency = 'ZMW';
 
@@ -39,7 +39,7 @@ abstract final class Money {
   /// this boundary.
   static int minorFromDouble(double amount) => (amount * 100).round();
 
-  /// Formats minor units for display, e.g. `ZMW 1,350.00`.
+  /// Formats minor units for display, e.g. `K1,350.00`.
   static String format(int amountMinor, {String currency = defaultCurrency}) {
     final sign = amountMinor < 0 ? '-' : '';
     final abs = amountMinor.abs();

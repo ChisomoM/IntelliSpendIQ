@@ -56,11 +56,11 @@ void main() {
       // Review Inbox and can be added to the parser.
       const posPurchase =
           'Dear Client, your card ending 1234 was used for a POS purchase '
-          'of ZMW 250.00 at SHOPRITE.';
+          'of K250.00 at SHOPRITE.';
       const incoming =
-          'Dear Client, ZMW 500.00 has been credited to your account.';
+          'Dear Client, K500.00 has been credited to your account.';
       const atmWithdrawal =
-          'Your ATM withdrawal of ZMW 1000.00 was successful.';
+          'Your ATM withdrawal of K1000.00 was successful.';
       final unknownTemplates = [posPurchase, incoming, atmWithdrawal];
 
       for (final body in unknownTemplates) {

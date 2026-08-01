@@ -44,7 +44,7 @@ class AnthropicClaudeProvider implements AiProvider {
           'type': ['number', 'null'],
           'description':
               'Transaction amount in major currency units (e.g. 50.0 for '
-              'ZMW 50). Null if no amount was mentioned.',
+              'K50). Null if no amount was mentioned.',
         },
         'currency': {
           'type': 'string',

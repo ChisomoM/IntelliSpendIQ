@@ -325,7 +325,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                   hintText: _type == CategoryType.income
                       ? 'e.g. monthly salary'
                       : null,
-                  prefixText: 'ZMW ',
+                  prefixText: 'K',
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,

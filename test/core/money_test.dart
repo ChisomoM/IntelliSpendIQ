@@ -16,7 +16,7 @@ void main() {
 
     test('handles thousands separators and currency prefixes', () {
       expect(Money.tryParseToMinor('1,350.00'), 135000);
-      expect(Money.tryParseToMinor('ZMW 1,350.00'), 135000);
+      expect(Money.tryParseToMinor('K1,350.00'), 135000);
       expect(Money.tryParseToMinor('K300'), 30000);
       expect(Money.tryParseToMinor('K 300.50'), 30050);
     });
@@ -44,15 +44,15 @@ void main() {
   });
 
   group('format', () {
-    test('formats minor units as ZMW with two decimals', () {
-      expect(Money.format(1000), 'ZMW 10.00');
-      expect(Money.format(135000), 'ZMW 1,350.00');
-      expect(Money.format(75), 'ZMW 0.75');
-      expect(Money.format(0), 'ZMW 0.00');
+    test('formats minor units as Kwith two decimals', () {
+      expect(Money.format(1000), 'K10.00');
+      expect(Money.format(135000), 'K1,350.00');
+      expect(Money.format(75), 'K0.75');
+      expect(Money.format(0), 'K0.00');
     });
 
     test('keeps the sign outside the currency code', () {
-      expect(Money.format(-1000), '-ZMW 10.00');
+      expect(Money.format(-1000), '-K10.00');
     });
   });
 
@@ -60,10 +60,10 @@ void main() {
     // Formatting adds thousands separators, so compare against the
     // grouped form rather than the raw input.
     const cases = {
-      '10.00': 'ZMW 10.00',
-      '1,350.00': 'ZMW 1,350.00',
-      '0.75': 'ZMW 0.75',
-      '999999.99': 'ZMW 999,999.99',
+      '10.00': 'K10.00',
+      '1,350.00': 'K1,350.00',
+      '0.75': 'K0.75',
+      '999999.99': 'K999,999.99',
     };
     cases.forEach((input, expected) {
       expect(Money.format(Money.tryParseToMinor(input)!), expected);

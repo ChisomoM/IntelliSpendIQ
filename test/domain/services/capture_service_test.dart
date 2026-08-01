@@ -92,8 +92,8 @@ void main() {
     test('records a non-zero charge as its own fee transaction', () async {
       await services.captureService.ingest(
         Corpus.capture(
-          'PAID ZMW 600.00 to GLOBAL PAY COLLECTIONS Charge ZMW 2.50, '
-          'TID XX260726.1524.M81599. Bal ZMW 601.35 '
+          'PAID K600.00 to GLOBAL PAY COLLECTIONS Charge K2.50, '
+          'TID XX260726.1524.M81599. Bal K601.35 '
           'Date: 26-July-2026 15:24.',
         ),
       );
@@ -213,8 +213,8 @@ void main() {
         // be a real second withdrawal, so a human decides.
         final second = await services.captureService.ingest(
           Corpus.capture(
-            'You have withdrawn ZMW 200.00 from 20068466 FELIX MONDE. '
-            'Bal is ZMW 55.23. TID: CO260727.1958.D21999.',
+            'You have withdrawn K200.00 from 20068466 FELIX MONDE. '
+            'Bal is K55.23. TID: CO260727.1958.D21999.',
             receivedAt: DateTime(2026, 7, 28, 9, 45),
           ),
         );
@@ -234,8 +234,8 @@ void main() {
       await services.captureService.ingest(Corpus.capture(Corpus.withdrawal));
       final suspect = await services.captureService.ingest(
         Corpus.capture(
-          'You have withdrawn ZMW 200.00 from 20068466 FELIX MONDE. '
-          'Bal is ZMW 55.23. TID: CO260727.1958.D21999.',
+          'You have withdrawn K200.00 from 20068466 FELIX MONDE. '
+          'Bal is K55.23. TID: CO260727.1958.D21999.',
           receivedAt: DateTime(2026, 7, 28, 9, 45),
         ),
       );
@@ -260,8 +260,8 @@ void main() {
       await services.captureService.ingest(Corpus.capture(Corpus.withdrawal));
       final second = await services.captureService.ingest(
         Corpus.capture(
-          'You have withdrawn ZMW 200.00 from 20068477 MARY BANDA. '
-          'Bal is ZMW 55.23. TID: CO260727.1959.D21888.',
+          'You have withdrawn K200.00 from 20068477 MARY BANDA. '
+          'Bal is K55.23. TID: CO260727.1959.D21888.',
           receivedAt: DateTime(2026, 7, 28, 9, 45),
         ),
       );

@@ -59,8 +59,8 @@ void main() {
         );
         await services.captureService.ingest(
           Corpus.capture(
-            'You have withdrawn ZMW 200.00 from 20068466 FELIX MONDE. '
-            'Bal is ZMW 55.23. TID: CO260727.1958.D21999.',
+            'You have withdrawn K200.00 from 20068466 FELIX MONDE. '
+            'Bal is K55.23. TID: CO260727.1958.D21999.',
             receivedAt: DateTime(2026, 7, 28, 9, 45),
           ),
         );
