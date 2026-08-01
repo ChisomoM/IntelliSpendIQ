@@ -10,6 +10,7 @@ import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/senders/senders.dart';
 import 'package:intellispendiq/settings/budget_cadence_labels.dart';
@@ -44,77 +45,227 @@ class SettingsView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        children: [
-          const _SectionHeader('Appearance'),
-          const _ThemeSelector(),
-          const Divider(height: 32),
-          const _SectionHeader('Money'),
-          ListTile(
-            leading: const Icon(Icons.date_range_outlined),
-            title: const Text('Budget cycle'),
-            subtitle: const _BudgetCycleSubtitle(),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () =>
-                Navigator.of(context).push<void>(BudgetCyclePage.route()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.account_balance_wallet_outlined),
-            title: const Text('Accounts'),
-            subtitle: const Text(
-              'Manage cash, bank, and mobile money accounts',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push<void>(AccountsPage.route()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.label_outline),
-            title: const Text('Categories'),
-            subtitle: const Text('Add or remove spending categories'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () =>
-                Navigator.of(context).push<void>(CategoriesPage.route()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.sms_outlined),
-            title: const Text('Message senders'),
-            subtitle: const Text(
-              "Recognize another bank or wallet's SMS alerts",
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () =>
-                Navigator.of(context).push<void>(CustomSendersPage.route()),
-          ),
-          const Divider(height: 32),
-          const _SectionHeader('Data'),
-          const _DataSection(),
-          const Divider(height: 32),
-          const _SectionHeader('Security'),
-          const _AppLockSection(),
-          const Divider(height: 32),
-          const _SectionHeader('AI'),
-          const _AnthropicApiKeySection(),
+        padding: const EdgeInsets.fromLTRB(
+          Space.gutter,
+          Space.x1,
+          Space.gutter,
+          Space.x4,
+        ),
+        children: const [
+          _SectionLabel('Appearance'),
+          _ThemeSelector(),
+          SizedBox(height: Space.sectionGap),
+          _SectionLabel('Money'),
+          _MoneySection(),
+          SizedBox(height: Space.sectionGap),
+          _SectionLabel('Data'),
+          _DataSection(),
+          SizedBox(height: Space.sectionGap),
+          _SectionLabel('Security'),
+          _AppLockSection(),
+          SizedBox(height: Space.sectionGap),
+          _SectionLabel('AI'),
+          _AnthropicApiKeySection(),
         ],
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.title);
 
   final String title;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, Space.x1),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+        style: AppTypography.chipOverline(
           color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+}
+
+/// Groups a fixed list of rows into one [AppCard], each separated by a
+/// hairline — the shape every settings section below uses so the screen
+/// reads as a stack of cards rather than a single long list.
+class _SettingsGroup extends StatelessWidget {
+  const _SettingsGroup({required this.rows});
+
+  final List<Widget> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: colors.outlineVariant),
+            rows[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeSelector extends StatelessWidget {
+  const _ThemeSelector();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ThemeCubit, ThemeMode>(
+      builder: (context, mode) {
+        return AppCard(
+          child: Row(
+            children: [
+              for (final option in ThemeMode.values) ...[
+                if (option != ThemeMode.values.first)
+                  const SizedBox(width: Space.x1),
+                Expanded(child: _ThemeOption(option: option, selected: option == mode)),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ThemeOption extends StatelessWidget {
+  const _ThemeOption({required this.option, required this.selected});
+
+  final ThemeMode option;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final icon = switch (option) {
+      ThemeMode.light => AppIcons.sun,
+      ThemeMode.dark => AppIcons.moon,
+      ThemeMode.system => AppIcons.settings,
+    };
+
+    return Material(
+      color: selected ? colors.primary.withValues(alpha: 0.10) : Colors.transparent,
+      borderRadius: Radii.inputRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.read<ThemeCubit>().setThemeModeUnawaited(option),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Space.x2),
+          child: Column(
+            children: [
+              AppIcon(
+                icon,
+                size: 20,
+                color: selected ? colors.primary : colors.onSurfaceVariant,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _label(option),
+                style: AppTypography.metadata(
+                  color: selected ? colors.primary : colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _label(ThemeMode mode) => switch (mode) {
+    ThemeMode.system => 'System',
+    ThemeMode.light => 'Light',
+    ThemeMode.dark => 'Dark',
+  };
+}
+
+class _MoneySection extends StatelessWidget {
+  const _MoneySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingsGroup(
+      rows: [
+        AppListRow(
+          leading: _RowIcon(icon: AppIcons.calendar),
+          title: const Text('Budget cycle'),
+          subtitle: const _BudgetCycleSubtitle(),
+          trailing: _Chevron(),
+          onTap: () =>
+              Navigator.of(context).push<void>(BudgetCyclePage.route()),
+        ),
+        AppListRow(
+          leading: _RowIcon(icon: AppIcons.accountBank),
+          title: const Text('Accounts'),
+          subtitle: const Text('Manage cash, bank, and mobile money accounts'),
+          trailing: _Chevron(),
+          onTap: () => Navigator.of(context).push<void>(AccountsPage.route()),
+        ),
+        AppListRow(
+          leading: _RowIcon(icon: AppIcons.budgets),
+          title: const Text('Categories'),
+          subtitle: const Text('Add or remove spending categories'),
+          trailing: _Chevron(),
+          onTap: () => Navigator.of(context).push<void>(CategoriesPage.route()),
+        ),
+        AppListRow(
+          leading: _RowIcon(icon: AppIcons.senders),
+          title: const Text('Message senders'),
+          subtitle: const Text("Recognize another bank or wallet's SMS alerts"),
+          trailing: _Chevron(),
+          onTap: () =>
+              Navigator.of(context).push<void>(CustomSendersPage.route()),
+        ),
+      ],
+    );
+  }
+}
+
+class _RowIcon extends StatelessWidget {
+  const _RowIcon({required this.icon, this.color});
+
+  final List<List<dynamic>> icon;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final tone = color ?? colors.primary;
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.10),
+        borderRadius: Radii.inputRadius,
+      ),
+      alignment: Alignment.center,
+      child: AppIcon(icon, size: 18, color: tone),
+    );
+  }
+}
+
+class _Chevron extends StatelessWidget {
+  const _Chevron();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppIcon(
+      AppIcons.chevronRight,
+      size: 18,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
     );
   }
 }
@@ -137,98 +288,68 @@ class _BudgetCycleSubtitle extends StatelessWidget {
   }
 }
 
-class _ThemeSelector extends StatelessWidget {
-  const _ThemeSelector();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeMode>(
-      builder: (context, mode) {
-        return Column(
-          children: [
-            for (final option in ThemeMode.values)
-              ListTile(
-                title: Text(_label(option)),
-                trailing: option == mode
-                    ? Icon(
-                        Icons.check,
-                        color: Theme.of(context).colorScheme.primary,
-                      )
-                    : null,
-                onTap: () =>
-                    context.read<ThemeCubit>().setThemeModeUnawaited(option),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  String _label(ThemeMode mode) => switch (mode) {
-    ThemeMode.system => 'Follow system',
-    ThemeMode.light => 'Light',
-    ThemeMode.dark => 'Dark',
-  };
-}
-
 class _AppLockSection extends StatelessWidget {
   const _AppLockSection();
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return BlocBuilder<SettingsCubit, SettingsState>(
       builder: (context, state) {
         if (state.status == SettingsStatus.initial) {
-          return const Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(child: CircularProgressIndicator()),
+          return const AppCard(
+            child: Center(
+              heightFactor: 2,
+              child: CircularProgressIndicator(),
+            ),
           );
         }
 
-        return Column(
-          children: [
-            if (!state.pinSet)
-              ListTile(
-                leading: const Icon(Icons.lock_open),
+        if (!state.pinSet) {
+          return _SettingsGroup(
+            rows: [
+              AppListRow(
+                leading: const _RowIcon(icon: AppIcons.lock),
                 title: const Text('Set up app lock'),
                 subtitle: const Text(
                   'Require a PIN to open IntelliSpendIQ. Capture keeps '
                   'running while locked.',
                 ),
+                trailing: const _Chevron(),
                 onTap: () => _setUpPin(context),
-              )
-            else ...[
-              ListTile(
-                leading: const Icon(Icons.pin_outlined),
-                title: const Text('Change PIN'),
-                onTap: () => _setUpPin(context, requireCurrentPin: true),
               ),
-              if (state.biometricsAvailable)
-                SwitchListTile(
-                  secondary: const Icon(Icons.fingerprint),
-                  title: const Text('Unlock with biometrics'),
+            ],
+          );
+        }
+
+        return _SettingsGroup(
+          rows: [
+            AppListRow(
+              leading: const _RowIcon(icon: AppIcons.lock),
+              title: const Text('Change PIN'),
+              trailing: const _Chevron(),
+              onTap: () => _setUpPin(context, requireCurrentPin: true),
+            ),
+            if (state.biometricsAvailable)
+              AppListRow(
+                leading: const _RowIcon(icon: AppIcons.fingerprint),
+                title: const Text('Unlock with biometrics'),
+                trailing: Switch(
                   value: state.biometricsEnabled,
                   onChanged: (enabled) => _setBiometrics(context, enabled),
                 ),
-              ListTile(
-                leading: const Icon(Icons.lock_outline),
-                title: const Text('Lock now'),
-                onTap: context.read<AuthCubit>().lockUnawaited,
               ),
-              ListTile(
-                leading: Icon(
-                  Icons.no_encryption_outlined,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                title: Text(
-                  'Turn off app lock',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                ),
-                onTap: () => _confirmDisable(context),
-              ),
-            ],
+            AppListRow(
+              leading: const _RowIcon(icon: AppIcons.lock),
+              title: const Text('Lock now'),
+              onTap: context.read<AuthCubit>().lockUnawaited,
+            ),
+            AppListRow(
+              leading: _RowIcon(icon: AppIcons.close, color: colors.error),
+              title: Text('Turn off app lock', style: TextStyle(color: colors.error)),
+              onTap: () => _confirmDisable(context),
+            ),
           ],
         );
       },
@@ -303,34 +424,35 @@ class _DataSectionState extends State<_DataSection> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        ListTile(
-          leading: const Icon(Icons.table_chart_outlined),
-          title: const Text('Export transactions (CSV)'),
-          subtitle: const Text('For your own records or a spreadsheet'),
-          enabled: !_busy,
-          onTap: () => _exportCsv(context),
-        ),
-        ListTile(
-          leading: const Icon(Icons.backup_outlined),
-          title: const Text('Back up all data (JSON)'),
-          subtitle: const Text(
-            'Accounts, categories, budgets, and transactions',
-          ),
-          enabled: !_busy,
-          onTap: () => _exportBackup(context),
-        ),
-        ListTile(
-          leading: const Icon(Icons.restore_outlined),
-          title: const Text('Restore from backup'),
-          subtitle: const Text(
-            "Adds a backup file's data to what is already here",
-          ),
-          enabled: !_busy,
-          onTap: () => _restoreBackup(context),
+        _SettingsGroup(
+          rows: [
+            AppListRow(
+              leading: const _RowIcon(icon: AppIcons.exportData),
+              title: const Text('Export transactions (CSV)'),
+              subtitle: const Text('For your own records or a spreadsheet'),
+              onTap: _busy ? null : () => _exportCsv(context),
+            ),
+            AppListRow(
+              leading: const _RowIcon(icon: AppIcons.backup),
+              title: const Text('Back up all data (JSON)'),
+              subtitle: const Text(
+                'Accounts, categories, budgets, and transactions',
+              ),
+              onTap: _busy ? null : () => _exportBackup(context),
+            ),
+            AppListRow(
+              leading: const _RowIcon(icon: AppIcons.restore),
+              title: const Text('Restore from backup'),
+              subtitle: const Text(
+                "Adds a backup file's data to what is already here",
+              ),
+              onTap: _busy ? null : () => _restoreBackup(context),
+            ),
+          ],
         ),
         if (_busy)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
+            padding: EdgeInsets.symmetric(vertical: Space.x2),
             child: Center(child: CircularProgressIndicator()),
           ),
       ],
@@ -436,19 +558,21 @@ class _AnthropicApiKeySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return BlocBuilder<SettingsCubit, SettingsState>(
       builder: (context, state) {
         if (state.status == SettingsStatus.initial) {
           return const SizedBox.shrink();
         }
 
-        return Column(
-          children: [
-            ListTile(
-              leading: Icon(
-                state.anthropicApiKeyConfigured
-                    ? Icons.check_circle_outline
-                    : Icons.key_outlined,
+        return _SettingsGroup(
+          rows: [
+            AppListRow(
+              leading: _RowIcon(
+                icon: state.anthropicApiKeyConfigured
+                    ? AppIcons.check
+                    : AppIcons.assistant,
               ),
               title: const Text('Anthropic API key'),
               subtitle: Text(
@@ -462,16 +586,11 @@ class _AnthropicApiKeySection extends StatelessWidget {
               ),
             ),
             if (state.anthropicApiKeyConfigured)
-              ListTile(
-                leading: Icon(
-                  Icons.delete_outline,
-                  color: Theme.of(context).colorScheme.error,
-                ),
+              AppListRow(
+                leading: _RowIcon(icon: AppIcons.delete, color: colors.error),
                 title: Text(
                   'Remove API key',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  style: TextStyle(color: colors.error),
                 ),
                 onTap: () => _confirmClear(context),
               ),
@@ -509,9 +628,7 @@ class _AnthropicApiKeySection extends StatelessWidget {
                       ? 'Paste a new key to replace the stored one'
                       : 'Paste your Anthropic API key',
                   suffixIcon: IconButton(
-                    icon: Icon(
-                      obscure ? Icons.visibility : Icons.visibility_off,
-                    ),
+                    icon: AppIcon(obscure ? AppIcons.eye : AppIcons.close, size: 20),
                     onPressed: () => setState(() => obscure = !obscure),
                   ),
                 ),

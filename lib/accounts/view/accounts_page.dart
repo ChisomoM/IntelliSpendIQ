@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/accounts/cubit/cubit.dart';
 import 'package:intellispendiq/accounts/widgets/widgets.dart';
-import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 
 class AccountsPage extends StatelessWidget {
   const AccountsPage({super.key});
@@ -35,15 +35,16 @@ class AccountsView extends StatelessWidget {
         title: const Text('Accounts'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.swap_horiz),
+            icon: AppIcon(AppIcons.transfer, size: 22),
             tooltip: 'Record transfer',
             onPressed: () => RecordTransferSheet.show(context),
           ),
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: AppIcon(AppIcons.add, size: 22),
             tooltip: 'Add account',
             onPressed: () => AccountEditorSheet.show(context),
           ),
+          const SizedBox(width: Space.x1),
         ],
       ),
       body: BlocBuilder<AccountsCubit, AccountsState>(
@@ -54,62 +55,56 @@ class AccountsView extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final theme = Theme.of(context);
+          final colors = Theme.of(context).colorScheme;
           final byType = state.byType;
 
           return ListView(
+            padding: const EdgeInsets.fromLTRB(
+              Space.gutter,
+              Space.x1,
+              Space.gutter,
+              Space.x4,
+            ),
             children: [
-              Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [
-                      theme.colorScheme.primary,
-                      theme.colorScheme.primaryContainer,
-                    ],
-                  ),
-                ),
+              HeroCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Total balance',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onPrimary,
+                      'TOTAL BALANCE',
+                      style: AppTypography.chipOverline(
+                        color: AppColors.nightText2,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      Money.display(state.totalBalanceMinor),
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    const SizedBox(height: Space.x1),
+                    MoneyText(
+                      state.totalBalanceMinor,
+                      size: MoneySize.display,
+                      color: AppColors.nightText,
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: Space.sectionGap),
               for (final entry in byType.entries) ...[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, Space.x1),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           accountTypeLabel(entry.key),
-                          style: theme.textTheme.titleSmall,
-                        ),
-                      ),
-                      Text(
-                        Money.display(
-                          entry.value.fold(
-                            0,
-                            (sum, a) => sum + state.balanceFor(a.id),
+                          style: AppTypography.sectionHeader(
+                            color: colors.onSurface,
                           ),
                         ),
-                        style: theme.textTheme.titleSmall,
+                      ),
+                      MoneyText(
+                        entry.value.fold(
+                          0,
+                          (sum, a) => sum + state.balanceFor(a.id),
+                        ),
+                        size: MoneySize.meta,
                       ),
                     ],
                   ),
@@ -119,9 +114,8 @@ class AccountsView extends StatelessWidget {
                     account: account,
                     balanceMinor: state.balanceFor(account.id),
                   ),
-                const Divider(height: 1),
+                const SizedBox(height: Space.x1),
               ],
-              const SizedBox(height: 80),
             ],
           );
         },

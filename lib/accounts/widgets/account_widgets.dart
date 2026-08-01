@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/accounts/cubit/cubit.dart';
-import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 
@@ -13,12 +13,48 @@ String accountTypeLabel(AccountType type) => switch (type) {
   AccountType.card => 'Card',
 };
 
-IconData accountTypeIcon(AccountType type) => switch (type) {
-  AccountType.cash => Icons.payments_outlined,
-  AccountType.bank => Icons.account_balance_outlined,
-  AccountType.mobileMoney => Icons.phone_iphone,
-  AccountType.card => Icons.credit_card_outlined,
+List<List<dynamic>> accountTypeIcon(AccountType type) => switch (type) {
+  AccountType.cash => AppIcons.accountCash,
+  AccountType.bank => AppIcons.accountBank,
+  AccountType.mobileMoney => AppIcons.accountMobileMoney,
+  AccountType.card => AppIcons.accountCard,
 };
+
+/// An account's glyph on its own tinted chip — hue keyed to the
+/// account's id, same mechanism [CategoryAvatar] uses for categories, so
+/// a column of accounts catches light the same way a column of
+/// categories does instead of every account wearing the same violet.
+class _AccountAvatar extends StatelessWidget {
+  const _AccountAvatar({required this.account});
+
+  final Account account;
+
+  @override
+  Widget build(BuildContext context) {
+    final hue = CategoryPalette.forCategory(
+      categoryId: account.id,
+      brightness: Theme.of(context).brightness,
+    );
+
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.alphaBlend(hue.ink.withValues(alpha: 0.06), hue.tint),
+            hue.tint,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(44 * 0.3),
+      ),
+      alignment: Alignment.center,
+      child: AppIcon(accountTypeIcon(account.type), size: 20, color: hue.ink),
+    );
+  }
+}
 
 class AccountTile extends StatelessWidget {
   const AccountTile({
@@ -35,43 +71,90 @@ class AccountTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(child: Icon(accountTypeIcon(account.type))),
-      title: Text(account.name),
-      subtitle: Text(
-        '${accountTypeLabel(account.type)} · '
-        '${Money.displayIn(balanceMinor, account.currency)}',
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(account.isDefault ? Icons.star : Icons.star_border),
-            tooltip: account.isDefault ? 'Default account' : 'Set as default',
-            color: account.isDefault
-                ? Theme.of(context).colorScheme.primary
-                : null,
-            onPressed: account.isDefault
-                ? null
-                : () => context.read<AccountsCubit>().setDefault(account.id),
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit balance',
-            onPressed: () => BalanceEditorSheet.show(
-              context,
-              account: account,
-              currentBalanceMinor: balanceMinor,
+    final colors = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.cardGap),
+      child: AppCard(
+        child: Row(
+          children: [
+            _AccountAvatar(account: account),
+            const SizedBox(width: Space.x2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          account.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.rowTitle(
+                            color: colors.onSurface,
+                          ),
+                        ),
+                      ),
+                      if (account.isDefault) ...[
+                        const SizedBox(width: 6),
+                        AppIcon(AppIcons.check, size: 14, color: colors.primary),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    accountTypeLabel(account.type),
+                    style: AppTypography.metadata(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Delete',
-            onPressed: () => _confirmDelete(context),
-          ),
-        ],
+            MoneyText(balanceMinor, size: MoneySize.row),
+            PopupMenuButton<_AccountAction>(
+              icon: AppIcon(
+                AppIcons.more,
+                size: 20,
+                color: colors.onSurfaceVariant,
+              ),
+              onSelected: (action) => _handle(context, action),
+              itemBuilder: (context) => [
+                if (!account.isDefault)
+                  const PopupMenuItem(
+                    value: _AccountAction.setDefault,
+                    child: Text('Set as default'),
+                  ),
+                const PopupMenuItem(
+                  value: _AccountAction.editBalance,
+                  child: Text('Edit balance'),
+                ),
+                const PopupMenuItem(
+                  value: _AccountAction.delete,
+                  child: Text('Delete'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _handle(BuildContext context, _AccountAction action) {
+    switch (action) {
+      case _AccountAction.setDefault:
+        context.read<AccountsCubit>().setDefault(account.id);
+      case _AccountAction.editBalance:
+        BalanceEditorSheet.show(
+          context,
+          account: account,
+          currentBalanceMinor: balanceMinor,
+        );
+      case _AccountAction.delete:
+        _confirmDelete(context);
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
@@ -100,6 +183,8 @@ class AccountTile extends StatelessWidget {
   }
 }
 
+enum _AccountAction { setDefault, editBalance, delete }
+
 /// Adds a new account. There is deliberately no edit path here — a
 /// mistaken account is deleted and re-added rather than renamed.
 class AccountEditorSheet extends StatefulWidget {
@@ -107,9 +192,8 @@ class AccountEditorSheet extends StatefulWidget {
 
   static Future<void> show(BuildContext context) {
     final cubit = context.read<AccountsCubit>();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
+    return AppSheet.show<void>(
+      context,
       builder: (_) => BlocProvider.value(
         value: cubit,
         child: const AccountEditorSheet(),
@@ -152,60 +236,48 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Add account', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: 'Account name',
-              errorText: _error,
-            ),
-            textCapitalization: TextCapitalization.words,
-            autofocus: true,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Add account', style: AppTypography.sectionHeader()),
+        const SizedBox(height: Space.x2),
+        AppTextField(
+          controller: _nameController,
+          label: 'Account name',
+          errorText: _error,
+          textCapitalization: TextCapitalization.words,
+          autofocus: true,
+        ),
+        const SizedBox(height: Space.x2),
+        DropdownButtonFormField<AccountType>(
+          initialValue: _type,
+          decoration: const InputDecoration(labelText: 'Type'),
+          items: [
+            for (final type in AccountType.values)
+              DropdownMenuItem(value: type, child: Text(accountTypeLabel(type))),
+          ],
+          onChanged: (value) => setState(() => _type = value ?? _type),
+        ),
+        const SizedBox(height: Space.x2),
+        AppTextField(
+          controller: _openingBalanceController,
+          label: 'Opening balance (optional)',
+          hint:
+              'What it holds right now — leave blank to start from zero and '
+              'log transactions as they happen',
+          prefixIcon: const Padding(
+            padding: EdgeInsets.only(left: 16),
+            child: Text('K'),
           ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<AccountType>(
-            initialValue: _type,
-            decoration: const InputDecoration(labelText: 'Type'),
-            items: [
-              for (final type in AccountType.values)
-                DropdownMenuItem(
-                  value: type,
-                  child: Text(accountTypeLabel(type)),
-                ),
-            ],
-            onChanged: (value) => setState(() => _type = value ?? _type),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _openingBalanceController,
-            decoration: const InputDecoration(
-              labelText: 'Opening balance (optional)',
-              helperText:
-                  'What it holds right now — leave blank to start '
-                  'from zero and log transactions as they happen',
-              prefixText: 'K',
-            ),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
-            ],
-          ),
-          const SizedBox(height: 24),
-          FilledButton(onPressed: _save, child: const Text('Add account')),
-        ],
-      ),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
+          ],
+        ),
+        const SizedBox(height: Space.x3),
+        AppButton.primary(label: 'Add account', onPressed: _save),
+      ],
     );
   }
 }
@@ -229,9 +301,8 @@ class BalanceEditorSheet extends StatefulWidget {
     required int currentBalanceMinor,
   }) {
     final cubit = context.read<AccountsCubit>();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
+    return AppSheet.show<void>(
+      context,
       builder: (_) => BlocProvider.value(
         value: cubit,
         child: BalanceEditorSheet(
@@ -275,39 +346,23 @@ class _BalanceEditorSheetState extends State<BalanceEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Edit balance for ${widget.account.name}',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _amountController,
-            decoration: InputDecoration(
-              labelText: 'Balance',
-              prefixText: '${widget.account.currency} ',
-              errorText: _error,
-            ),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
-            ],
-            autofocus: true,
-          ),
-          const SizedBox(height: 24),
-          FilledButton(onPressed: _save, child: const Text('Save')),
-        ],
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Edit balance for ${widget.account.name}',
+          style: AppTypography.sectionHeader(),
+        ),
+        const SizedBox(height: Space.x2),
+        AmountField(
+          controller: _amountController,
+          errorText: _error,
+          autofocus: true,
+        ),
+        const SizedBox(height: Space.x3),
+        AppButton.primary(label: 'Save', onPressed: _save),
+      ],
     );
   }
 }
@@ -323,9 +378,8 @@ class RecordTransferSheet extends StatefulWidget {
 
   static Future<void> show(BuildContext context) {
     final cubit = context.read<AccountsCubit>();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
+    return AppSheet.show<void>(
+      context,
       builder: (_) => BlocProvider.value(
         value: cubit,
         child: const RecordTransferSheet(),
@@ -398,93 +452,69 @@ class _RecordTransferSheetState extends State<RecordTransferSheet> {
   @override
   Widget build(BuildContext context) {
     final accounts = context.watch<AccountsCubit>().state.accounts;
+    final colors = Theme.of(context).colorScheme;
+
     if (accounts.length < 2) {
       return Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(Space.x3),
         child: Text(
           'Add a second account before recording a transfer between them.',
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: AppTypography.body(color: colors.onSurfaceVariant),
         ),
       );
     }
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Record a transfer',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Money moved between your own accounts — this never counts '
-            'as spend or income.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: _fromAccountId,
-            decoration: const InputDecoration(labelText: 'From'),
-            items: [
-              for (final account in accounts)
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Record a transfer', style: AppTypography.sectionHeader()),
+        const SizedBox(height: Space.x1),
+        Text(
+          'Money moved between your own accounts — this never counts as '
+          'spend or income.',
+          style: AppTypography.metadata(color: colors.onSurfaceVariant),
+        ),
+        const SizedBox(height: Space.x2),
+        DropdownButtonFormField<String>(
+          initialValue: _fromAccountId,
+          decoration: const InputDecoration(labelText: 'From'),
+          items: [
+            for (final account in accounts)
+              DropdownMenuItem(value: account.id, child: Text(account.name)),
+          ],
+          onChanged: (value) => setState(() {
+            _fromAccountId = value;
+            if (_toAccountId == value) _toAccountId = null;
+          }),
+        ),
+        const SizedBox(height: Space.x2),
+        DropdownButtonFormField<String>(
+          initialValue: _toAccountId,
+          decoration: const InputDecoration(labelText: 'To'),
+          items: [
+            for (final account in accounts)
+              if (account.id != _fromAccountId)
                 DropdownMenuItem(value: account.id, child: Text(account.name)),
-            ],
-            onChanged: (value) => setState(() {
-              _fromAccountId = value;
-              if (_toAccountId == value) _toAccountId = null;
-            }),
+          ],
+          onChanged: (value) => setState(() => _toAccountId = value),
+        ),
+        const SizedBox(height: Space.x2),
+        AmountField(controller: _amountController, errorText: _error),
+        const SizedBox(height: Space.x1),
+        AppListRow(
+          title: const Text('Date'),
+          subtitle: Text(_transactedAt.toString().split('.').first),
+          trailing: AppIcon(
+            AppIcons.chevronRight,
+            size: 18,
+            color: colors.onSurfaceVariant,
           ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: _toAccountId,
-            decoration: const InputDecoration(labelText: 'To'),
-            items: [
-              for (final account in accounts)
-                if (account.id != _fromAccountId)
-                  DropdownMenuItem(
-                    value: account.id,
-                    child: Text(account.name),
-                  ),
-            ],
-            onChanged: (value) => setState(() => _toAccountId = value),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _amountController,
-            decoration: InputDecoration(
-              labelText: 'Amount',
-              prefixText: 'K',
-              errorText: _error,
-            ),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
-            ],
-            autofocus: true,
-          ),
-          const SizedBox(height: 8),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Date'),
-            subtitle: Text(_transactedAt.toString().split('.').first),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _pickDate,
-          ),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: _save,
-            child: const Text('Record transfer'),
-          ),
-        ],
-      ),
+          onTap: _pickDate,
+        ),
+        const SizedBox(height: Space.x2),
+        AppButton.primary(label: 'Record transfer', onPressed: _save),
+      ],
     );
   }
 }
@@ -494,32 +524,13 @@ class NoAccountsYet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.account_balance_wallet_outlined, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'No accounts yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add a cash wallet, bank account, or mobile money account '
-              'to record transactions against.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => AccountEditorSheet.show(context),
-              child: const Text('Add account'),
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: AppIcons.emptyWallet,
+      title: 'No accounts yet',
+      message: 'Add a cash wallet, bank account, or mobile money account to '
+          'record transactions against.',
+      actionLabel: 'Add account',
+      onAction: () => AccountEditorSheet.show(context),
     );
   }
 }

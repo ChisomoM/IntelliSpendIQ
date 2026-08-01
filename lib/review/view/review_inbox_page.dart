@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/review/cubit/cubit.dart';
 import 'package:intellispendiq/review/widgets/widgets.dart';
 
@@ -41,8 +42,21 @@ class ReviewInboxView extends StatelessWidget {
           if (state.isEmpty) return const InboxZero();
 
           return ListView(
-            padding: const EdgeInsets.only(bottom: 32),
+            padding: const EdgeInsets.fromLTRB(
+              Space.gutter,
+              Space.x1,
+              Space.gutter,
+              Space.x4,
+            ),
             children: [
+              Text(
+                state.pendingCount == 1
+                    ? '1 item needs a glance'
+                    : '${state.pendingCount} items need a glance',
+                style: AppTypography.metadata(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
               if (state.transferCandidates.isNotEmpty) ...[
                 const SectionHeader(
                   title: 'Possible transfers',
