@@ -108,6 +108,25 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
 
   void amountChanged(String value) => emit(state.copyWith(amount: value));
 
+  /// Sets the date while keeping the existing clock time, for the
+  /// Today/Yesterday shortcuts. Those answer "which day", and a
+  /// shortcut that also reset the time to midnight would silently
+  /// reorder the entry against everything else captured that day.
+  void dayShortcutSelected(DateTime day) {
+    final current = state.transactedAt;
+    emit(
+      state.copyWith(
+        transactedAt: DateTime(
+          day.year,
+          day.month,
+          day.day,
+          current.hour,
+          current.minute,
+        ),
+      ),
+    );
+  }
+
   void merchantChanged(String value) => emit(state.copyWith(merchant: value));
 
   void descriptionChanged(String value) =>

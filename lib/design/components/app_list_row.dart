@@ -13,6 +13,7 @@ class AppListRow extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.onTap,
+    this.onLongPress,
     super.key,
   });
 
@@ -21,6 +22,7 @@ class AppListRow extends StatelessWidget {
   final Widget? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +70,7 @@ class AppListRow extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return row;
-    return InkWell(onTap: onTap, child: row);
+    if (onTap == null && onLongPress == null) return row;
+    return InkWell(onTap: onTap, onLongPress: onLongPress, child: row);
   }
 }

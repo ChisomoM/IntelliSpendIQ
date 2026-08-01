@@ -29,3 +29,26 @@ class TransferEntry extends ActivityEntry {
   @override
   DateTime get transactedAt => transfer.transactedAt;
 }
+
+/// One local calendar day of the Activity feed, with its net movement.
+///
+/// Grouping happens here rather than in the list builder so the day
+/// header and its total can never disagree about which entries the day
+/// contains.
+class ActivityDayGroup {
+  const ActivityDayGroup({
+    required this.day,
+    required this.entries,
+    required this.netMinor,
+  });
+
+  /// Local midnight of the day these entries fall on.
+  final DateTime day;
+  final List<ActivityEntry> entries;
+
+  /// Money in minus money out for the day. Transfers are excluded —
+  /// moving money between your own accounts changes neither, and
+  /// counting a transfer here would make an ordinary Tuesday look like
+  /// a windfall or a disaster.
+  final int netMinor;
+}

@@ -38,6 +38,50 @@ class BudgetsState extends Equatable {
   /// Display label `DD/MM/YYYY – DD/MM/YYYY`, or empty before load.
   String get periodLabel => budgetPeriod?.label ?? '';
 
+  /// The same window in prose — `1 – 31 Jul`, or `1 Jul – 4 Aug` when
+  /// it straddles a month. The stored label is machine output.
+  ///
+  /// Deliberately identical to `DashboardState.periodDisplayLabel`:
+  /// Home and Budgets walk the same budget periods, so a user moving
+  /// between the two tabs must see the same window described the same
+  /// way.
+  String get periodDisplayLabel {
+    final period = budgetPeriod;
+    if (period == null) return '';
+    final start = Iso.toDateTime(period.startAt).toLocal();
+    final endInclusive = Iso.toDateTime(
+      period.endAt,
+    ).toLocal().subtract(const Duration(days: 1));
+
+    final endDay = DateFormat('d MMM').format(endInclusive);
+    if (start.month == endInclusive.month && start.year == endInclusive.year) {
+      return '${DateFormat('d').format(start)} – $endDay';
+    }
+    return '${DateFormat('d MMM').format(start)} – $endDay';
+  }
+
+  /// Whole days left in the period, counting today. Zero once it ends.
+  int get daysLeft {
+    final period = budgetPeriod;
+    if (period == null) return 0;
+    final end = Iso.toDateTime(period.endAt).toLocal();
+    final today = DateTime.now();
+    final difference = DateTime(
+      end.year,
+      end.month,
+      end.day,
+    ).difference(DateTime(today.year, today.month, today.day)).inDays;
+    return difference < 0 ? 0 : difference;
+  }
+
+  bool get isCurrentPeriod {
+    final period = budgetPeriod;
+    if (period == null) return false;
+    final now = DateTime.now().toUtc();
+    return now.isAfter(Iso.toDateTime(period.startAt)) &&
+        now.isBefore(Iso.toDateTime(period.endAt));
+  }
+
   List<Category> get budgetedExpenseCategories => categories
       .where((c) => c.isExpense && c.parentId == null && c.hasBudget)
       .toList();

@@ -8,6 +8,7 @@ import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
 import 'package:intellispendiq/transactions/cubit/activity_entry.dart';
@@ -94,6 +95,14 @@ class TransactionsCubit extends Cubit<TransactionsState> {
     _resubscribe();
   }
 
+  /// Money in / money out, or null for both. Filtered in state rather
+  /// than in the query, so no resubscribe is needed.
+  void directionFilterChanged(TxDirection? direction) {
+    emit(
+      state.copyWith(direction: direction, clearDirection: direction == null),
+    );
+  }
+
   void clearFilters() {
     _debounce?.cancel();
     emit(
@@ -103,6 +112,7 @@ class TransactionsCubit extends Cubit<TransactionsState> {
         clearAccountId: true,
         clearDateFrom: true,
         clearDateTo: true,
+        clearDirection: true,
       ),
     );
     _resubscribe();

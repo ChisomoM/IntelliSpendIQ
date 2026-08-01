@@ -8,6 +8,7 @@ import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 
 /// One category's budget envelope: stat tiles, a spend gauge, its
 /// subcategories, and moving budget to another category.
@@ -71,24 +72,51 @@ class CategoryDetailView extends StatelessWidget {
         if (state.status == CategoryDetailStatus.initial ||
             state.status == CategoryDetailStatus.loading) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Padding(
+              padding: EdgeInsets.all(Space.gutter),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LoadingSkeleton(width: double.infinity, height: 72),
+                  SizedBox(height: Space.sectionGap),
+                  LoadingSkeleton(width: double.infinity, height: 148),
+                ],
+              ),
+            ),
           );
         }
         if (state.status == CategoryDetailStatus.notFound ||
             state.category == null) {
-          return const Scaffold(
-            body: Center(child: Text('Category not found')),
+          return Scaffold(
+            appBar: AppBar(),
+            body: const ErrorState(
+              message: 'This category no longer exists.',
+            ),
           );
         }
 
         final category = state.category!;
+        final hasBudget = state.budgetedMinor > 0;
+
         return Scaffold(
           appBar: AppBar(
-            title: Text(category.displayName),
+            title: Row(
+              children: [
+                CategoryAvatar(iconKey: category.icon, size: 28),
+                const SizedBox(width: Space.x1),
+                Expanded(
+                  child: Text(
+                    category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                tooltip: 'Edit',
+                icon: AppIcon(AppIcons.edit),
+                tooltip: 'Edit category',
                 onPressed: () => Navigator.of(
                   context,
                 ).push<String?>(CategoryEditorPage.route(existing: category)),
@@ -96,67 +124,73 @@ class CategoryDetailView extends StatelessWidget {
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(
+              Space.gutter,
+              Space.x2,
+              Space.gutter,
+              Space.x4,
+            ),
             children: [
               CategoryStatTiles(
                 budgetedMinor: state.budgetedMinor,
                 spentMinor: state.spentMinor,
                 remainingMinor: state.remainingMinor,
               ),
-              const SizedBox(height: 20),
-              Center(
-                child: BudgetGauge(
-                  spentMinor: state.spentMinor,
-                  budgetedMinor: state.budgetedMinor,
+              if (hasBudget) ...[
+                const SizedBox(height: Space.sectionGap),
+                Center(
+                  child: MoneyGauge(
+                    spentMinor: state.spentMinor,
+                    budgetedMinor: state.budgetedMinor,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              FilledButton.tonalIcon(
+              ],
+              const SizedBox(height: Space.sectionGap),
+              OutlinedButton.icon(
                 onPressed: () => BudgetTransferSheet.show(context),
-                icon: const Icon(Icons.swap_horiz),
-                label: const Text('Budget Transfer'),
+                icon: AppIcon(AppIcons.transfer, size: 18),
+                label: const Text('Move budget to another category'),
               ),
-              const SizedBox(height: 20),
-              Card(
-                child: ListTile(
-                  title: const Text('Total subcategories budgeted'),
-                  trailing: Text(
-                    Money.format(state.totalSubcategoriesBudgetedMinor),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
+              const SizedBox(height: Space.sectionGap),
+              SectionHeader(
+                title: 'Subcategories',
+                subtitle: state.children.isEmpty
+                    ? null
+                    : '${Money.display(state.totalSubcategoriesBudgetedMinor)}'
+                          ' budgeted across them',
+                action: state.children.isEmpty ? null : 'Add',
+                onActionTap: () => _addSubcategory(context, state),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    'Subcategories',
-                    style: Theme.of(context).textTheme.titleSmall,
+              if (state.children.isEmpty)
+                EmptyState(
+                  icon: AppIcons.emptyWallet,
+                  title: 'No subcategories yet',
+                  message: 'Break this budget down to see where inside it '
+                      'the money goes.',
+                  actionLabel: 'Add a subcategory',
+                  onAction: () => _addSubcategory(context, state),
+                )
+              else
+                for (final child in state.children)
+                  SubcategoryRow(
+                    category: child,
+                    spentMinor: state.spentFor(child.id),
                   ),
-                  const Spacer(),
-                  TextButton.icon(
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Subcategory'),
-                    onPressed: () => Navigator.of(context).push<String?>(
-                      CategoryEditorPage.route(
-                        parentId: category.id,
-                        initialType: category.type,
-                        lockParent: true,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              for (final child in state.children)
-                SubcategoryRow(
-                  category: child,
-                  spentMinor: state.spentFor(child.id),
-                ),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _addSubcategory(BuildContext context, CategoryDetailState state) {
+    final category = state.category!;
+    Navigator.of(context).push<String?>(
+      CategoryEditorPage.route(
+        parentId: category.id,
+        initialType: category.type,
+        lockParent: true,
+      ),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:intellispendiq/categories/cubit/cubit.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 
@@ -30,25 +31,21 @@ class CategoryTile extends StatelessWidget {
     final subtitleParts = [
       if (category.isSystem) 'Default category',
       if (category.hasBudget)
-        '${category.isIncome ? 'Planned' : 'Budget'}: ${Money.format(category.budgetedAmountMinor!)}',
+        '${category.isIncome ? 'Planned' : 'Budget'}: ${Money.display(category.budgetedAmountMinor!)}',
       if (childCount != null && childCount! > 0)
         '$childCount subcategor${childCount == 1 ? 'y' : 'ies'}',
     ];
 
-    return ListTile(
+    return AppListRow(
       onTap: onTap,
-      leading: CircleAvatar(
-        child: category.icon == null
-            ? const Icon(Icons.label_outline)
-            : Text(category.icon!),
-      ),
+      leading: CategoryAvatar(iconKey: category.icon),
       title: Text(category.name),
       subtitle: subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · ')),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            icon: const Icon(Icons.edit_outlined),
+            icon: AppIcon(AppIcons.edit, size: 20),
             tooltip: 'Edit',
             onPressed: () => Navigator.of(
               context,
@@ -56,11 +53,11 @@ class CategoryTile extends StatelessWidget {
           ),
           if (!category.isSystem)
             IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: AppIcon(AppIcons.delete, size: 20),
               tooltip: 'Delete',
               onPressed: () => _confirmDelete(context),
             ),
-          if (onTap != null) const Icon(Icons.chevron_right),
+          if (onTap != null) AppIcon(AppIcons.chevronRight, size: 20),
         ],
       ),
     );
@@ -190,9 +187,11 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
   late final TextEditingController _nameController = TextEditingController(
     text: widget.existing?.name ?? '',
   );
-  late final TextEditingController _iconController = TextEditingController(
-    text: widget.existing?.icon ?? '',
-  );
+  /// A category already on this device may still hold a legacy emoji,
+  /// so it is mapped onto the equivalent key rather than shown as an
+  /// unrecognised value the user would have to re-pick.
+  late String? _iconKey = CategoryIcons.legacyEmojiToKey[widget.existing?.icon] ??
+      widget.existing?.icon;
   late final TextEditingController _budgetController = TextEditingController(
     text: widget.existing?.budgetedAmountMinor == null
         ? ''
@@ -206,7 +205,6 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
   @override
   void dispose() {
     _nameController.dispose();
-    _iconController.dispose();
     _budgetController.dispose();
     super.dispose();
   }
@@ -219,7 +217,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
     if (existing == null) {
       final created = await cubit.add(
         name: _nameController.text,
-        icon: _iconController.text,
+        icon: _iconKey,
         parentId: _parentId,
         type: _type,
         budgetedAmount: _budgetController.text,
@@ -229,7 +227,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
       await cubit.rename(
         existing.id,
         name: _nameController.text,
-        icon: _iconController.text,
+        icon: _iconKey,
         parentId: _parentId,
         type: _type,
         budgetedAmount: _budgetController.text,
@@ -308,12 +306,13 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                 autofocus: true,
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _iconController,
-                decoration: const InputDecoration(
-                  labelText: 'Icon (optional)',
-                  hintText: 'Paste an emoji, e.g. 🎮',
-                ),
+              // Was a free-text field asking the user to paste an
+              // emoji. Icons now come from a fixed set so they render
+              // in the app's own icon language rather than the
+              // keyboard's.
+              _IconPicker(
+                selectedKey: _iconKey,
+                onSelected: (key) => setState(() => _iconKey = key),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -325,7 +324,9 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                   hintText: _type == CategoryType.income
                       ? 'e.g. monthly salary'
                       : null,
-                  prefixText: 'ZMW ',
+                  // The symbol, with no space — ZMW is for statements
+                  // and export only.
+                  prefixText: 'K',
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -394,6 +395,71 @@ class NoCategoriesYet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Picks a category's icon from the app's fixed set.
+///
+/// Replaces the free-text "paste an emoji" field. Emoji are banned by
+/// the brand guide, and a text field also let a user store anything at
+/// all in a column the rest of the app now reads as an icon key.
+class _IconPicker extends StatelessWidget {
+  const _IconPicker({required this.selectedKey, required this.onSelected});
+
+  final String? selectedKey;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ICON',
+          style: AppTypography.chipOverline(color: colors.onSurfaceVariant),
+        ),
+        const SizedBox(height: Space.x1),
+        Wrap(
+          spacing: Space.x1,
+          runSpacing: Space.x1,
+          children: [
+            for (final key in CategoryIcons.pickableKeys)
+              Semantics(
+                label: CategoryIcons.labelFor(key),
+                selected: key == selectedKey,
+                button: true,
+                child: InkWell(
+                  onTap: () => onSelected(key == selectedKey ? null : key),
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  child: Container(
+                    width: Space.x6,
+                    height: Space.x6,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(Radii.card),
+                      border: Border.all(
+                        color: key == selectedKey
+                            ? colors.secondary
+                            : colors.outlineVariant,
+                        width: key == selectedKey ? 2 : 1,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: AppIcon(
+                      CategoryIcons.byKey(key),
+                      size: 22,
+                      color: key == selectedKey
+                          ? colors.secondary
+                          : colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

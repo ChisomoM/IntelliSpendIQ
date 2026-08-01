@@ -127,6 +127,24 @@ abstract final class CategoryIcons {
     return _registry[key] ?? _registry[CategoryIconKey.other]!;
   }
 
+  /// Every key a category can be given, in picker order.
+  static List<String> get pickableKeys => _registry.keys.toList();
+
+  /// Human label for [key], for a picker's accessibility semantics.
+  static String labelFor(String key) => switch (key) {
+    CategoryIconKey.food => 'Food',
+    CategoryIconKey.transport => 'Transport',
+    CategoryIconKey.shopping => 'Shopping',
+    CategoryIconKey.bills => 'Bills',
+    CategoryIconKey.income => 'Income',
+    CategoryIconKey.mobile => 'Airtime and data',
+    CategoryIconKey.bank => 'Bank',
+    CategoryIconKey.subscription => 'Subscription',
+    CategoryIconKey.transfer => 'Transfer',
+    CategoryIconKey.entertainment => 'Entertainment',
+    _ => 'Other',
+  };
+
   /// True when [icon] is a legacy emoji rather than a registry key —
   /// the signal a picker UI can use to know a value should be offered
   /// for remapping the next time the category is edited.

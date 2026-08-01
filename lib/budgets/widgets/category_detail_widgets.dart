@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/budgets/cubit/cubit.dart';
 import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 
 /// Budgeted / spent / remaining, side by side.
+///
+/// Only "remaining" is coloured, and only when it has gone negative —
+/// spending money is not an alarm, so a plain "Spent" figure stays in
+/// the ordinary text colour. The old version rendered every tile the
+/// same way and relied on the reader to notice a minus sign.
 class CategoryStatTiles extends StatelessWidget {
   const CategoryStatTiles({
     required this.budgetedMinor,
@@ -20,105 +25,43 @@ class CategoryStatTiles extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final money = Theme.of(context).extension<MoneyColors>()!;
+    final isOver = remainingMinor < 0;
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: _StatTile(label: 'Budgeted', amountMinor: budgetedMinor),
+          child: StatTile(
+            label: 'Budgeted',
+            value: MoneyText(budgetedMinor, size: MoneySize.meta),
+          ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: Space.x1),
         Expanded(
-          child: _StatTile(label: 'Spent', amountMinor: spentMinor),
+          child: StatTile(
+            label: 'Spent',
+            value: MoneyText(spentMinor, size: MoneySize.meta),
+          ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: Space.x1),
         Expanded(
-          child: _StatTile(label: 'Remaining', amountMinor: remainingMinor),
+          child: StatTile(
+            label: isOver ? 'Over by' : 'Left',
+            value: MoneyText(
+              remainingMinor.abs(),
+              size: MoneySize.meta,
+              color: isOver ? money.outflow : null,
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.amountMinor});
-
-  final String label;
-  final int amountMinor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: theme.textTheme.bodySmall),
-            const SizedBox(height: 4),
-            Text(
-              Money.format(amountMinor),
-              style: theme.textTheme.titleMedium,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A circular percent-spent gauge.
-class BudgetGauge extends StatelessWidget {
-  const BudgetGauge({
-    required this.spentMinor,
-    required this.budgetedMinor,
-    super.key,
-  });
-
-  final int spentMinor;
-  final int budgetedMinor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final ratio = budgetedMinor == 0 ? 0.0 : spentMinor / budgetedMinor;
-    final over = spentMinor > budgetedMinor && budgetedMinor > 0;
-
-    return SizedBox(
-      width: 140,
-      height: 140,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 140,
-            height: 140,
-            child: CircularProgressIndicator(
-              value: ratio.clamp(0.0, 1.0),
-              strokeWidth: 10,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              color: over ? theme.colorScheme.error : theme.colorScheme.primary,
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${(ratio * 100).clamp(0, 999).toStringAsFixed(0)}%',
-                style: theme.textTheme.headlineSmall,
-              ),
-              Text('Budget spent', style: theme.textTheme.bodySmall),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One subcategory row: spent vs planned (or just spent, if it has no
-/// budget of its own).
+/// One subcategory row: spent against its own budget, or just spent
+/// when it has none of its own.
 class SubcategoryRow extends StatelessWidget {
   const SubcategoryRow({
     required this.category,
@@ -131,35 +74,56 @@ class SubcategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final money = Theme.of(context).extension<MoneyColors>()!;
     final budgeted = category.budgetedAmountMinor;
+    final isOver = budgeted != null && spentMinor > budgeted;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.x1),
+      child: AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(category.displayName, style: theme.textTheme.titleSmall),
-            const SizedBox(height: 6),
-            if (budgeted == null)
+            Row(
+              children: [
+                CategoryAvatar(iconKey: category.icon, size: 32),
+                const SizedBox(width: Space.x1),
+                Expanded(
+                  child: Text(
+                    category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.rowTitle(color: colors.onSurface),
+                  ),
+                ),
+                const SizedBox(width: Space.x1),
+                MoneyText(spentMinor, size: MoneySize.meta),
+              ],
+            ),
+            if (budgeted == null) ...[
+              const SizedBox(height: 6),
               Text(
-                '${Money.format(spentMinor)} spent',
-                style: theme.textTheme.bodySmall,
-              )
-            else ...[
-              LinearProgressIndicator(
-                value: budgeted == 0
-                    ? 0
-                    : (spentMinor / budgeted).clamp(0.0, 1.0),
-                color: spentMinor > budgeted ? theme.colorScheme.error : null,
+                'No budget of its own',
+                style: AppTypography.metadata(color: colors.onSurfaceVariant),
+              ),
+            ] else ...[
+              const SizedBox(height: Space.x1),
+              ProgressMeter(
+                value: budgeted == 0 ? 0 : spentMinor / budgeted,
+                isOver: isOver,
+                height: 6,
               ),
               const SizedBox(height: 6),
               Text(
-                '${Money.format(spentMinor)} of ${Money.format(budgeted)} spent'
-                '${spentMinor > budgeted ? '' : ' · ${Money.format(budgeted - spentMinor)} remain'}',
-                style: theme.textTheme.bodySmall,
+                isOver
+                    ? '${Money.display(spentMinor - budgeted)} over '
+                          '${Money.display(budgeted)}'
+                    : '${Money.display(budgeted - spentMinor)} left of '
+                          '${Money.display(budgeted)}',
+                style: AppTypography.metadata(
+                  color: isOver ? money.outflow : colors.onSurfaceVariant,
+                ),
               ),
             ],
           ],
@@ -176,9 +140,8 @@ class BudgetTransferSheet extends StatefulWidget {
 
   static Future<void> show(BuildContext context) {
     final cubit = context.read<CategoryDetailCubit>();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
+    return AppSheet.show<void>(
+      context,
       builder: (_) => BlocProvider.value(
         value: cubit,
         child: const BudgetTransferSheet(),
@@ -219,60 +182,50 @@ class _BudgetTransferSheetState extends State<BudgetTransferSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final targets = context.read<CategoryDetailCubit>().state.transferTargets;
+    final state = context.read<CategoryDetailCubit>().state;
+    final targets = state.transferTargets;
+    final colors = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Move budget', style: AppTypography.sectionHeader()),
+        const SizedBox(height: Space.x1),
+        Text(
+          'Takes from this category’s budget and adds it to another. '
+          'Nothing you have already spent changes.',
+          style: AppTypography.metadata(color: colors.onSurfaceVariant),
+        ),
+        const SizedBox(height: Space.x2),
+        if (targets.isEmpty)
           Text(
-            'Transfer budget',
-            style: Theme.of(context).textTheme.titleLarge,
+            'There is no other category of the same type to move it to.',
+            style: AppTypography.body(color: colors.onSurfaceVariant),
+          )
+        else ...[
+          DropdownButtonFormField<String>(
+            initialValue: _targetId,
+            decoration: const InputDecoration(labelText: 'Move to'),
+            items: [
+              for (final target in targets)
+                DropdownMenuItem(
+                  value: target.id,
+                  child: Text(target.displayName),
+                ),
+            ],
+            onChanged: (value) => setState(() => _targetId = value),
           ),
-          const SizedBox(height: 16),
-          if (targets.isEmpty)
-            const Text('No other category of the same type to move it to.')
-          else ...[
-            DropdownButtonFormField<String>(
-              initialValue: _targetId,
-              decoration: const InputDecoration(labelText: 'Move to'),
-              items: [
-                for (final target in targets)
-                  DropdownMenuItem(
-                    value: target.id,
-                    child: Text(target.displayName),
-                  ),
-              ],
-              onChanged: (value) => setState(() => _targetId = value),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _amountController,
-              decoration: InputDecoration(
-                labelText: 'Amount',
-                prefixText: 'ZMW ',
-                errorText: _error,
-              ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
-              ],
-              autofocus: true,
-            ),
-            const SizedBox(height: 24),
-            FilledButton(onPressed: _transfer, child: const Text('Transfer')),
-          ],
+          const SizedBox(height: Space.x2),
+          AmountField(
+            controller: _amountController,
+            autofocus: true,
+            errorText: _error,
+          ),
+          const SizedBox(height: Space.x3),
+          FilledButton(onPressed: _transfer, child: const Text('Move')),
         ],
-      ),
+      ],
     );
   }
 }

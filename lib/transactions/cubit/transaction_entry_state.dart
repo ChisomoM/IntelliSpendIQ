@@ -54,6 +54,25 @@ class TransactionEntryState extends Equatable {
 
   bool get isSaving => status == TransactionEntryStatus.saving;
 
+  /// Categories of the direction currently selected — a debit entry
+  /// should not offer income categories, which the old flat dropdown
+  /// did.
+  List<Category> get categoriesForDirection {
+    final wanted = direction == TxDirection.credit
+        ? CategoryType.income
+        : CategoryType.expense;
+    return categories.where((c) => c.type == wanted).toList();
+  }
+
+  /// True when the entry has enough to be saved.
+  bool get canSave => Money.tryParseToMinor(amount) != null;
+
+  /// Whether [transactedAt] falls on [day], for the date shortcuts.
+  bool isOnDay(DateTime day) =>
+      transactedAt.year == day.year &&
+      transactedAt.month == day.month &&
+      transactedAt.day == day.day;
+
   TransactionEntryState copyWith({
     TransactionEntryStatus? status,
     String? amount,

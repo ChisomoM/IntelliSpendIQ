@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/budgets/cubit/cubit.dart';
 import 'package:intellispendiq/budgets/view/category_detail_page.dart';
 import 'package:intellispendiq/categories/widgets/widgets.dart';
 import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/overall_budget.dart';
 
-/// Planned (overall period target) and Allocated (sum of category
-/// envelopes) as peer figures, with confirmed spend tracked against
-/// Planned.
-class PlannedVsActualCard extends StatelessWidget {
-  const PlannedVsActualCard({
+/// The period's plan and what has been spent against it, on a dark card
+/// in both themes — the screen's one headline figure.
+///
+/// "Planned" is the overall target; "Allocated" is the sum of the
+/// category envelopes underneath. They are different questions and
+/// used to be shown as peer figures with no indication of which one
+/// the progress bar tracked.
+class BudgetHeroCard extends StatelessWidget {
+  const BudgetHeroCard({
     required this.plannedMinor,
     required this.totalSpent,
-    this.allocatedMinor = 0,
+    required this.allocatedMinor,
+    required this.daysLeft,
+    required this.isCurrentPeriod,
     this.overallBudget,
     super.key,
   });
@@ -24,176 +30,150 @@ class PlannedVsActualCard extends StatelessWidget {
   final int plannedMinor;
   final int totalSpent;
   final int allocatedMinor;
+  final int daysLeft;
+  final bool isCurrentPeriod;
   final OverallBudget? overallBudget;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final hasPlanned = plannedMinor > 0;
 
-    if (!hasPlanned && allocatedMinor == 0) {
-      return Card(
-        child: ListTile(
-          leading: const Icon(Icons.account_balance_wallet_outlined),
-          title: const Text('Set your planned budget'),
-          subtitle: const Text(
-            'How much you want to budget this period. '
-            'Allocated is the total of your category budgets.',
-          ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => OverallBudgetEditorSheet.show(context),
+    if (!hasPlanned) {
+      return AppCard(
+        onTap: () => OverallBudgetEditorSheet.show(context),
+        child: Row(
+          children: [
+            AppIcon(
+              AppIcons.budgets,
+              color: Theme.of(context).colorScheme.secondary,
+            ),
+            const SizedBox(width: Space.x2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Set your budget for this period',
+                    style: AppTypography.rowTitle(),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'How much you plan to spend in total. You can change '
+                    'it any time.',
+                    style: AppTypography.metadata(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AppIcon(AppIcons.chevronRight, size: 20),
+          ],
         ),
       );
     }
 
-    final overSpend = hasPlanned && totalSpent > plannedMinor;
-    final allocationDelta = allocatedMinor - plannedMinor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? AppColors.night800 : AppColors.ink900;
+    const onSurface = AppColors.nightText;
+    const onSurfaceMuted = AppColors.nightText2;
+    // Dark in both themes, so it takes the dark-mode money colour
+    // regardless of brightness — light mode's outflow would be a dark
+    // red on near-black.
+    const overColor = AppColors.outflowD;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Budgets',
-                    style: theme.textTheme.titleSmall,
+    final isOver = totalSpent > plannedMinor;
+    final allocationDelta = allocatedMinor - plannedMinor;
+    final tail = isCurrentPeriod
+        ? ', ${daysLeft == 1 ? '1 day' : '$daysLeft days'} left'
+        : '';
+
+    return Material(
+      color: surface,
+      borderRadius: Radii.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () =>
+            OverallBudgetEditorSheet.show(context, existing: overallBudget),
+        child: Padding(
+          padding: const EdgeInsets.all(Space.cardPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'BUDGET FOR THIS PERIOD',
+                      style: AppTypography.chipOverline(
+                        color: onSurfaceMuted,
+                      ),
+                    ),
                   ),
+                  AppIcon(AppIcons.edit, size: 18, color: onSurfaceMuted),
+                ],
+              ),
+              const SizedBox(height: Space.x1),
+              MoneyText(
+                plannedMinor,
+                size: MoneySize.display,
+                color: onSurface,
+              ),
+              const SizedBox(height: Space.x2),
+              ProgressMeter(
+                value: totalSpent / plannedMinor,
+                isOver: isOver,
+                onDarkSurface: true,
+              ),
+              const SizedBox(height: Space.x1),
+              Text(
+                isOver
+                    ? '${Money.display(totalSpent - plannedMinor)} over'
+                          '$tail'
+                    : '${Money.display(totalSpent)} spent, '
+                          '${Money.display(plannedMinor - totalSpent)} left'
+                          '$tail',
+                style: AppTypography.metadata(
+                  color: isOver ? overColor : onSurfaceMuted,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 20),
-                  tooltip: hasPlanned
-                      ? 'Edit planned budget'
-                      : 'Set planned budget',
-                  onPressed: () => OverallBudgetEditorSheet.show(
-                    context,
-                    existing: overallBudget,
+              ),
+              if (allocatedMinor > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  switch (allocationDelta) {
+                    0 => 'Every kwacha is allocated to a category',
+                    < 0 =>
+                      '${Money.display(-allocationDelta)} not yet in a '
+                          'category',
+                    _ =>
+                      'Categories add up to '
+                          '${Money.display(allocationDelta)} more than the '
+                          'budget',
+                  },
+                  style: AppTypography.metadata(
+                    color: allocationDelta > 0 ? overColor : onSurfaceMuted,
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _BudgetFigure(
-                    label: 'Planned',
-                    amountMinor: hasPlanned ? plannedMinor : null,
-                    emptyLabel: 'Not set',
-                    caption: 'How much you want to budget',
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _BudgetFigure(
-                    label: 'Allocated',
-                    amountMinor: allocatedMinor > 0 ? allocatedMinor : null,
-                    emptyLabel: 'None yet',
-                    caption: 'Total of budgeted categories',
-                  ),
-                ),
-              ],
-            ),
-            if (hasPlanned) ...[
-              const SizedBox(height: 16),
-              LinearProgressIndicator(
-                value: (totalSpent / plannedMinor).clamp(0.0, 1.0),
-                color: overSpend ? theme.colorScheme.error : null,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${Money.format(totalSpent)} spent of '
-                '${Money.format(plannedMinor)}'
-                '${overSpend ? ' · over by ${Money.format(totalSpent - plannedMinor)}' : ' · ${Money.format(plannedMinor - totalSpent)} left'}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: overSpend ? theme.colorScheme.error : null,
-                ),
-              ),
             ],
-            if (hasPlanned && allocatedMinor > 0) ...[
-              const SizedBox(height: 4),
-              Text(
-                allocationDelta == 0
-                    ? 'Fully allocated'
-                    : allocationDelta < 0
-                        ? '${Money.format(-allocationDelta)} left to allocate'
-                        : 'Over-allocated by ${Money.format(allocationDelta)}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: allocationDelta > 0
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _BudgetFigure extends StatelessWidget {
-  const _BudgetFigure({
-    required this.label,
-    required this.amountMinor,
-    required this.emptyLabel,
-    required this.caption,
-  });
-
-  final String label;
-  final int? amountMinor;
-  final String emptyLabel;
-  final String caption;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.labelMedium?.copyWith(color: muted),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          amountMinor == null ? emptyLabel : Money.format(amountMinor!),
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: amountMinor == null ? muted : null,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          caption,
-          style: theme.textTheme.bodySmall?.copyWith(color: muted),
-        ),
-      ],
-    );
-  }
-}
-
-/// Create or edit the month's overall budget, independent of category
+/// Create or edit the period's overall budget, independent of category
 /// limits. Hosted by the page's [BudgetsCubit].
 class OverallBudgetEditorSheet extends StatefulWidget {
   const OverallBudgetEditorSheet({this.existing, super.key});
 
   final OverallBudget? existing;
 
-  static Future<void> show(
-    BuildContext context, {
-    OverallBudget? existing,
-  }) {
+  static Future<void> show(BuildContext context, {OverallBudget? existing}) {
     final cubit = context.read<BudgetsCubit>();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
+    return AppSheet.show<void>(
+      context,
       builder: (_) => BlocProvider.value(
         value: cubit,
         child: OverallBudgetEditorSheet(existing: existing),
@@ -222,9 +202,7 @@ class _OverallBudgetEditorSheetState extends State<OverallBudgetEditorSheet> {
 
   Future<void> _save() async {
     final navigator = Navigator.of(context);
-    await context.read<BudgetsCubit>().setOverallBudget(
-      _amountController.text,
-    );
+    await context.read<BudgetsCubit>().setOverallBudget(_amountController.text);
     if (!mounted) return;
     final state = context.read<BudgetsCubit>().state;
     if (state.status == BudgetsStatus.invalid) {
@@ -244,59 +222,43 @@ class _OverallBudgetEditorSheetState extends State<OverallBudgetEditorSheet> {
   Widget build(BuildContext context) {
     final isEditing = widget.existing != null;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            isEditing ? 'Edit planned budget' : 'Set planned budget',
-            style: Theme.of(context).textTheme.titleLarge,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          isEditing ? 'Edit budget' : 'Set budget',
+          style: AppTypography.sectionHeader(),
+        ),
+        const SizedBox(height: Space.x1),
+        Text(
+          'How much you plan to spend in total this period.',
+          style: AppTypography.metadata(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'How much you want to budget this period. '
-            'Allocated is the total of your category budgets.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _amountController,
-            decoration: InputDecoration(
-              labelText: 'Planned budget',
-              prefixText: 'ZMW ',
-              errorText: _error,
-            ),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),
-            ],
-            autofocus: true,
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              if (isEditing)
-                TextButton(onPressed: _delete, child: const Text('Delete')),
-              const Spacer(),
-              FilledButton(onPressed: _save, child: const Text('Save')),
-            ],
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: Space.x2),
+        AmountField(
+          controller: _amountController,
+          autofocus: true,
+          errorText: _error,
+        ),
+        const SizedBox(height: Space.x3),
+        Row(
+          children: [
+            if (isEditing)
+              TextButton(onPressed: _delete, child: const Text('Remove')),
+            const Spacer(),
+            FilledButton(onPressed: _save, child: const Text('Save')),
+          ],
+        ),
+      ],
     );
   }
 }
 
 /// A top-level expense category with a budget set. Tapping opens its
-/// detail page — subcategories, transfer, the full spent-vs-planned
-/// breakdown — editing here is just the quick summary.
+/// detail page — subcategories, transfer, the full breakdown.
 class ExpenseCategoryEnvelopeCard extends StatelessWidget {
   const ExpenseCategoryEnvelopeCard({
     required this.category,
@@ -317,14 +279,14 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final money = Theme.of(context).extension<MoneyColors>()!;
     final limit = category.budgetedAmountMinor!;
-    final ratio = limit == 0 ? 0.0 : spentMinor / limit;
-    final over = spentMinor > limit;
+    final isOver = spentMinor > limit;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.x1),
+      child: AppCard(
         onTap: () => Navigator.of(context).push<void>(
           CategoryDetailPage.route(
             categoryId: category.id,
@@ -333,37 +295,44 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
             periodEndAt: periodEndAt,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      category.displayName,
-                      style: theme.textTheme.titleSmall,
-                    ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CategoryAvatar(iconKey: category.icon, size: 36),
+                const SizedBox(width: Space.x1),
+                Expanded(
+                  child: Text(
+                    category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.rowTitle(color: colors.onSurface),
                   ),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: ratio.clamp(0.0, 1.0),
-                color: over ? theme.colorScheme.error : null,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${Money.format(spentMinor)} of ${Money.format(limit)}'
-                '${over ? ' · over by ${Money.format(spentMinor - limit)}' : ' · ${Money.format(limit - spentMinor)} left'}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: over ? theme.colorScheme.error : null,
                 ),
+                const SizedBox(width: Space.x1),
+                MoneyText(limit, size: MoneySize.meta),
+              ],
+            ),
+            const SizedBox(height: Space.x1),
+            ProgressMeter(
+              value: limit == 0 ? 0 : spentMinor / limit,
+              isOver: isOver,
+              height: 6,
+            ),
+            const SizedBox(height: 6),
+            // Over-budget is stated, not just coloured — roughly one in
+            // twelve men here cannot rely on the red/green distinction.
+            Text(
+              isOver
+                  ? '${Money.display(spentMinor - limit)} over'
+                  : '${Money.display(spentMinor)} spent, '
+                        '${Money.display(limit - spentMinor)} left',
+              style: AppTypography.metadata(
+                color: isOver ? money.outflow : colors.onSurfaceVariant,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -375,33 +344,14 @@ class NoBudgetsYet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.savings_outlined, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'No category budgets yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add category budgets to build your Allocated total '
-              'under the Planned budget.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => Navigator.of(context).push<String?>(
-                CategoryEditorPage.route(initialType: CategoryType.expense),
-              ),
-              child: const Text('Add category budget'),
-            ),
-          ],
-        ),
+    return EmptyState(
+      icon: AppIcons.emptyWallet,
+      title: 'No category budgets yet',
+      message: 'Give a category an amount and this screen will track '
+          'your spending against it.',
+      actionLabel: 'Add a category budget',
+      onAction: () => Navigator.of(context).push<String?>(
+        CategoryEditorPage.route(initialType: CategoryType.expense),
       ),
     );
   }
