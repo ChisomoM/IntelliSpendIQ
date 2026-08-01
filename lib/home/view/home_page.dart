@@ -8,6 +8,7 @@ import 'package:intellispendiq/core/deep_link.dart';
 import 'package:intellispendiq/dashboard/dashboard.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/home/cubit/cubit.dart';
 import 'package:intellispendiq/reports/reports.dart';
@@ -48,6 +49,38 @@ class HomeView extends StatelessWidget {
     ReportsPage(),
   ];
 
+  /// The Review badge used to sit on this tab's icon, pointing at a
+  /// destination that was not the inbox — Home shows a review count,
+  /// Review itself is a push. It now lives as an entry point on the
+  /// Home screen's own content instead (`ReviewBanner`), so nothing
+  /// here needs the pending count.
+  static const List<AppNavDestination> _destinations = [
+    AppNavDestination(
+      icon: AppIcons.home,
+      selectedIcon: AppIcons.home,
+      label: 'Home',
+    ),
+    AppNavDestination(
+      icon: AppIcons.activity,
+      selectedIcon: AppIcons.activity,
+      label: 'Activity',
+    ),
+    AppNavDestination(
+      icon: AppIcons.budgets,
+      selectedIcon: AppIcons.budgets,
+      label: 'Budgets',
+    ),
+    // Still `AppSection.reports` underneath — the Insights merge with
+    // the Assistant (redesign plan Phase 8) is a content change, not a
+    // navigation one, so the section/route stays `reports` and only
+    // the label moves ahead of it.
+    AppNavDestination(
+      icon: AppIcons.insights,
+      selectedIcon: AppIcons.insights,
+      label: 'Insights',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<HomeCubit>();
@@ -63,16 +96,18 @@ class HomeView extends StatelessWidget {
         builder: (context, state) {
           return Scaffold(
             body: IndexedStack(index: state.tabIndex, children: _pages),
-            floatingActionButton: state.tabIndex == AppSection.activity.tabIndex
-                ? const QuickAddButtons()
-                : null,
-            bottomNavigationBar: NavigationBar(
+            floatingActionButton: CenterFab(
+              onTap: () => Navigator.of(
+                context,
+              ).push<void>(TransactionEntryPage.route()),
+              onLongPress: () => _showQuickAddSheet(context),
+            ),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerDocked,
+            bottomNavigationBar: AppNavBar(
+              destinations: _destinations,
               selectedIndex: state.tabIndex,
               onDestinationSelected: cubit.tabSelected,
-              destinations: [
-                for (final section in AppSection.tabs)
-                  _destinationFor(section, state),
-              ],
             ),
           );
         },
@@ -80,40 +115,36 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  /// Only ever called with an [AppSection.tabs] member — Review,
-  /// Assistant, and Settings have no nav slot to build here.
-  NavigationDestination _destinationFor(AppSection section, HomeState state) {
-    return switch (section) {
-      AppSection.home => NavigationDestination(
-        icon: _reviewBadge(state, const Icon(Icons.dashboard_outlined)),
-        selectedIcon: _reviewBadge(state, const Icon(Icons.dashboard)),
-        label: 'Home',
+  Future<void> _showQuickAddSheet(BuildContext context) {
+    return AppSheet.show<void>(
+      context,
+      isScrollControlled: false,
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppListRow(
+            leading: AppIcon(AppIcons.add),
+            title: const Text('Add transaction'),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              Navigator.of(
+                context,
+              ).push<void>(TransactionEntryPage.route());
+            },
+          ),
+          AppListRow(
+            leading: AppIcon(AppIcons.voice),
+            title: const Text('Voice entry'),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              VoiceEntrySheet.show(context);
+            },
+          ),
+          const SizedBox(height: Space.x1),
+        ],
       ),
-      AppSection.activity => const NavigationDestination(
-        icon: Icon(Icons.receipt_long_outlined),
-        selectedIcon: Icon(Icons.receipt_long),
-        label: 'Activity',
-      ),
-      AppSection.budgets => const NavigationDestination(
-        icon: Icon(Icons.savings_outlined),
-        selectedIcon: Icon(Icons.savings),
-        label: 'Budgets',
-      ),
-      AppSection.reports => const NavigationDestination(
-        icon: Icon(Icons.pie_chart_outline),
-        selectedIcon: Icon(Icons.pie_chart),
-        label: 'Reports',
-      ),
-      AppSection.review || AppSection.chat || AppSection.settings =>
-        throw UnimplementedError('${section.name} is not a nav tab'),
-    };
+    );
   }
-
-  Widget _reviewBadge(HomeState state, Icon icon) => Badge.count(
-    count: state.pendingCount,
-    isLabelVisible: state.pendingCount > 0,
-    child: icon,
-  );
 
   Future<void> _openLink(BuildContext context, DeepLink link) async {
     final home = context.read<HomeCubit>();
@@ -152,33 +183,5 @@ class HomeView extends StatelessWidget {
           context,
         ).push<void>(TransactionEntryPage.route(existing: existing));
     }
-  }
-}
-
-class QuickAddButtons extends StatelessWidget {
-  const QuickAddButtons({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        FloatingActionButton.small(
-          heroTag: 'voice',
-          tooltip: 'Voice entry',
-          onPressed: () => VoiceEntrySheet.show(context),
-          child: const Icon(Icons.mic),
-        ),
-        const SizedBox(height: 12),
-        FloatingActionButton(
-          heroTag: 'manual',
-          tooltip: 'Add transaction',
-          onPressed: () =>
-              Navigator.of(context).push<void>(TransactionEntryPage.route()),
-          child: const Icon(Icons.add),
-        ),
-      ],
-    );
   }
 }

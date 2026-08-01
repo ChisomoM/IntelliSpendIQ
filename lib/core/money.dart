@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 
 /// Money helpers. All amounts are stored as integer minor units
-/// (ngwee — 1 K= 100 ngwee) to avoid float rounding bugs (D60).
+/// (ngwee — 1 ZMW = 100 ngwee) to avoid float rounding bugs (D60).
 abstract final class Money {
   static const String defaultCurrency = 'ZMW';
 
@@ -39,10 +39,60 @@ abstract final class Money {
   /// this boundary.
   static int minorFromDouble(double amount) => (amount * 100).round();
 
-  /// Formats minor units for display, e.g. `K1,350.00`.
+  /// Formats minor units with the ISO currency code, e.g.
+  /// `ZMW 1,350.00`. Reserved for statements and CSV/JSON export — the
+  /// brand guide keeps `ZMW` out of every other on-screen surface. Use
+  /// [display] for the ledger, cards, and anywhere else in the UI.
   static String format(int amountMinor, {String currency = defaultCurrency}) {
     final sign = amountMinor < 0 ? '-' : '';
     final abs = amountMinor.abs();
     return '$sign$currency ${_majorFormat.format(abs ~/ 100 + (abs % 100) / 100)}';
+  }
+
+  /// True minus (U+2212), not a hyphen — it aligns with a digit's
+  /// stroke width in tabular figures.
+  static const _minus = '−';
+
+  /// Formats minor units the way the ledger shows them: `K1,250.00`,
+  /// no space after the symbol, no ISO code. Unsigned — pass a
+  /// negative [amountMinor] only when the value is genuinely negative
+  /// (e.g. "over by"), not to encode direction; use [displaySigned]
+  /// for a ledger row where direction should render as `+`/`−`.
+  static String display(int amountMinor) {
+    final sign = amountMinor < 0 ? _minus : '';
+    final abs = amountMinor.abs();
+    return '$sign${_symbolPrefix(abs)}';
+  }
+
+  /// Formats a ledger row: `+K3,000.00` for money in, `−K89.00` for
+  /// money out. [amountMinor] is always the absolute amount here —
+  /// [isInflow] carries the direction, matching how the domain model
+  /// stores transactions (amount is always positive; direction is a
+  /// separate field).
+  static String displaySigned(int amountMinor, {required bool isInflow}) {
+    final sign = isInflow ? '+' : _minus;
+    return '$sign${_symbolPrefix(amountMinor.abs())}';
+  }
+
+  /// Compact form for chart axes and headlines: `K12.5k` rather than
+  /// `K12,480.00`. Ngwee are always dropped here, even when non-zero.
+  static String displayCompact(int amountMinor) {
+    final sign = amountMinor < 0 ? _minus : '';
+    final majorUnits = amountMinor.abs() / 100;
+    if (majorUnits < 1000) {
+      return '$sign${defaultSymbol}${majorUnits.round()}';
+    }
+    final thousands = majorUnits / 1000;
+    final rounded = (thousands * 10).round() / 10;
+    final label = rounded == rounded.roundToDouble()
+        ? rounded.toStringAsFixed(0)
+        : rounded.toStringAsFixed(1);
+    return '$sign$defaultSymbol${label}k';
+  }
+
+  static const defaultSymbol = 'K';
+
+  static String _symbolPrefix(int absAmountMinor) {
+    return '$defaultSymbol${_majorFormat.format(absAmountMinor ~/ 100 + (absAmountMinor % 100) / 100)}';
   }
 }

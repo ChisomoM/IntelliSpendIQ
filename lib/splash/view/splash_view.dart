@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intellispendiq/app/theme/theme.dart';
+import 'package:intellispendiq/design/components/app_icon.dart';
+import 'package:intellispendiq/design/theme/app_theme.dart';
+import 'package:intellispendiq/design/tokens/icons.dart';
 
 /// The first thing drawn, in two situations: while the encrypted
 /// database is being opened, and while the auth status is still
@@ -22,7 +24,7 @@ class SplashView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet, size: 72, color: colors.primary),
+            AppIcon(AppIcons.budgets, size: 72, color: colors.primary),
             const SizedBox(height: 20),
             Text(
               'IntelliSpendIQ',

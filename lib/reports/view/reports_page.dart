@@ -28,7 +28,11 @@ class ReportsView extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
+      // Nav label is "Insights" (redesign plan §3.1) — matched here so
+      // the tab and the screen it opens agree. The Reports/Assistant
+      // content merge that name anticipates is Phase 8, separate from
+      // this label change.
+      appBar: AppBar(title: const Text('Insights')),
       body: BlocBuilder<ReportsCubit, ReportsState>(
         builder: (context, state) {
           return Column(

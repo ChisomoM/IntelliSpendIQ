@@ -1,87 +1,115 @@
 import 'package:flutter/material.dart';
-import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
 import 'package:intellispendiq/transactions/view/view.dart';
+import 'package:intellispendiq/transactions/widgets/raw_source_sheet.dart';
 import 'package:intl/intl.dart';
 
+/// One entry in the ledger.
+///
+/// Confidence is marked per the brand guide: a cleanly-parsed entry
+/// carries no badge at all, and an entry the app is unsure of marks
+/// only the uncertain part — never the whole row, which would read as
+/// "this is wrong" rather than "this one value is a guess". The row
+/// still counts toward the balance either way.
 class TransactionTile extends StatelessWidget {
-  const TransactionTile({required this.transaction, super.key});
+  const TransactionTile({
+    required this.transaction,
+    this.categoryIcon,
+    this.showSource = true,
+    super.key,
+  });
 
   final Transaction transaction;
 
-  static final _dateFormat = DateFormat('d MMM, HH:mm');
+  /// Icon key from the entry's category, resolved by the caller — a
+  /// [Transaction] carries only the category id.
+  final String? categoryIcon;
+
+  /// Whether to show the capture-source chip. Off in compact previews
+  /// where the extra mark is noise.
+  final bool showSource;
+
+  static final _timeFormat = DateFormat('HH:mm');
+
+  static CaptureSource _sourceOf(TxSource source) => switch (source) {
+    TxSource.sms || TxSource.notification => CaptureSource.sms,
+    TxSource.voice => CaptureSource.voice,
+    TxSource.manual => CaptureSource.manual,
+  };
+
+  /// The one word that names an unresolved state, so colour is never
+  /// the only signal. Null for a clean entry — silence is the signal.
+  static String? _statusWord(TxStatus status) => switch (status) {
+    TxStatus.confirmed => null,
+    TxStatus.needsReview => 'needs a detail',
+    TxStatus.duplicateSuspect => 'possible duplicate',
+    TxStatus.planned => 'planned',
+  };
 
   @override
   Widget build(BuildContext context) {
-    final isCredit = transaction.direction == TxDirection.credit;
-    final theme = Theme.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final time = _timeFormat.format(transaction.transactedAt.toLocal());
+    final statusWord = _statusWord(transaction.status);
+    final hasMerchant = transaction.merchant?.isNotEmpty ?? false;
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: isCredit
-            ? theme.colorScheme.tertiaryContainer
-            : theme.colorScheme.surfaceContainerHighest,
-        child: Icon(
-          switch (transaction.source) {
-            TxSource.sms => Icons.sms_outlined,
-            TxSource.voice => Icons.mic_none,
-            TxSource.notification => Icons.notifications_none,
-            TxSource.manual => Icons.edit_outlined,
-          },
-          size: 20,
-        ),
-      ),
+    return AppListRow(
+      leading: CategoryAvatar(iconKey: categoryIcon),
       title: Row(
         children: [
           Flexible(
-            child: Text(
-              transaction.merchant?.isNotEmpty ?? false
-                  ? transaction.merchant!
-                  : 'Unknown',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            // A parsed entry with no merchant is a gap the app is
+            // showing, not a fact it read — so it is marked rather
+            // than presented as though it came through cleanly.
+            child: hasMerchant
+                ? Text(
+                    transaction.merchant!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : UncertainText('Unknown', style: AppTypography.rowTitle()),
           ),
           if (transaction.receiptPath != null) ...[
             const SizedBox(width: 6),
-            Icon(
-              Icons.attach_file,
+            AppIcon(
+              AppIcons.scanReceipt,
               size: 14,
-              color: theme.colorScheme.onSurfaceVariant,
+              color: colors.onSurfaceVariant,
             ),
           ],
         ],
       ),
-      subtitle: Text(_dateFormat.format(transaction.transactedAt.toLocal())),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      subtitle: Row(
         children: [
-          Text(
-            '${isCredit ? '+' : '-'}${Money.format(transaction.amountMinor, currency: transaction.currency)}',
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: isCredit ? theme.colorScheme.tertiary : null,
-              fontWeight: FontWeight.w600,
-            ),
+          if (showSource) ...[
+            SourceChip(_sourceOf(transaction.source)),
+            const SizedBox(width: 6),
+          ],
+          Flexible(
+            child: statusWord == null
+                ? Text(time, maxLines: 1, overflow: TextOverflow.ellipsis)
+                : UncertainText('$time · $statusWord'),
           ),
-          if (transaction.status != TxStatus.confirmed)
-            Text(
-              switch (transaction.status) {
-                TxStatus.duplicateSuspect => 'possible duplicate',
-                TxStatus.planned => 'planned',
-                TxStatus.needsReview || TxStatus.confirmed => 'needs review',
-              },
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
         ],
+      ),
+      trailing: MoneyText.signed(
+        transaction.amountMinor,
+        isInflow: transaction.direction == TxDirection.credit,
       ),
       onTap: () => Navigator.of(
         context,
       ).push<void>(TransactionEntryPage.route(existing: transaction)),
+      // The raw text stays reachable for anything the app read from a
+      // message, which the guide requires and nothing offered before.
+      onLongPress: transaction.rawCaptureId == null
+          ? null
+          : () => RawSourceSheet.show(
+              context,
+              rawCaptureId: transaction.rawCaptureId!,
+            ),
     );
   }
 }
@@ -102,59 +130,52 @@ class TransferTile extends StatelessWidget {
   final String fromAccountName;
   final String toAccountName;
 
-  static final _dateFormat = DateFormat('d MMM, HH:mm');
+  static final _timeFormat = DateFormat('HH:mm');
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-        child: const Icon(Icons.swap_horiz, size: 20),
-      ),
-      title: Text(
-        '$fromAccountName  →  $toAccountName',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(_dateFormat.format(transfer.transactedAt.toLocal())),
-      trailing: Text(
-        Money.format(transfer.amountMinor),
-        style: theme.textTheme.titleSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
+    final colors = Theme.of(context).colorScheme;
+
+    return AppListRow(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(Radii.card),
+        ),
+        alignment: Alignment.center,
+        child: AppIcon(
+          AppIcons.transfer,
+          size: 20,
+          color: colors.onSurfaceVariant,
         ),
       ),
+      title: Text('$fromAccountName → $toAccountName'),
+      // Named in words, not just styled neutrally: a transfer moves
+      // money without spending it, and nothing else on the row says so.
+      subtitle: Text(
+        '${_timeFormat.format(transfer.transactedAt.toLocal())} · transfer',
+      ),
+      trailing: MoneyText(transfer.amountMinor, color: colors.onSurfaceVariant),
     );
   }
 }
 
 class NoTransactionsYet extends StatelessWidget {
-  const NoTransactionsYet({super.key});
+  const NoTransactionsYet({this.onAddTransaction, super.key});
+
+  final VoidCallback? onAddTransaction;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.receipt_long_outlined, size: 48),
-            SizedBox(height: 16),
-            Text(
-              'No transactions yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Bank and mobile money alerts are captured automatically once '
-              'SMS access is granted. You can also add one by hand or by voice.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: AppIcons.emptyActivity,
+      title: 'No entries yet',
+      message: 'Bank and mobile money alerts are captured on their own '
+          'once SMS access is granted. You can also add one by hand.',
+      actionLabel: onAddTransaction == null ? null : 'Add an entry',
+      onAction: onAddTransaction,
     );
   }
 }

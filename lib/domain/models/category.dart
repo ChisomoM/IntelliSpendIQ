@@ -36,9 +36,15 @@ class Category extends Equatable {
   bool get isIncome => type == CategoryType.income;
   bool get hasBudget => budgetedAmountMinor != null;
 
-  /// Icon and name together, the form every list shows. Lived in three
-  /// separate widgets before this.
-  String get displayName => icon == null ? name : '$icon $name';
+  /// The label to show for this category.
+  ///
+  /// This used to prepend [icon] to the name, because [icon] held an
+  /// emoji and gluing it on was how a list showed both. [icon] now
+  /// holds a `CategoryIconKey` that a `CategoryAvatar` renders as a
+  /// real glyph beside the label, so prepending it would print the key
+  /// itself — "food Food" — and, worse, send that to the model in the
+  /// assistant's category payloads.
+  String get displayName => name;
 
   @override
   List<Object?> get props => [

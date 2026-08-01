@@ -355,20 +355,69 @@ skipping straight to screens is how the current fragmentation happened.
 **Dependencies:** Phase 1 (items 1, 18).
 **UX improvement:** primary action reachable in 1 tap from anywhere; nothing unreachable.
 
-### Phase 3 — Home dashboard
+### Phase 3 — Home dashboard ✅ *shipped*
 **Objectives:** rebuild as a genuine landing screen — greeting, balance/spend hero, review
 entry, account strip, period summary, top categories, recent activity, assistant prompt.
 **Screens:** `DashboardPage` + `dashboard_widgets.dart` (360 lines, largely replaced).
 **Dependencies:** Phases 1–2.
 **UX improvement:** the answer to "how am I doing" without scrolling or tapping.
 
-### Phase 4 — Transaction flows
-**Objectives:** entry becomes a sheet with amount-first keypad; smart defaults for date,
-account, category; payee/label pickers become sheets not dialogs; Activity list adopts
-`AppListRow` + `SourceChip` + `UncertainField`; raw-source retrieval added.
-**Screens:** `TransactionEntryPage`, `TransactionsPage`, `filter_sheet.dart`, `VoiceEntrySheet`.
+Delivered, with three changes worth recording:
+
+- **The spend bar was measuring against the wrong number.** It always used planned income.
+  A user who had set an overall budget saw Budgets honour it and Home ignore it. `planSource`
+  now prefers the period's own budget and falls back to income only when no budget is set —
+  see `PlanSource` in `dashboard_state.dart`.
+- **`StatTile` was not built.** The hero states its position in a sentence
+  ("K240.00 over budget, 9 days left") rather than three tiles, which satisfies the
+  colour-never-alone rule better than a tile row. Budgets already has a private `_StatTile`;
+  Phase 7 lifts that one into the design system, where screenshot 1 actually calls for it.
+- **`ProgressMeter` gained an `onDarkSurface` flag.** The hero card is dark in *both* themes,
+  which is the one case `MoneyColors` cannot express — it is keyed on the theme's brightness,
+  so in light mode it returns `outflow` (#B91C1C), a dark red that disappears against ink900.
+  The flag switches to `outflowD`/`violet300`. The same reasoning already applied to the
+  snackbar theme.
+
+`QuickActionsRow` was removed — the centre FAB has owned Add/Voice since Phase 2, and the
+Assistant now has its own prompt card with three suggested openers. `ChatPage.route` gained
+an `initialPrompt` that fills the input rather than sending, so a mis-tapped suggestion
+costs nothing and never silently spends an API call.
+
+### Phase 4 — Transaction flows ✅ *shipped*
+**Objectives:** entry becomes amount-first with smart defaults for date, account, category;
+payee/label pickers become sheets not dialogs; Activity list adopts `AppListRow` +
+`SourceChip` + `UncertainText`; raw-source retrieval added.
+**Screens:** `TransactionEntryPage`, `TransactionsPage`, `filter_sheet.dart`,
+`transaction_tile.dart`.
 **Dependencies:** Phases 1–2.
-**UX improvement:** biggest friction win. Target: manual entry in 3 taps + amount.
+**UX improvement:** biggest friction win. Target met: amount + 2 taps for the common case.
+
+Entry stayed a **page rather than becoming a sheet**. The form carries ten fields, so a
+sheet holding all of them is a page wearing a different hat. The friction came from the
+layout, not the surface: amount is now the headline, category is a chip row (filtered to the
+chosen direction — the old flat dropdown offered income categories on a debit entry), and
+the date defaults to now with Today/Yesterday chips, so the two chained modals only appear
+behind "Pick". Account, payee, note, labels and receipt moved behind "More details".
+
+Also landed here:
+
+- **Raw source is reachable at last.** `RawSourceSheet`, from a long-press on any row read
+  from a message, or the eye icon when editing one. §11 required it and there was no path to
+  it at all — the text was captured and stored but could never be shown again.
+- **Two destructive gaps closed:** delete from the entry page fired straight off an app-bar
+  icon sitting next to Save with no confirmation, and a part-written entry was discarded
+  silently on back. Both now confirm.
+- **Day grouping with day totals** on Activity, and a visible All / Money in / Money out
+  chip row. Transfers are excluded from a day's net — moving your own money between accounts
+  is not income or spending, and counting it would make an ordinary Tuesday look like a
+  windfall.
+- **A Phase 1 regression found and fixed.** `Category.displayName` returned `'$icon $name'`,
+  which was right while `icon` held an emoji. After Phase 1 it rendered **"food Food"** — and
+  four of its six call sites are in `FinanceChatService`, so the key was about to be sent to
+  the model in the assistant's category payloads.
+- **The last emoji surface is gone.** The category editor's "paste an emoji" free-text field
+  is now a picker over the icon registry, which also stops arbitrary text reaching a column
+  the app reads as an icon key.
 
 ### Phase 5 — Review inbox
 **Objectives:** promote to a first-class screen; per-section triage; swipe-to-resolve; batch
@@ -387,14 +436,28 @@ opening balance and transfer flows moved into the standard sheet pattern.
 **Dependencies:** Phases 1–3.
 **UX improvement:** balances go from 3 taps to 0.
 
-### Phase 7 — Budgets
+### Phase 7 — Budgets ✅ *shipped* (taken early, at the user's direction)
 **Objectives:** apply `PeriodSelector`; envelope cards on `ProgressMeter`; category detail
 per screenshot 1; subcategory empty state; budget transfer as a standard sheet; budget
-cycle settings relocated here.
+cycle relocated here.
 **Screens:** `BudgetsPage`, `CategoryDetailPage`, `budget_widgets.dart`,
-`category_detail_widgets.dart`, `income_widgets.dart`, `BudgetCyclePage`.
+`category_detail_widgets.dart`, `income_widgets.dart`.
 **Dependencies:** Phases 1–3.
-**UX improvement:** one period model shared with Insights; no more red-for-normal-spending.
+**UX improvement:** one period model shared with Home; no more red-for-normal-spending.
+
+Two judgement calls worth recording:
+
+- **`PlannedVsActualCard` is gone.** It showed Planned and Allocated as peer figures with a
+  progress bar underneath and nothing saying which of the two the bar tracked. The
+  replacement `BudgetHeroCard` commits to one headline — the budget — and states the
+  allocation gap in a sentence beneath it ("K400.00 not yet in a category").
+- **Income no longer tracks spend.** `IncomeSummaryCard` used to run its own spend-vs-income
+  bar directly under a spend-vs-budget bar. Two bars, same numerator, different denominators,
+  one screen — which read as two separate problems. Income is now just the list of what you
+  expect to come in, and the hero owns the single spend question.
+
+`BudgetCyclePage` was promoted from Settings to the Budgets app bar, next to the periods it
+governs. Its own internals are Phase 9's.
 
 > **Savings goals — out of scope.** Does not exist in `lib/` today. When it is picked up it
 > needs a `goals` table carrying `user_id`/`updated_at`/soft-delete to match the sync-ready

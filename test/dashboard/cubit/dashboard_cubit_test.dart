@@ -21,6 +21,7 @@ void main() {
       categories: services.categories,
       budgetPeriods: services.budgetPeriods,
       rawCaptures: services.rawCaptures,
+      accounts: services.accounts,
       initialPeriod: period,
     );
   }
@@ -97,6 +98,107 @@ void main() {
       expect(cubit.state.hasIncome, isTrue);
       expect(cubit.state.totalIncomeMinor, 100000);
       expect(cubit.state.remainingMinor, 70000);
+      // No overall budget set, so income stands in as the ceiling.
+      expect(cubit.state.planSource, PlanSource.income);
+      expect(cubit.state.planMinor, 100000);
+    });
+
+    test('measures spend against the overall budget ahead of income', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await addConfirmedSpend(30000);
+
+      final salary = await services.categories.create(
+        'Salary',
+        type: CategoryType.income,
+        budgetedAmountMinor: 100000,
+      );
+      await services.budgetPeriods.upsertCategoryBudget(
+        periodId: cubit.state.budgetPeriod!.id,
+        categoryId: salary.id,
+        amountMinor: 100000,
+      );
+      await services.budgetPeriods.setOverallAmount(
+        periodId: cubit.state.budgetPeriod!.id,
+        amountMinor: 50000,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // Both are set: the budget is what the user planned, income is
+      // only a fallback, so the budget wins.
+      expect(cubit.state.planSource, PlanSource.overallBudget);
+      expect(cubit.state.planMinor, 50000);
+      expect(cubit.state.remainingMinor, 20000);
+      expect(cubit.state.isOverPlan, isFalse);
+    });
+
+    test('reports overspend against the plan', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await services.budgetPeriods.setOverallAmount(
+        periodId: cubit.state.budgetPeriod!.id,
+        amountMinor: 10000,
+      );
+      await addConfirmedSpend(15000);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.isOverPlan, isTrue);
+      expect(cubit.state.remainingMinor, -5000);
+      expect(cubit.state.planRatio, greaterThan(1));
+    });
+
+    test('has no plan when neither a budget nor income is set', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.planSource, PlanSource.none);
+      expect(cubit.state.planMinor, isNull);
+      expect(cubit.state.hasPlan, isFalse);
+      expect(cubit.state.planRatio, 0);
+    });
+
+    test('exposes accounts and their computed balances', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await Future<void>.delayed(Duration.zero);
+
+      // One default account is seeded on first launch.
+      expect(cubit.state.accounts, isNotEmpty);
+      final defaultAccount = await services.accounts.getDefault();
+      expect(cubit.state.accountBalances, contains(defaultAccount.id));
+    });
+
+    test('shiftPeriod moves the window and reloads its totals', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await addConfirmedSpend(5000);
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.totalSpent, 5000);
+
+      cubit.shiftPeriod(-1);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.periodLabel, '01/06/2026 – 30/06/2026');
+      // July's spend must not leak into June's totals.
+      expect(cubit.state.totalSpent, 0);
+      expect(cubit.state.topCategories, isEmpty);
+    });
+
+    test('describes the period in prose for the greeting', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await Future<void>.delayed(Duration.zero);
+
+      // The stored label is machine output; the greeting needs prose.
+      expect(cubit.state.periodLabel, '01/07/2026 – 31/07/2026');
+      expect(cubit.state.periodDisplayLabel, '1 – 31 Jul');
     });
 
     test('surfaces the review-pending count', () async {
