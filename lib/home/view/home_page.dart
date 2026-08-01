@@ -100,6 +100,7 @@ class HomeView extends StatelessWidget {
               onTap: () => Navigator.of(
                 context,
               ).push<void>(TransactionEntryPage.route()),
+              onDoubleTap: () => VoiceEntrySheet.show(context),
               onLongPress: () => _showQuickAddSheet(context),
             ),
             floatingActionButtonLocation:

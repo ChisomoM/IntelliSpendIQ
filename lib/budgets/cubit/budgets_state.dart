@@ -119,6 +119,41 @@ class BudgetsState extends Equatable {
 
   int spentFor(String categoryId) => spentByCategory[categoryId] ?? 0;
 
+  /// Categories already past their envelope.
+  List<Category> get overspentCategories => budgetedExpenseCategories
+      .where((c) => spentFor(c.id) > c.budgetedAmountMinor!)
+      .toList();
+
+  /// A plain read on the period for the insight strip.
+  ///
+  /// Computed here from figures already on screen rather than asked of
+  /// the model: this line renders on every build, and an opinion that
+  /// cost an API call and could contradict the numbers beside it would
+  /// be worse than no opinion at all. The assistant is one tap away for
+  /// anything that needs actual reasoning.
+  String? get insight {
+    if (status != BudgetsStatus.loaded) return null;
+    if (budgetedExpenseCategories.isEmpty) return null;
+
+    final over = overspentCategories;
+    if (over.length == 1) {
+      return "You're over on ${over.single.name}. "
+          'Budget can be moved from another category.';
+    }
+    if (over.length > 1) {
+      return "You're over on ${over.length} categories, including "
+          '${over.first.name}.';
+    }
+    if (totalPlannedMinor > 0 && totalSpent > totalPlannedMinor) {
+      return 'Every category is inside its budget, but the total is over '
+          'the plan.';
+    }
+    if (totalPlannedMinor > 0 && totalAllocatedMinor > totalPlannedMinor) {
+      return 'Your category budgets add up to more than the total plan.';
+    }
+    return "You're inside every category budget so far.";
+  }
+
   BudgetsState copyWith({
     BudgetsStatus? status,
     BudgetPeriod? budgetPeriod,

@@ -66,7 +66,7 @@ abstract final class AppTheme {
       brightness: scheme.brightness,
       useMaterial3: true,
     ).textTheme;
-    final baseTextTheme = GoogleFonts.ibmPlexSansTextTheme(
+    final baseTextTheme = GoogleFonts.plusJakartaSansTextTheme(
       materialDefaults,
     ).apply(bodyColor: scheme.onSurface, displayColor: scheme.onSurface);
 
@@ -94,7 +94,12 @@ abstract final class AppTheme {
       useMaterial3: true,
       brightness: scheme.brightness,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      // The page plane sits *below* the cards, so cards can be white
+      // and still read as lifted. Previously both were white and the
+      // border was the only thing separating them.
+      scaffoldBackgroundColor: isDark
+          ? scheme.surface
+          : scheme.surfaceContainerLow,
       textTheme: textTheme,
       extensions: extensions,
       splashFactory: InkSparkle.splashFactory,
@@ -107,32 +112,45 @@ abstract final class AppTheme {
         elevation: 0,
         titleTextStyle: AppTypography.screenTitle(color: scheme.onSurface),
       ),
+      // No outline in light mode: the 1px border drew a hard rectangle
+      // around every group and made a scroll read as a stack of boxes.
+      // AppCard carries the shadow; dark mode keeps a hairline because
+      // a shadow on near-black does nothing.
       cardTheme: CardThemeData(
-        color: scheme.surfaceContainerLow,
+        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: Radii.cardRadius,
-          side: BorderSide(color: scheme.outlineVariant),
+          side: isDark
+              ? BorderSide(color: scheme.outlineVariant)
+              : BorderSide.none,
         ),
         margin: EdgeInsets.zero,
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: scheme.surfaceContainerHigh,
-        labelStyle: AppTypography.chipOverline(color: scheme.onSurface),
+        backgroundColor: isDark
+            ? scheme.surfaceContainerHigh
+            : scheme.surfaceContainerLow,
+        selectedColor: scheme.primary.withValues(alpha: isDark ? 0.24 : 0.12),
+        labelStyle: AppTypography.metadata(color: scheme.onSurface),
+        secondaryLabelStyle: AppTypography.metadata(color: scheme.primary),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         shape: const StadiumBorder(),
         side: BorderSide.none,
+        showCheckmark: false,
       ),
       dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
       inputDecorationTheme: InputDecorationTheme(
-        filled: false,
+        filled: true,
+        fillColor: isDark ? scheme.surfaceContainerLow : scheme.surface,
         border: OutlineInputBorder(
           borderRadius: Radii.inputRadius,
-          borderSide: BorderSide(color: scheme.outline),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: Radii.inputRadius,
-          borderSide: BorderSide(color: scheme.outline),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: Radii.inputRadius,
@@ -169,7 +187,7 @@ abstract final class AppTheme {
         shape: Radii.fabShape,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: scheme.surfaceContainerLow,
+        backgroundColor: isDark ? scheme.surfaceContainerLow : scheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         indicatorColor: scheme.secondary.withValues(alpha: isDark ? 0.24 : 0.12),
