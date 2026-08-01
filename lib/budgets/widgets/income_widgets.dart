@@ -5,13 +5,12 @@ import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 
 /// Every top-level income source for the period, with its planned
-/// amount. Users can keep as many as they need — salary, side hustle,
-/// and so on.
+/// amount and a total underneath.
 ///
-/// Spend is no longer tracked against income here: the hero card above
-/// already tracks it against the budget, and showing the same spend
-/// against a second, different denominator on one screen invited the
-/// reading that they were two separate problems.
+/// Spend is not tracked against income here: the hero above already
+/// tracks it against the budget, and showing the same spend against a
+/// second, different denominator on one screen invited the reading that
+/// they were two separate problems.
 class IncomeSummaryCard extends StatelessWidget {
   const IncomeSummaryCard({
     required this.incomeCategories,
@@ -28,80 +27,110 @@ class IncomeSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final money = Theme.of(context).extension<MoneyColors>()!;
     final planned = incomeCategories.where((c) => c.hasBudget).toList();
     final total = planned.fold(
       0,
       (sum, category) => sum + category.budgetedAmountMinor!,
     );
 
-    if (incomeCategories.isEmpty) {
-      return AppCard(
-        onTap: () => _openEditor(context),
-        child: Row(
-          children: [
-            AppIcon(AppIcons.moneyIn, color: colors.onSurfaceVariant),
-            const SizedBox(width: Space.x2),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Add an income source', style: AppTypography.rowTitle()),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Salary, side hustle, or anything else you earn.',
-                    style: AppTypography.metadata(
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              Space.x2,
+              Space.x2,
+              Space.x2,
+              Space.x1,
             ),
-            AppIcon(AppIcons.chevronRight, size: 20),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: 'Income',
-          action: 'Add',
-          onActionTap: () => _openEditor(context),
-        ),
-        AppCard(
-          padding: const EdgeInsets.symmetric(vertical: Space.x1),
-          child: Column(
-            children: [
-              for (final category in incomeCategories)
-                _IncomeSourceRow(category: category, periodId: periodId),
-              if (planned.isNotEmpty) ...[
-                const Divider(height: Space.x2),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: Space.gutter,
-                    vertical: 4,
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: money.inflow.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(Radii.card),
                   ),
-                  child: Row(
+                  alignment: Alignment.center,
+                  child: AppIcon(
+                    AppIcons.moneyIn,
+                    size: 20,
+                    color: money.inflow,
+                  ),
+                ),
+                const SizedBox(width: Space.x2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Total expected',
-                          style: AppTypography.rowTitle(
-                            color: colors.onSurface,
-                          ),
+                      Text('Income', style: AppTypography.rowTitle()),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Money coming in this period',
+                        style: AppTypography.metadata(
+                          color: colors.onSurfaceVariant,
                         ),
                       ),
-                      MoneyText.signed(total, isInflow: true),
                     ],
                   ),
                 ),
+                TextButton.icon(
+                  onPressed: () => _openEditor(context),
+                  icon: AppIcon(AppIcons.add, size: 16, color: colors.primary),
+                  label: const Text('Add'),
+                ),
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+          if (incomeCategories.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Space.x2,
+                0,
+                Space.x2,
+                Space.x2,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Salary, side hustle, or anything else you earn.',
+                  style: AppTypography.metadata(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            )
+          else ...[
+            for (final category in incomeCategories)
+              _IncomeSourceRow(category: category, periodId: periodId),
+            if (planned.isNotEmpty) ...[
+              Divider(height: 1, color: colors.outlineVariant),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  Space.x2,
+                  Space.x2,
+                  Space.x2,
+                  Space.x2,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Total income',
+                        style: AppTypography.rowTitle(color: colors.onSurface),
+                      ),
+                    ),
+                    MoneyText.signed(total, isInflow: true),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
     );
   }
 
@@ -130,15 +159,27 @@ class _IncomeSourceRow extends StatelessWidget {
         iconKey: category.icon,
         categoryId: category.id,
         colorName: category.color,
-        size: 32,
+        size: 36,
       ),
       title: Text(category.name),
-      trailing: category.hasBudget
-          ? MoneyText(category.budgetedAmountMinor!, size: MoneySize.meta)
-          : Text(
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (category.hasBudget)
+            MoneyText(category.budgetedAmountMinor!, size: MoneySize.meta)
+          else
+            Text(
               'Set amount',
               style: AppTypography.metadata(color: colors.primary),
             ),
+          const SizedBox(width: 4),
+          AppIcon(
+            AppIcons.chevronRight,
+            size: 18,
+            color: colors.onSurfaceVariant,
+          ),
+        ],
+      ),
       onTap: () => Navigator.of(context).push<String?>(
         CategoryEditorPage.route(existing: category, periodId: periodId),
       ),

@@ -28,6 +28,7 @@ export 'theme/capture_colors.dart';
 export 'theme/money_colors.dart';
 export 'tokens/category_palette.dart';
 export 'tokens/colors.dart';
+export 'tokens/gradients.dart';
 export 'tokens/icons.dart';
 export 'tokens/motion.dart';
 export 'tokens/radii.dart';

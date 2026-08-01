@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intellispendiq/design/theme/money_colors.dart';
 import 'package:intellispendiq/design/tokens/colors.dart';
+import 'package:intellispendiq/design/tokens/gradients.dart';
 
 /// A spend-against-plan bar.
 ///
@@ -66,13 +67,32 @@ class ProgressMeter extends StatelessWidget {
         ? Colors.white.withValues(alpha: 0.16)
         : colors.surfaceContainerHigh;
 
+    // Painted rather than a LinearProgressIndicator so the fill can
+    // carry a gradient and keep its own rounded cap at any width.
     return ClipRRect(
       borderRadius: BorderRadius.circular(height / 2),
-      child: LinearProgressIndicator(
-        value: value.clamp(0.0, 1.0),
-        minHeight: height,
-        backgroundColor: track,
-        valueColor: AlwaysStoppedAnimation<Color>(fill),
+      child: SizedBox(
+        height: height,
+        child: Stack(
+          children: [
+            Positioned.fill(child: ColoredBox(color: track)),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: value.clamp(0.0, 1.0),
+                // Without a height factor the box would size to its
+                // (zero-height) child and the fill would never paint.
+                heightFactor: 1,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: AppGradients.meter(fill),
+                    borderRadius: BorderRadius.circular(height / 2),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -9,13 +9,152 @@ import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/overall_budget.dart';
 
-/// The period's plan and what has been spent against it, on a dark card
-/// in both themes — the screen's one headline figure.
+/// Screen title and its one-line promise, in the body rather than an
+/// app bar — the title can then be display-sized instead of chrome-sized.
+class BudgetsHeader extends StatelessWidget {
+  const BudgetsHeader({required this.onAddCategory, super.key});
+
+  final VoidCallback onAddCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Budgets',
+                style: AppTypography.screenTitle(color: colors.onSurface),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Plan smart. Spend wisely.',
+                style: AppTypography.metadata(color: colors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        _RoundAction(icon: AppIcons.add, onTap: onAddCategory, tooltip: 'Add'),
+      ],
+    );
+  }
+}
+
+/// A soft circular icon button — the tinted round `+` from the design
+/// reference, rather than a bare app-bar glyph.
+class _RoundAction extends StatelessWidget {
+  const _RoundAction({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  final List<List<dynamic>> icon;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: colors.primary.withValues(alpha: 0.10),
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            width: Space.x6,
+            height: Space.x6,
+            child: Center(child: AppIcon(icon, size: 22, color: colors.primary)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Chevron / pill / chevron period control.
 ///
-/// "Planned" is the overall target; "Allocated" is the sum of the
-/// category envelopes underneath. They are different questions and
-/// used to be shown as peer figures with no indication of which one
-/// the progress bar tracked.
+/// The pill is the tappable target rather than a bare centred label, so
+/// the window reads as something you can change, not a caption.
+class PeriodPill extends StatelessWidget {
+  const PeriodPill({
+    required this.label,
+    required this.onPrevious,
+    required this.onNext,
+    super.key,
+  });
+
+  final String label;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        IconButton(
+          onPressed: onPrevious,
+          tooltip: 'Previous period',
+          icon: AppIcon(AppIcons.chevronLeft, size: 20),
+        ),
+        Expanded(
+          child: Container(
+            height: Space.x6,
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? colors.surfaceContainerLow
+                  : colors.surface,
+              borderRadius: Radii.chipRadius,
+              boxShadow: AppShadows.card(Theme.of(context).brightness),
+            ),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AppIcon(
+                  AppIcons.calendar,
+                  size: 18,
+                  color: colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: Space.x1),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.rowTitle(color: colors.onSurface),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: onNext,
+          tooltip: 'Next period',
+          icon: AppIcon(AppIcons.chevronRight, size: 20),
+        ),
+      ],
+    );
+  }
+}
+
+/// The period's plan and what has been spent against it.
+///
+/// The three figures underneath — spent, left, days remaining — sit as
+/// a row of equals, because each answers a different question and none
+/// of them is the headline. The headline is the plan itself.
 class BudgetHeroCard extends StatelessWidget {
   const BudgetHeroCard({
     required this.plannedMinor,
@@ -36,128 +175,186 @@ class BudgetHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasPlanned = plannedMinor > 0;
-
-    if (!hasPlanned) {
-      return AppCard(
+    if (plannedMinor <= 0) {
+      return SetBudgetPrompt(
         onTap: () => OverallBudgetEditorSheet.show(context),
-        child: Row(
-          children: [
-            AppIcon(
-              AppIcons.budgets,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: Space.x2),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Set your budget for this period',
-                    style: AppTypography.rowTitle(),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'How much you plan to spend in total. You can change '
-                    'it any time.',
-                    style: AppTypography.metadata(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            AppIcon(AppIcons.chevronRight, size: 20),
-          ],
-        ),
       );
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? AppColors.night800 : AppColors.ink900;
     const onSurface = AppColors.nightText;
     const onSurfaceMuted = AppColors.nightText2;
-    // Dark in both themes, so it takes the dark-mode money colour
-    // regardless of brightness — light mode's outflow would be a dark
-    // red on near-black.
+    // The hero is dark in both themes, so it takes the dark-mode money
+    // colour regardless of brightness.
     const overColor = AppColors.outflowD;
 
     final isOver = totalSpent > plannedMinor;
+    final leftMinor = plannedMinor - totalSpent;
     final allocationDelta = allocatedMinor - plannedMinor;
-    final tail = isCurrentPeriod
-        ? ', ${daysLeft == 1 ? '1 day' : '$daysLeft days'} left'
-        : '';
+    final leftPercent = plannedMinor == 0
+        ? 0
+        : ((leftMinor / plannedMinor) * 100).clamp(0, 100).round();
 
-    return Material(
-      color: surface,
-      borderRadius: Radii.cardRadius,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () =>
-            OverallBudgetEditorSheet.show(context, existing: overallBudget),
-        child: Padding(
-          padding: const EdgeInsets.all(Space.cardPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return HeroCard(
+      onTap: () =>
+          OverallBudgetEditorSheet.show(context, existing: overallBudget),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'TOTAL BUDGET',
+            style: AppTypography.chipOverline(color: onSurfaceMuted),
+          ),
+          const SizedBox(height: Space.x1),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'BUDGET FOR THIS PERIOD',
-                      style: AppTypography.chipOverline(
-                        color: onSurfaceMuted,
-                      ),
-                    ),
-                  ),
-                  AppIcon(AppIcons.edit, size: 18, color: onSurfaceMuted),
-                ],
-              ),
-              const SizedBox(height: Space.x1),
-              MoneyText(
-                plannedMinor,
-                size: MoneySize.display,
-                color: onSurface,
-              ),
-              const SizedBox(height: Space.x2),
-              ProgressMeter(
-                value: totalSpent / plannedMinor,
-                isOver: isOver,
-                onDarkSurface: true,
-              ),
-              const SizedBox(height: Space.x1),
-              Text(
-                isOver
-                    ? '${Money.display(totalSpent - plannedMinor)} over'
-                          '$tail'
-                    : '${Money.display(totalSpent)} spent, '
-                          '${Money.display(plannedMinor - totalSpent)} left'
-                          '$tail',
-                style: AppTypography.metadata(
-                  color: isOver ? overColor : onSurfaceMuted,
+              Flexible(
+                child: MoneyText(
+                  plannedMinor,
+                  size: MoneySize.display,
+                  color: onSurface,
                 ),
               ),
-              if (allocatedMinor > 0) ...[
-                const SizedBox(height: 4),
+              const SizedBox(width: Space.x1),
+              AppIcon(AppIcons.edit, size: 18, color: onSurfaceMuted),
+            ],
+          ),
+          const SizedBox(height: Space.x2),
+          ProgressMeter(
+            value: totalSpent / plannedMinor,
+            isOver: isOver,
+            onDarkSurface: true,
+          ),
+          const SizedBox(height: Space.x2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _HeroStat(
+                  label: 'Spent',
+                  value: Money.display(totalSpent),
+                ),
+              ),
+              Expanded(
+                child: _HeroStat(
+                  label: isOver ? 'Over by' : 'Left',
+                  value: Money.display(leftMinor.abs()),
+                  tone: isOver ? overColor : null,
+                ),
+              ),
+              Expanded(
+                child: _HeroStat(
+                  label: isCurrentPeriod ? 'Days left' : 'Period',
+                  value: isCurrentPeriod
+                      ? (daysLeft == 1 ? '1 day' : '$daysLeft days')
+                      : 'Ended',
+                  detail: isCurrentPeriod && !isOver ? '$leftPercent% left' : null,
+                ),
+              ),
+            ],
+          ),
+          if (allocatedMinor > 0) ...[
+            const SizedBox(height: Space.x2),
+            Text(
+              switch (allocationDelta) {
+                0 => 'Every kwacha is allocated to a category',
+                < 0 =>
+                  '${Money.display(-allocationDelta)} not yet in a category',
+                _ =>
+                  'Categories add up to ${Money.display(allocationDelta)} '
+                      'more than the budget',
+              },
+              style: AppTypography.metadata(
+                color: allocationDelta > 0 ? overColor : onSurfaceMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({
+    required this.label,
+    required this.value,
+    this.detail,
+    this.tone,
+  });
+
+  final String label;
+  final String value;
+  final String? detail;
+  final Color? tone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: AppTypography.metadata(color: AppColors.nightText2),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: AppTypography.rowAmount(color: tone ?? AppColors.nightText),
+        ),
+        if (detail != null)
+          Text(
+            detail!,
+            style: AppTypography.metadata(color: AppColors.nightText2),
+          ),
+      ],
+    );
+  }
+}
+
+/// Shown in the hero's place until a budget exists.
+class SetBudgetPrompt extends StatelessWidget {
+  const SetBudgetPrompt({required this.onTap, super.key});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return AppCard(
+      child: Row(
+        children: [
+          Container(
+            width: Space.x6,
+            height: Space.x6,
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: AppIcon(AppIcons.budgets, size: 22, color: colors.primary),
+          ),
+          const SizedBox(width: Space.x2),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Set your total budget', style: AppTypography.rowTitle()),
+                const SizedBox(height: 2),
                 Text(
-                  switch (allocationDelta) {
-                    0 => 'Every kwacha is allocated to a category',
-                    < 0 =>
-                      '${Money.display(-allocationDelta)} not yet in a '
-                          'category',
-                    _ =>
-                      'Categories add up to '
-                          '${Money.display(allocationDelta)} more than the '
-                          'budget',
-                  },
+                  'Your overall plan for this period. Change it any time.',
                   style: AppTypography.metadata(
-                    color: allocationDelta > 0 ? overColor : onSurfaceMuted,
+                    color: colors.onSurfaceVariant,
                   ),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: Space.x1),
+          FilledButton(onPressed: onTap, child: const Text('Set')),
+        ],
       ),
     );
   }
@@ -257,8 +454,11 @@ class _OverallBudgetEditorSheetState extends State<OverallBudgetEditorSheet> {
   }
 }
 
-/// A top-level expense category with a budget set. Tapping opens its
-/// detail page — subcategories, transfer, the full breakdown.
+/// A top-level expense category with a budget set.
+///
+/// Laid out to be scannable down a column: avatar and name on the left,
+/// the limit and what is left stacked on the right, and the meter
+/// spanning underneath in the category's own hue.
 class ExpenseCategoryEnvelopeCard extends StatelessWidget {
   const ExpenseCategoryEnvelopeCard({
     required this.category,
@@ -304,46 +504,166 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 CategoryAvatar(
                   iconKey: category.icon,
                   categoryId: category.id,
                   colorName: category.color,
-                  size: 36,
+                  size: 44,
                 ),
-                const SizedBox(width: Space.x1),
+                const SizedBox(width: Space.x2),
                 Expanded(
-                  child: Text(
-                    category.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.rowTitle(color: colors.onSurface),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        category.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.rowTitle(color: colors.onSurface),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${Money.display(spentMinor)} spent',
+                        style: AppTypography.metadata(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: Space.x1),
-                MoneyText(limit, size: MoneySize.meta),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MoneyText(limit, size: MoneySize.meta),
+                    const SizedBox(height: 2),
+                    // Over-budget is said, not merely coloured — roughly
+                    // one man in twelve here cannot rely on red/green.
+                    Text(
+                      isOver
+                          ? '${Money.display(spentMinor - limit)} over'
+                          : '${Money.display(limit - spentMinor)} left',
+                      style: AppTypography.metadata(
+                        color: isOver ? money.outflow : money.inflow,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: Space.x1),
+            const SizedBox(height: Space.x2),
             ProgressMeter(
               value: limit == 0 ? 0 : spentMinor / limit,
               isOver: isOver,
               height: 6,
               fillColor: hue.series,
             ),
-            const SizedBox(height: 6),
-            // Over-budget is stated, not just coloured — roughly one in
-            // twelve men here cannot rely on the red/green distinction.
-            Text(
-              isOver
-                  ? '${Money.display(spentMinor - limit)} over'
-                  : '${Money.display(spentMinor)} spent, '
-                        '${Money.display(limit - spentMinor)} left',
-              style: AppTypography.metadata(
-                color: isOver ? money.outflow : colors.onSurfaceVariant,
-              ),
-            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-width dashed-feeling "add" row that closes the category list.
+class AddCategoryCard extends StatelessWidget {
+  const AddCategoryCard({required this.onTap, super.key});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: Radii.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            borderRadius: Radii.cardRadius,
+            border: Border.all(color: colors.outlineVariant),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AppIcon(AppIcons.add, size: 18, color: colors.primary),
+              const SizedBox(width: Space.x1),
+              Text(
+                'Add category',
+                style: AppTypography.rowTitle(color: colors.primary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The assistant's read on the period, as a tinted strip at the end of
+/// the screen.
+///
+/// Deliberately a single sentence with a way in, not a panel: it is a
+/// prompt to look closer, and anything longer would compete with the
+/// figures it is commenting on.
+class BudgetInsightCard extends StatelessWidget {
+  const BudgetInsightCard({
+    required this.message,
+    required this.onOpen,
+    super.key,
+  });
+
+  final String message;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colors.primary.withValues(alpha: 0.07),
+      borderRadius: Radii.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.all(Space.cardPadding),
+          child: Row(
+            children: [
+              AppIcon(AppIcons.assistant, size: 20, color: colors.primary),
+              const SizedBox(width: Space.x2),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Insight',
+                      style: AppTypography.chipOverline(color: colors.primary),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      message,
+                      style: AppTypography.body(color: colors.onSurface),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: Space.x1),
+              AppIcon(
+                AppIcons.chevronRight,
+                size: 20,
+                color: colors.onSurfaceVariant,
+              ),
+            ],
+          ),
         ),
       ),
     );

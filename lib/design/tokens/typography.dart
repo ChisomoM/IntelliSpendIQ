@@ -1,51 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Type scale from the brand guide (§3).
+/// Type scale from the brand guide (§3), set in Plus Jakarta Sans.
 ///
-/// Three families, each with one job: Sans is the interface, Mono is
-/// every number, Serif is reserved for onboarding/insights/wrap-style
-/// copy and never appears in app chrome.
+/// The guide names IBM Plex. Plex Mono's typewriter shapes read as
+/// "terminal" rather than "money" beside the rest of the interface, and
+/// running Plex Sans against it gave the app two voices that never
+/// quite agreed. Plus Jakarta Sans replaces both: one geometric family
+/// with real tabular figures, so amounts still align on the decimal
+/// without a second typeface doing it.
 ///
-/// Every Mono style carries tabular figures so amounts align on the
-/// decimal in a column. 13px is the floor for on-screen text; the 11px
-/// chip/overline style is the one sanctioned exception, and it is
-/// always uppercase and tracked, never a sentence.
+/// Sizes, line heights, tracking and the 13px floor are unchanged — the
+/// only substitution is the family. Reverting is a one-line change in
+/// [_font].
+///
+/// The 11px chip/overline style is the single exception to the floor,
+/// and it is always uppercase and tracked, never a sentence.
 abstract final class AppTypography {
+  /// The one family. Swap this to change the whole app's voice.
+  static TextStyle _font({
+    required double size,
+    required double height,
+    required FontWeight weight,
+    double letterSpacing = 0,
+    Color? color,
+    List<FontFeature>? features,
+  }) {
+    return GoogleFonts.plusJakartaSans(
+      fontSize: size,
+      height: height / size,
+      fontWeight: weight,
+      letterSpacing: letterSpacing,
+      color: color,
+      fontFeatures: features,
+    );
+  }
+
   static TextStyle _sans({
     required double size,
     required double height,
     required FontWeight weight,
     double letterSpacing = 0,
     Color? color,
-  }) {
-    return GoogleFonts.ibmPlexSans(
-      fontSize: size,
-      height: height / size,
-      fontWeight: weight,
-      letterSpacing: letterSpacing,
-      color: color,
-    );
-  }
+  }) => _font(
+    size: size,
+    height: height,
+    weight: weight,
+    letterSpacing: letterSpacing,
+    color: color,
+  );
 
+  /// Numeric styles. Tabular figures are what keep a column of amounts
+  /// aligned on the decimal — that was mono's real job, not its look.
   static TextStyle _mono({
     required double size,
     required double height,
     required FontWeight weight,
     double letterSpacing = 0,
     Color? color,
-  }) {
-    return GoogleFonts.ibmPlexMono(
-      fontSize: size,
-      height: height / size,
-      fontWeight: weight,
-      letterSpacing: letterSpacing,
-      color: color,
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
-  }
+  }) => _font(
+    size: size,
+    height: height,
+    weight: weight,
+    letterSpacing: letterSpacing,
+    color: color,
+    features: const [FontFeature.tabularFigures()],
+  );
 
-  /// Onboarding / insights / monthly-wrap copy only — never app chrome.
+  /// Reserved for onboarding and long-form insight copy.
   static TextStyle serif({
     double size = 17,
     double height = 26,
@@ -53,7 +75,7 @@ abstract final class AppTypography {
     FontStyle style = FontStyle.normal,
     Color? color,
   }) {
-    return GoogleFonts.ibmPlexSerif(
+    return GoogleFonts.fraunces(
       fontSize: size,
       height: height / size,
       fontWeight: weight,

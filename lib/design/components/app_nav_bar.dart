@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intellispendiq/design/components/app_icon.dart';
+import 'package:intellispendiq/design/tokens/gradients.dart';
 import 'package:intellispendiq/design/tokens/icons.dart';
 import 'package:intellispendiq/design/tokens/radii.dart';
 import 'package:intellispendiq/design/tokens/spacing.dart';
@@ -80,7 +81,9 @@ class AppNavBar extends StatelessWidget {
     return BottomAppBar(
       height: Space.x6 + Space.x1,
       padding: EdgeInsets.zero,
-      color: colors.surfaceContainerLow,
+      color: Theme.of(context).brightness == Brightness.dark
+          ? colors.surfaceContainerLow
+          : colors.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       shape: const CircularNotchedRectangle(),
@@ -99,35 +102,61 @@ class AppNavBar extends StatelessWidget {
 }
 
 /// The primary action, docked centre in [AppNavBar]'s notch. A rounded
-/// square per the brand guide, not a circle — `Radii.fabShape` — so it
-/// sits slightly proud of the notch's circular cutout rather than
-/// filling it exactly; an accepted trade for staying on-brand rather
-/// than bending the shape to fit Material's notch geometry.
+/// square per the brand guide, not a circle.
 ///
-/// Tap opens the add-transaction flow. Long-press opens a short sheet
-/// with the other quick actions, so voice capture and the assistant
-/// stay one gesture away from every tab instead of Activity only.
+/// Three gestures: tap adds a transaction, **double-tap starts voice
+/// capture**, long-press opens the full quick-add sheet.
+///
+/// One cost worth knowing: registering a double-tap means the single
+/// tap cannot fire until the double-tap window has passed, so "add"
+/// gains roughly 300ms before the sheet opens. That is the unavoidable
+/// price of putting two actions on one target — the alternative is a
+/// separate mic button, which is what the old two-FAB stack did and
+/// what the centred FAB replaced.
 class CenterFab extends StatelessWidget {
-  const CenterFab({required this.onTap, this.onLongPress, super.key});
+  const CenterFab({
+    required this.onTap,
+    this.onDoubleTap,
+    this.onLongPress,
+    super.key,
+  });
 
   final VoidCallback onTap;
+
+  /// Voice capture.
+  final VoidCallback? onDoubleTap;
+
   final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    // FloatingActionButton has no onLongPress of its own — the long
-    // press for the quick-add sheet is layered on with a
-    // GestureDetector rather than swapping in a plain InkWell, so the
-    // button keeps its normal ripple, elevation and semantics.
+    final theme = Theme.of(context);
+    final brightness = theme.brightness;
+
+    // FloatingActionButton exposes neither double-tap nor long-press,
+    // so the gestures are layered over it rather than replacing it with
+    // a bare InkWell — the button keeps its ripple and semantics.
     return GestureDetector(
+      onDoubleTap: onDoubleTap,
       onLongPress: onLongPress,
-      child: FloatingActionButton(
-        onPressed: onTap,
-        shape: Radii.fabShape,
-        tooltip: 'Add transaction — hold for more',
-        child: AppIcon(
-          AppIcons.add,
-          color: Theme.of(context).colorScheme.onPrimary,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: AppGradients.action(brightness),
+          borderRadius: BorderRadius.circular(Radii.fab),
+          boxShadow: AppShadows.raised(brightness),
+        ),
+        child: FloatingActionButton(
+          onPressed: onTap,
+          // The gradient is the fill; the button underneath must not
+          // paint its own colour over it.
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          focusElevation: 0,
+          hoverElevation: 0,
+          highlightElevation: 0,
+          shape: Radii.fabShape,
+          tooltip: 'Add · double-tap to speak · hold for more',
+          child: AppIcon(AppIcons.add, color: theme.colorScheme.onPrimary),
         ),
       ),
     );

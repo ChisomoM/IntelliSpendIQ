@@ -43,7 +43,17 @@ class CategoryAvatar extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: hue.tint,
+        // A very slight wash rather than a flat fill, so a column of
+        // these catches light consistently instead of reading as a
+        // strip of stickers.
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.alphaBlend(hue.ink.withValues(alpha: 0.06), hue.tint),
+            hue.tint,
+          ],
+        ),
         borderRadius: BorderRadius.circular(size * 0.3),
       ),
       alignment: Alignment.center,

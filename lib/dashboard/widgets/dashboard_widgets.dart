@@ -108,82 +108,68 @@ class SafeToSpendHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? AppColors.night800 : AppColors.ink900;
     const onSurface = AppColors.nightText;
     const onSurfaceMuted = AppColors.nightText2;
     final plan = planMinor;
 
-    return Material(
-      color: surface,
-      borderRadius: Radii.cardRadius,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Space.x3),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return HeroCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      plan == null
-                          ? 'SPENT · ${periodLabel.toUpperCase()}'
-                          : isOverPlan
-                          ? 'OVER BUDGET · ${periodLabel.toUpperCase()}'
-                          : 'LEFT TO SPEND · ${periodLabel.toUpperCase()}',
-                      style: AppTypography.chipOverline(color: onSurfaceMuted),
-                    ),
-                  ),
-                  AppIcon(
-                    AppIcons.chevronRight,
-                    size: 18,
-                    color: onSurfaceMuted,
-                  ),
-                ],
+              Expanded(
+                child: Text(
+                  plan == null
+                      ? 'SPENT · ${periodLabel.toUpperCase()}'
+                      : isOverPlan
+                      ? 'OVER BUDGET · ${periodLabel.toUpperCase()}'
+                      : 'LEFT TO SPEND · ${periodLabel.toUpperCase()}',
+                  style: AppTypography.chipOverline(color: onSurfaceMuted),
+                ),
               ),
-              const SizedBox(height: Space.x1),
-              MoneyText(
-                plan == null
-                    ? totalSpent
-                    : (isOverPlan ? totalSpent - plan : plan - totalSpent),
-                size: MoneySize.display,
-                color: isOverPlan ? AppColors.outflowD : onSurface,
-              ),
-              if (plan != null) ...[
-                const SizedBox(height: Space.x2),
-                ProgressMeter(
-                  value: planRatio,
-                  isOver: isOverPlan,
-                  onDarkSurface: true,
-                ),
-                const SizedBox(height: Space.x1),
-                Text(
-                  '${Money.display(totalSpent)} of ${Money.display(plan)} '
-                  '${planSource == PlanSource.income ? 'income' : 'budget'}'
-                  '${isCurrentPeriod ? ' · ${daysLeft == 1 ? '1 day' : '$daysLeft days'} left' : ''}',
-                  style: AppTypography.metadata(color: onSurfaceMuted),
-                ),
-                if (paceVerdict != PaceVerdict.none) ...[
-                  const SizedBox(height: Space.x2),
-                  _PaceChip(
-                    verdict: paceVerdict,
-                    dailyAllowanceMinor: dailyAllowanceMinor,
-                    paceDeltaMinor: paceDeltaMinor,
-                  ),
-                ],
-              ] else ...[
-                const SizedBox(height: Space.x1),
-                Text(
-                  'Set a budget and this becomes what you have left.',
-                  style: AppTypography.metadata(color: onSurfaceMuted),
-                ),
-              ],
+              AppIcon(AppIcons.chevronRight, size: 18, color: onSurfaceMuted),
             ],
           ),
-        ),
+          const SizedBox(height: Space.x1),
+          MoneyText(
+            plan == null
+                ? totalSpent
+                : (isOverPlan ? totalSpent - plan : plan - totalSpent),
+            size: MoneySize.display,
+            color: isOverPlan ? AppColors.outflowD : onSurface,
+          ),
+          if (plan != null) ...[
+            const SizedBox(height: Space.x2),
+            ProgressMeter(
+              value: planRatio,
+              isOver: isOverPlan,
+              onDarkSurface: true,
+            ),
+            const SizedBox(height: Space.x1),
+            Text(
+              '${Money.display(totalSpent)} of ${Money.display(plan)} '
+              '${planSource == PlanSource.income ? 'income' : 'budget'}'
+              '${isCurrentPeriod ? ' · ${daysLeft == 1 ? '1 day' : '$daysLeft days'} left' : ''}',
+              style: AppTypography.metadata(color: onSurfaceMuted),
+            ),
+            if (paceVerdict != PaceVerdict.none) ...[
+              const SizedBox(height: Space.x2),
+              _PaceChip(
+                verdict: paceVerdict,
+                dailyAllowanceMinor: dailyAllowanceMinor,
+                paceDeltaMinor: paceDeltaMinor,
+              ),
+            ],
+          ] else ...[
+            const SizedBox(height: Space.x1),
+            Text(
+              'Set a budget and this becomes what you have left.',
+              style: AppTypography.metadata(color: onSurfaceMuted),
+            ),
+          ],
+        ],
       ),
     );
   }
