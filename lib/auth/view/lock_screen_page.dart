@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/auth/cubit/cubit.dart';
 import 'package:intellispendiq/auth/widgets/widgets.dart';
+import 'package:intellispendiq/design/design.dart';
 
 /// Shown instead of the app when a PIN is set and unsatisfied.
 ///
@@ -27,17 +28,14 @@ class LockScreenPage extends StatelessWidget {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.lock_outline,
+                    AppIcon(
+                      AppIcons.lock,
                       size: 56,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Enter your PIN',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: Space.x3),
+                    Text('Enter your PIN', style: AppTypography.screenTitle()),
+                    const SizedBox(height: Space.x4),
                     PinEntryField(
                       value: state.pin,
                       enabled: !state.submitting,
@@ -45,16 +43,16 @@ class LockScreenPage extends StatelessWidget {
                       onSubmitted: cubit.submitPinUnawaited,
                     ),
                     if (state.errorMessage != null) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: Space.x1),
                       Text(
                         state.errorMessage!,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: AppTypography.metadata(
                           color: Theme.of(context).colorScheme.error,
                         ),
                       ),
                     ],
-                    const SizedBox(height: 24),
+                    const SizedBox(height: Space.x2),
                     FilledButton(
                       onPressed: state.submitting
                           ? null
@@ -68,12 +66,12 @@ class LockScreenPage extends StatelessWidget {
                           : const Text('Unlock'),
                     ),
                     if (state.canUseBiometrics) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: Space.x1),
                       TextButton.icon(
                         onPressed: state.submitting
                             ? null
                             : cubit.unlockWithBiometricsUnawaited,
-                        icon: const Icon(Icons.fingerprint),
+                        icon: AppIcon(AppIcons.fingerprint, size: 18),
                         label: const Text('Use biometrics'),
                       ),
                     ],

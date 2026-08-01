@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/senders/cubit/cubit.dart';
 import 'package:intellispendiq/senders/widgets/widgets.dart';
@@ -34,10 +35,11 @@ class CustomSendersView extends StatelessWidget {
         title: const Text('Message senders'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: AppIcon(AppIcons.add, size: 22),
             tooltip: 'Add sender',
             onPressed: () => CustomSenderEditorSheet.show(context),
           ),
+          const SizedBox(width: Space.x1),
         ],
       ),
       body: BlocBuilder<CustomSendersCubit, CustomSendersState>(
@@ -48,11 +50,17 @@ class CustomSendersView extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return ListView.separated(
-            itemCount: state.senders.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) =>
-                CustomSenderTile(sender: state.senders[index]),
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(
+              Space.gutter,
+              Space.x1,
+              Space.gutter,
+              Space.x4,
+            ),
+            children: [
+              for (final sender in state.senders)
+                CustomSenderTile(sender: sender),
+            ],
           );
         },
       ),

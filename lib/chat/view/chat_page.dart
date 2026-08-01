@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/chat/cubit/cubit.dart';
 import 'package:intellispendiq/chat/widgets/widgets.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/chat_message.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 
@@ -116,12 +117,12 @@ class _ChatViewState extends State<ChatView> {
                 if (state.errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
+                      horizontal: Space.gutter,
                       vertical: 4,
                     ),
                     child: Text(
                       state.errorMessage!,
-                      style: TextStyle(
+                      style: AppTypography.metadata(
                         color: Theme.of(context).colorScheme.error,
                       ),
                     ),
@@ -141,29 +142,12 @@ class _ChatIntro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.forum_outlined, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'Ask about your spending',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '"How much did I spend on transport this month?" or '
-              '"Set a 500 kwacha budget for food." Anything that changes '
-              'your data shows up as a card to confirm first.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
+    return const EmptyState(
+      icon: AppIcons.chat,
+      title: 'Ask about your spending',
+      message: '"How much did I spend on transport this month?" or '
+          '"Set a 500 kwacha budget for food." Anything that changes '
+          'your data shows up as a card to confirm first.',
     );
   }
 }
@@ -176,7 +160,8 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == ChatRole.user;
-    final theme = Theme.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -184,15 +169,35 @@ class _MessageBubble extends StatelessWidget {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.8,
         ),
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isUser
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
+        margin: const EdgeInsets.symmetric(
+          horizontal: Space.gutter,
+          vertical: 4,
         ),
-        child: Text(message.text),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.x2,
+          vertical: Space.x1,
+        ),
+        decoration: BoxDecoration(
+          gradient: isUser ? AppGradients.action(Theme.of(context).brightness) : null,
+          color: isUser
+              ? null
+              : (isDark ? colors.surfaceContainerLow : colors.surface),
+          borderRadius: BorderRadius.circular(Radii.card),
+          border: isUser || !isDark
+              ? null
+              : Border.all(color: colors.outlineVariant),
+          boxShadow: isUser
+              ? null
+              : AppShadows.card(Theme.of(context).brightness),
+        ),
+        child: Text(
+          message.text,
+          style: AppTypography.body(
+            color: isUser
+                ? (isDark ? AppColors.ink900 : AppColors.paper)
+                : colors.onSurface,
+          ),
+        ),
       ),
     );
   }
@@ -208,7 +213,12 @@ class _ChatInputBar extends StatelessWidget {
     final cubit = context.read<ChatCubit>();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      padding: const EdgeInsets.fromLTRB(
+        Space.x1,
+        4,
+        Space.x1,
+        Space.x1,
+      ),
       child: BlocBuilder<ChatCubit, ChatState>(
         buildWhen: (previous, current) =>
             previous.status != current.status ||
@@ -217,7 +227,10 @@ class _ChatInputBar extends StatelessWidget {
           if (controller.text != state.draft) {
             controller.text = state.draft;
           }
+          final busy = state.status == ChatTurnStatus.working;
+
           return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: TextField(
@@ -225,6 +238,9 @@ class _ChatInputBar extends StatelessWidget {
                   minLines: 1,
                   maxLines: 4,
                   textInputAction: TextInputAction.send,
+                  style: AppTypography.body(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   decoration: const InputDecoration(
                     hintText: 'Ask or log a spend…',
                   ),
@@ -232,23 +248,52 @@ class _ChatInputBar extends StatelessWidget {
                   onSubmitted: (_) => cubit.sendUnawaited(),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: state.status == ChatTurnStatus.working
-                    ? null
-                    : cubit.sendUnawaited,
-                icon: state.status == ChatTurnStatus.working
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send),
+              const SizedBox(width: Space.x1),
+              Container(
+                width: Space.x6,
+                height: Space.x6,
+                decoration: BoxDecoration(
+                  gradient: AppGradients.action(Theme.of(context).brightness),
+                  shape: BoxShape.circle,
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: busy ? null : cubit.sendUnawaited,
+                    child: Center(
+                      child: busy
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: _onAction(context),
+                              ),
+                            )
+                          : AppIcon(
+                              AppIcons.chevronRight,
+                              size: 20,
+                              color: _onAction(context),
+                            ),
+                    ),
+                  ),
+                ),
               ),
             ],
           );
         },
       ),
     );
+  }
+
+  /// The action gradient runs dark violet in light mode and bright cyan
+  /// in dark mode — [MoneyColors]-style ink pairing so the glyph on top
+  /// clears contrast in both.
+  Color _onAction(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? AppColors.ink900
+        : AppColors.paper;
   }
 }

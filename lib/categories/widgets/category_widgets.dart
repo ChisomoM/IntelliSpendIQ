@@ -36,33 +36,41 @@ class CategoryTile extends StatelessWidget {
         '$childCount subcategor${childCount == 1 ? 'y' : 'ies'}',
     ];
 
-    return AppListRow(
-      onTap: onTap,
-      leading: CategoryAvatar(
-        iconKey: category.icon,
-        categoryId: category.id,
-        colorName: category.color,
-      ),
-      title: Text(category.name),
-      subtitle: subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · ')),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: AppIcon(AppIcons.edit, size: 20),
-            tooltip: 'Edit',
-            onPressed: () => Navigator.of(
-              context,
-            ).push<String?>(CategoryEditorPage.route(existing: category)),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.cardGap),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: AppListRow(
+          onTap: onTap,
+          leading: CategoryAvatar(
+            iconKey: category.icon,
+            categoryId: category.id,
+            colorName: category.color,
           ),
-          if (!category.isSystem)
-            IconButton(
-              icon: AppIcon(AppIcons.delete, size: 20),
-              tooltip: 'Delete',
-              onPressed: () => _confirmDelete(context),
-            ),
-          if (onTap != null) AppIcon(AppIcons.chevronRight, size: 20),
-        ],
+          title: Text(category.name),
+          subtitle: subtitleParts.isEmpty
+              ? null
+              : Text(subtitleParts.join(' · ')),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: AppIcon(AppIcons.edit, size: 20),
+                tooltip: 'Edit',
+                onPressed: () => Navigator.of(
+                  context,
+                ).push<String?>(CategoryEditorPage.route(existing: category)),
+              ),
+              if (!category.isSystem)
+                IconButton(
+                  icon: AppIcon(AppIcons.delete, size: 20),
+                  tooltip: 'Delete',
+                  onPressed: () => _confirmDelete(context),
+                ),
+              if (onTap != null) AppIcon(AppIcons.chevronRight, size: 20),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -262,7 +270,8 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                     : 'Add category'),
         ),
         actions: [
-          TextButton(onPressed: _save, child: const Text('SAVE')),
+          TextButton(onPressed: _save, child: const Text('Save')),
+          const SizedBox(width: Space.x1),
         ],
       ),
       body: BlocBuilder<CategoriesCubit, CategoriesState>(
@@ -275,14 +284,21 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
               .toList();
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(
+              Space.gutter,
+              Space.x2,
+              Space.gutter,
+              Space.x3,
+            ),
             children: [
               if (!widget.lockParent) ...[
                 Text(
-                  'Category type',
-                  style: Theme.of(context).textTheme.titleSmall,
+                  'CATEGORY TYPE',
+                  style: AppTypography.chipOverline(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: Space.x1),
                 SegmentedButton<CategoryType>(
                   segments: const [
                     ButtonSegment(
@@ -298,18 +314,16 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                   onSelectionChanged: (values) =>
                       setState(() => _type = values.first),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Space.x2),
               ],
-              TextField(
+              AppTextField(
                 controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'Name',
-                  errorText: _error,
-                ),
+                label: 'Name',
+                errorText: _error,
                 textCapitalization: TextCapitalization.words,
                 autofocus: true,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Space.x2),
               // Was a free-text field asking the user to paste an
               // emoji. Icons now come from a fixed set so they render
               // in the app's own icon language rather than the
@@ -318,19 +332,18 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                 selectedKey: _iconKey,
                 onSelected: (key) => setState(() => _iconKey = key),
               ),
-              const SizedBox(height: 16),
-              TextField(
+              const SizedBox(height: Space.x2),
+              AppTextField(
                 controller: _budgetController,
-                decoration: InputDecoration(
-                  labelText: _type == CategoryType.income
-                      ? 'Planned amount for this period'
-                      : 'Budgeted amount (optional)',
-                  hintText: _type == CategoryType.income
-                      ? 'e.g. monthly salary'
-                      : null,
-                  // The symbol, with no space — ZMW is for statements
-                  // and export only.
-                  prefixText: 'K',
+                label: _type == CategoryType.income
+                    ? 'Planned amount for this period'
+                    : 'Budgeted amount (optional)',
+                hint: _type == CategoryType.income ? 'e.g. monthly salary' : null,
+                // The symbol, with no space — ZMW is for statements
+                // and export only.
+                prefixIcon: const Padding(
+                  padding: EdgeInsets.only(left: 16),
+                  child: Text('K'),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -340,7 +353,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                 ],
               ),
               if (!widget.lockParent && parentOptions.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: Space.x2),
                 DropdownButtonFormField<String?>(
                   initialValue: parentOptions.any((c) => c.id == _parentId)
                       ? _parentId
@@ -372,33 +385,13 @@ class NoCategoriesYet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.label_outline, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'No categories yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add a category for spending that does not fit the defaults.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => Navigator.of(
-                context,
-              ).push<String?>(CategoryEditorPage.route()),
-              child: const Text('Add category'),
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: AppIcons.emptyWallet,
+      title: 'No categories yet',
+      message: 'Add a category for spending that does not fit the defaults.',
+      actionLabel: 'Add category',
+      onAction: () =>
+          Navigator.of(context).push<String?>(CategoryEditorPage.route()),
     );
   }
 }

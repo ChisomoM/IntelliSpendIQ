@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/proposed_action.dart';
 
 /// A pending write the assistant proposed, shown until the user
@@ -19,29 +20,46 @@ class ProposedActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      color: theme.colorScheme.surfaceContainerHigh,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    final colors = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Space.gutter,
+        vertical: Space.x1,
+      ),
+      child: AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(action.title, style: theme.textTheme.titleSmall),
-            const SizedBox(height: 2),
-            Text(action.subtitle, style: theme.textTheme.bodySmall),
-            const SizedBox(height: 8),
-            OverflowBar(
-              alignment: MainAxisAlignment.end,
+            Row(
               children: [
-                TextButton(
-                  onPressed: busy ? null : onDismiss,
-                  child: const Text('Dismiss'),
+                AppIcon(AppIcons.assistant, size: 18, color: colors.primary),
+                const SizedBox(width: Space.x1),
+                Expanded(
+                  child: Text(
+                    action.title,
+                    style: AppTypography.rowTitle(color: colors.onSurface),
+                  ),
                 ),
-                FilledButton(
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              action.subtitle,
+              style: AppTypography.metadata(color: colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: Space.x1),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AppButton.tertiary(
+                  label: 'Dismiss',
+                  onPressed: busy ? null : onDismiss,
+                ),
+                const SizedBox(width: Space.x1),
+                AppButton.primary(
+                  label: 'Confirm',
                   onPressed: busy ? null : onConfirm,
-                  child: const Text('Confirm'),
                 ),
               ],
             ),

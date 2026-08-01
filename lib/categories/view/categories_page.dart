@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/categories/cubit/cubit.dart';
 import 'package:intellispendiq/categories/widgets/widgets.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 
 class CategoriesPage extends StatelessWidget {
@@ -32,12 +33,13 @@ class CategoriesView extends StatelessWidget {
         title: const Text('Categories'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: AppIcon(AppIcons.add, size: 22),
             tooltip: 'Add category',
             onPressed: () => Navigator.of(
               context,
             ).push<String?>(CategoryEditorPage.route()),
           ),
+          const SizedBox(width: Space.x1),
         ],
       ),
       body: BlocBuilder<CategoriesCubit, CategoriesState>(
@@ -49,23 +51,26 @@ class CategoriesView extends StatelessWidget {
           }
 
           final topLevel = state.topLevel;
-          return ListView.separated(
-            itemCount: topLevel.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final parent = topLevel[index];
-              final children = state.childrenOf(parent.id);
-              return CategoryTile(
-                category: parent,
-                childCount: children.length,
-                onTap: () => Navigator.of(context).push<void>(
-                  CategoryChildrenPage.route(
-                    parent: parent,
-                    cubit: context.read<CategoriesCubit>(),
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(
+              Space.gutter,
+              Space.x1,
+              Space.gutter,
+              Space.x4,
+            ),
+            children: [
+              for (final parent in topLevel)
+                CategoryTile(
+                  category: parent,
+                  childCount: state.childrenOf(parent.id).length,
+                  onTap: () => Navigator.of(context).push<void>(
+                    CategoryChildrenPage.route(
+                      parent: parent,
+                      cubit: context.read<CategoriesCubit>(),
+                    ),
                   ),
                 ),
-              );
-            },
+            ],
           );
         },
       ),
@@ -120,40 +125,40 @@ class CategoryChildrenPage extends StatelessWidget {
             title: Text(current.name),
             actions: [
               IconButton(
-                icon: const Icon(Icons.edit_outlined),
+                icon: AppIcon(AppIcons.edit, size: 22),
                 tooltip: 'Edit category',
                 onPressed: () => Navigator.of(context).push<String?>(
                   CategoryEditorPage.route(existing: current),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.add),
+                icon: AppIcon(AppIcons.add, size: 22),
                 tooltip: 'Add subcategory',
                 onPressed: addSubcategory,
               ),
+              const SizedBox(width: Space.x1),
             ],
           ),
           body: children.isEmpty
-              ? _NoSubcategoriesYet(parent: current, onAdd: addSubcategory)
-              : ListView.separated(
-                  itemCount: children.length + 1,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    if (index == children.length) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: TextButton.icon(
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Add subcategory'),
-                          onPressed: addSubcategory,
-                        ),
-                      );
-                    }
-                    return CategoryTile(category: children[index]);
-                  },
+              ? EmptyState(
+                  icon: AppIcons.budgets,
+                  title: 'No subcategories under ${current.name}',
+                  message:
+                      'Add a subcategory to break this category down further.',
+                  actionLabel: 'Add subcategory',
+                  onAction: addSubcategory,
+                )
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    Space.gutter,
+                    Space.x1,
+                    Space.gutter,
+                    Space.x1,
+                  ),
+                  children: [
+                    for (final child in children) CategoryTile(category: child),
+                    _AddSubcategoryRow(onTap: addSubcategory),
+                  ],
                 ),
         );
       },
@@ -161,35 +166,42 @@ class CategoryChildrenPage extends StatelessWidget {
   }
 }
 
-class _NoSubcategoriesYet extends StatelessWidget {
-  const _NoSubcategoriesYet({required this.parent, required this.onAdd});
+/// Full-width dashed-feeling "add" row that closes the subcategory list —
+/// same shape as [AddCategoryCard] on the Budgets screen, kept local
+/// here to avoid a cross-module dependency for one small widget.
+class _AddSubcategoryRow extends StatelessWidget {
+  const _AddSubcategoryRow({required this.onTap});
 
-  final Category parent;
-  final VoidCallback onAdd;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.subdirectory_arrow_right, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              'No subcategories under ${parent.name}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add a subcategory to break this category down further.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onAdd, child: const Text('Add subcategory')),
-          ],
+    final colors = Theme.of(context).colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: Radii.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            borderRadius: Radii.cardRadius,
+            border: Border.all(color: colors.outlineVariant),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AppIcon(AppIcons.add, size: 18, color: colors.primary),
+              const SizedBox(width: Space.x1),
+              Text(
+                'Add subcategory',
+                style: AppTypography.rowTitle(color: colors.primary),
+              ),
+            ],
+          ),
         ),
       ),
     );

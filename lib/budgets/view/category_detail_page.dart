@@ -156,10 +156,10 @@ class CategoryDetailView extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: Space.sectionGap),
-              OutlinedButton.icon(
+              AppButton.secondary(
                 onPressed: () => BudgetTransferSheet.show(context),
                 icon: AppIcon(AppIcons.transfer, size: 18),
-                label: const Text('Move budget to another category'),
+                label: 'Move budget to another category',
               ),
               const SizedBox(height: Space.sectionGap),
               SectionHeader(
