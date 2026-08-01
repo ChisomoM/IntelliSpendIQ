@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
+import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
@@ -145,8 +146,11 @@ class NeedsReviewTile extends StatelessWidget {
           : _ConfidenceChip(confidence: transaction.confidence!),
       body: transaction.categoryId == null
           ? CategoryPicker(
-              onSelected: (categoryId) =>
-                  cubit.categorize(transaction.id, categoryId),
+              onSelected: (categoryId) => cubit.categorize(
+                transaction.id,
+                categoryId,
+                merchant: transaction.merchant,
+              ),
             )
           : null,
       secondaryLabel: 'Edit',

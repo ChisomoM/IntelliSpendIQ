@@ -282,6 +282,46 @@ void main() {
     });
   });
 
+  group('BudgetsCubit hierarchical budgets', () {
+    test(
+      'a top-level category rolls up its subcategories\' spend',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        await cubit.load();
+
+        final food = (await services.categories.byName('Food'))!;
+        final takeaways = await services.categories.create(
+          'Takeaways',
+          parentId: food.id,
+          budgetedAmountMinor: 20000,
+        );
+        final period = cubit.state.budgetPeriod!;
+        await services.budgetPeriods.upsertCategoryBudget(
+          periodId: period.id,
+          categoryId: food.id,
+          amountMinor: 100000,
+        );
+        await services.budgetPeriods.upsertCategoryBudget(
+          periodId: period.id,
+          categoryId: takeaways.id,
+          amountMinor: 20000,
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        // Spend posted directly on Food...
+        await addConfirmedSpend(10000, categoryId: food.id);
+        // ...and spend posted on its subcategory...
+        await addConfirmedSpend(5000, categoryId: takeaways.id);
+        await cubit.load();
+        await Future<void>.delayed(Duration.zero);
+
+        // ...both count toward Food's own progress.
+        expect(cubit.state.spentFor(food.id), 15000);
+      },
+    );
+  });
+
   group('BudgetsCubit shiftPeriod', () {
     test('moves the window and reloads spend for the new period', () async {
       final cubit = await cubitWith();

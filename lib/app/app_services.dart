@@ -7,6 +7,7 @@ import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
+import 'package:intellispendiq/data/repositories/merchant_category_rule_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -23,6 +24,7 @@ import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
+import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/platform/biometric_authenticator.dart';
@@ -48,8 +50,10 @@ class AppServices {
     required this.labels,
     required this.settings,
     required this.customSenders,
+    required this.merchantCategoryRules,
     required this.appLock,
     required this.registry,
+    required this.merchantCategorizer,
     required this.captureService,
     required this.smsSync,
     required this.voicePipeline,
@@ -122,6 +126,10 @@ class AppServices {
     final labels = LabelRepository(db, userId: userId);
     final settings = SettingsRepository(db);
     final customSenders = CustomSenderRepository(db, userId: userId);
+    final merchantCategoryRules = MerchantCategoryRuleRepository(
+      db,
+      userId: userId,
+    );
 
     // Day-one seeds (plan §6.2): categories and the default Airtel Money
     // account. Both are no-ops after the first launch.
@@ -135,6 +143,10 @@ class AppServices {
         for (final sender in await customSenders.getAll())
           sender.senderId: sender.providerKey,
       });
+    final merchantCategorizer = MerchantCategorizer(
+      rules: merchantCategoryRules,
+      categories: categories,
+    );
     final captureService = CaptureService(
       registry: registry,
       rawCaptures: rawCaptures,
@@ -142,6 +154,7 @@ class AppServices {
       accounts: accounts,
       categories: categories,
       dedupe: DedupeService(transactions),
+      categorizer: merchantCategorizer,
     );
     final bridge = captureBridge ?? CaptureBridge();
     final ai = aiProvider ?? AnthropicClaudeProvider(secureStore: store);
@@ -179,12 +192,14 @@ class AppServices {
       labels: labels,
       settings: settings,
       customSenders: customSenders,
+      merchantCategoryRules: merchantCategoryRules,
       appLock: AppLockRepository(
         secureStore: store,
         settings: settings,
         biometrics: biometrics ?? LocalAuthBiometrics(),
       ),
       registry: registry,
+      merchantCategorizer: merchantCategorizer,
       captureService: captureService,
       smsSync: SmsSyncService(
         bridge: bridge,
@@ -223,8 +238,10 @@ class AppServices {
   final LabelRepository labels;
   final SettingsRepository settings;
   final CustomSenderRepository customSenders;
+  final MerchantCategoryRuleRepository merchantCategoryRules;
   final AppLockRepository appLock;
   final ParserRegistry registry;
+  final MerchantCategorizer merchantCategorizer;
   final CaptureService captureService;
   final SmsSyncService smsSync;
   final VoicePipeline voicePipeline;

@@ -253,6 +253,25 @@ class CustomSenderIds extends SyncedTable {
   ];
 }
 
+/// A learned merchant → category mapping. Seeded implicitly the first
+/// time a user recategorizes a transaction from a given merchant
+/// (`MerchantCategorizer.learnFrom`); every later capture from that
+/// same normalized merchant is auto-categorized from this row instead
+/// of falling through to the static keyword rules.
+@DataClassName('MerchantCategoryRuleRow')
+class MerchantCategoryRules extends SyncedTable {
+  /// Via `DedupeService.normalizeMerchant` — the same normalization
+  /// fuzzy dedupe already uses, so one merchant maps to one key however
+  /// its casing/punctuation varies message to message.
+  TextColumn get normalizedMerchant => text()();
+  TextColumn get categoryId => text()();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, normalizedMerchant},
+  ];
+}
+
 @DataClassName('RawCaptureRow')
 @TableIndex(name: 'idx_raw_hash', columns: {#contentHash})
 @TableIndex(name: 'idx_raw_status', columns: {#userId, #parseStatus})

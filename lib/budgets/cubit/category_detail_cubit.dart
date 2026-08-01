@@ -7,6 +7,7 @@ import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/transaction.dart';
 
 part 'category_detail_state.dart';
 
@@ -81,11 +82,17 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
           periodAmounts[category.id] ?? category.budgetedAmountMinor,
     );
 
-    final spentMinor = await _transactions.spentForCategoryInRange(
+    final directSpentMinor = await _transactions.spentForCategoryInRange(
       state.categoryId,
       from: state.periodStartAt,
       to: state.periodEndAt,
     );
+    final directTransactions = await _transactions
+        .directTransactionsForCategoryInRange(
+          state.categoryId,
+          from: state.periodStartAt,
+          to: state.periodEndAt,
+        );
     final spentByChild = <String, int>{};
     for (final child in children) {
       spentByChild[child.id] = await _transactions.spentForCategoryInRange(
@@ -101,7 +108,8 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
         category: overlay(self),
         allCategories: categories.map(overlay).toList(),
         children: children.map(overlay).toList(),
-        spentMinor: spentMinor,
+        directSpentMinor: directSpentMinor,
+        directTransactions: directTransactions,
         spentByChild: spentByChild,
       ),
     );

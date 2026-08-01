@@ -488,6 +488,9 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
     );
     final limit = category.budgetedAmountMinor!;
     final isOver = spentMinor > limit;
+    final percent = (limit == 0 ? 0 : (spentMinor / limit * 100))
+        .clamp(0, 999)
+        .toStringAsFixed(0);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.x1),
@@ -544,8 +547,10 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
                     // one man in twelve here cannot rely on red/green.
                     Text(
                       isOver
-                          ? '${Money.display(spentMinor - limit)} over'
-                          : '${Money.display(limit - spentMinor)} left',
+                          ? '${Money.display(spentMinor - limit)} over '
+                                '· $percent%'
+                          : '${Money.display(limit - spentMinor)} left '
+                                '· $percent%',
                       style: AppTypography.metadata(
                         color: isOver ? money.outflow : money.inflow,
                       ),

@@ -294,4 +294,65 @@ void main() {
     expect(rows, hasLength(8));
     expect(await services.rawCaptures.watchFailed().first, isEmpty);
   });
+
+  group('merchant categorization', () {
+    test(
+      'auto-categorizes a fuel station payment as Transport by keyword',
+      () async {
+        final result = await services.captureService.ingest(
+          Corpus.capture(
+            'Payment of K10.00 Till Number FUEL STATION PUMA ENERGY. '
+            'Airtel Money bal is K45.23. TID : MP260728.0729.D08222.',
+          ),
+        );
+
+        final transport = await services.categories.byName('Transport');
+        expect(result.transaction!.categoryId, transport!.id);
+      },
+    );
+
+    test('leaves an unrecognized merchant uncategorized', () async {
+      final result = await services.captureService.ingest(
+        Corpus.capture(Corpus.paymentTillNamed),
+      );
+
+      expect(result.transaction!.categoryId, isNull);
+    });
+
+    test(
+      'a learned correction is applied to the next capture from the same '
+      'merchant',
+      () async {
+        const merchant = 'CORNER CAFE LUSAKA';
+        final shopping = await services.categories.byName('Shopping');
+
+        // First capture: "cafe" would default to Food, but nothing has
+        // been learned yet either way — assert the keyword default...
+        final first = await services.captureService.ingest(
+          Corpus.capture(
+            'Payment of K10.00 Till Number $merchant. Airtel Money bal is '
+            'K45.23. TID : MP260728.0729.D08222.',
+          ),
+        );
+        final food = await services.categories.byName('Food');
+        expect(first.transaction!.categoryId, food!.id);
+
+        // ...then the user recategorizes it as Shopping, which should
+        // stick for the next message from the same merchant.
+        await services.merchantCategorizer.learnFrom(
+          merchant: merchant,
+          categoryId: shopping!.id,
+        );
+
+        final second = await services.captureService.ingest(
+          Corpus.capture(
+            'Payment of K15.00 Till Number $merchant. Airtel Money bal is '
+            'K30.23. TID : MP260728.0730.D08223.',
+          ),
+        );
+
+        expect(second.transaction!.categoryId, shopping.id);
+      },
+    );
+  });
 }

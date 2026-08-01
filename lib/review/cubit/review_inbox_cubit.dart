@@ -8,6 +8,7 @@ import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/raw_capture.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
+import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 
 part 'review_inbox_state.dart';
 
@@ -21,14 +22,17 @@ class ReviewInboxCubit extends Cubit<ReviewInboxState> {
     required TransactionRepository transactions,
     required RawCaptureRepository rawCaptures,
     required TransferRepository transfers,
+    MerchantCategorizer? categorizer,
   }) : _transactions = transactions,
        _rawCaptures = rawCaptures,
        _transfers = transfers,
+       _categorizer = categorizer,
        super(const ReviewInboxState());
 
   final TransactionRepository _transactions;
   final RawCaptureRepository _rawCaptures;
   final TransferRepository _transfers;
+  final MerchantCategorizer? _categorizer;
   final _subscriptions = <StreamSubscription<void>>[];
 
   /// Starts watching the four review sources.
@@ -81,13 +85,23 @@ class ReviewInboxCubit extends Cubit<ReviewInboxState> {
       _transactions.confirm(transactionId);
 
   /// Assigns a category and confirms in one step — the common inbox
-  /// action for an otherwise-complete entry.
-  Future<void> categorize(String transactionId, String categoryId) =>
-      _transactions.updateFields(
-        transactionId,
-        categoryId: categoryId,
-        status: TxStatus.confirmed,
-      );
+  /// action for an otherwise-complete entry. Also teaches the merchant
+  /// categorizer, when [merchant] is known, so later captures from the
+  /// same merchant no longer need this glance.
+  Future<void> categorize(
+    String transactionId,
+    String categoryId, {
+    String? merchant,
+  }) async {
+    await _transactions.updateFields(
+      transactionId,
+      categoryId: categoryId,
+      status: TxStatus.confirmed,
+    );
+    if (merchant != null) {
+      await _categorizer?.learnFrom(merchant: merchant, categoryId: categoryId);
+    }
+  }
 
   /// Drops a transaction the user judged to be a genuine duplicate.
   Future<void> discardDuplicate(String transactionId) =>

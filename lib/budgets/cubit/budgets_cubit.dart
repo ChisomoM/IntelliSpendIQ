@@ -125,14 +125,24 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     if (period == null) return;
 
     final effective = _withPeriodBudgets(categories);
-    final spent = <String, int>{};
+    final directSpent = <String, int>{};
     for (final category in effective) {
-      if (!category.isExpense || !category.hasBudget) continue;
-      spent[category.id] = await _transactions.spentForCategoryInRange(
+      directSpent[category.id] = await _transactions.spentForCategoryInRange(
         category.id,
         from: period.startAt,
         to: period.endAt,
       );
+    }
+    // A top-level category's progress includes every subcategory's
+    // spend — a subcategory budget is carved out of the parent's, so
+    // spending it still counts against the parent envelope.
+    final spent = <String, int>{};
+    for (final category in effective) {
+      if (!category.isExpense || !category.hasBudget) continue;
+      final childrenSpent = effective
+          .where((c) => c.parentId == category.id)
+          .fold<int>(0, (sum, c) => sum + (directSpent[c.id] ?? 0));
+      spent[category.id] = (directSpent[category.id] ?? 0) + childrenSpent;
     }
     final totalSpent = await _transactions.totalSpentInRange(
       from: period.startAt,

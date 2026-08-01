@@ -9,6 +9,7 @@ import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/transactions/widgets/widgets.dart';
 
 /// One category's budget envelope: stat tiles, a spend gauge, its
 /// subcategories, and moving budget to another category.
@@ -185,6 +186,31 @@ class CategoryDetailView extends StatelessWidget {
                   SubcategoryRow(
                     category: child,
                     spentMinor: state.spentFor(child.id),
+                  ),
+              const SizedBox(height: Space.sectionGap),
+              SectionHeader(
+                title: 'Direct transactions',
+                subtitle: state.children.isEmpty
+                    ? null
+                    : 'Not assigned to a subcategory, but still counted in '
+                          'the total above',
+              ),
+              if (state.directTransactions.isEmpty)
+                EmptyState(
+                  icon: AppIcons.emptyActivity,
+                  title: 'No direct transactions',
+                  message: state.children.isEmpty
+                      ? 'Entries you tag with this category will show up '
+                            'here.'
+                      : 'Entries tagged with this category itself — rather '
+                            'than one of its subcategories — will show up '
+                            'here.',
+                )
+              else
+                for (final transaction in state.directTransactions)
+                  TransactionTile(
+                    transaction: transaction,
+                    category: category,
                   ),
             ],
           ),

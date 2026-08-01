@@ -83,6 +83,11 @@ class SubcategoryRow extends StatelessWidget {
     );
     final budgeted = category.budgetedAmountMinor;
     final isOver = budgeted != null && spentMinor > budgeted;
+    final percent = budgeted == null
+        ? null
+        : (budgeted == 0 ? 0 : (spentMinor / budgeted * 100))
+              .clamp(0, 999)
+              .toStringAsFixed(0);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.x1),
@@ -129,9 +134,9 @@ class SubcategoryRow extends StatelessWidget {
               Text(
                 isOver
                     ? '${Money.display(spentMinor - budgeted)} over '
-                          '${Money.display(budgeted)}'
+                          '${Money.display(budgeted)} · $percent%'
                     : '${Money.display(budgeted - spentMinor)} left of '
-                          '${Money.display(budgeted)}',
+                          '${Money.display(budgeted)} · $percent%',
                 style: AppTypography.metadata(
                   color: isOver ? money.outflow : colors.onSurfaceVariant,
                 ),

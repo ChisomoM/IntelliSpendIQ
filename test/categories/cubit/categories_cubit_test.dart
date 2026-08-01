@@ -125,5 +125,101 @@ void main() {
       );
       expect(updated.parentId, isNull);
     });
+
+    test('add() refuses a subcategory under a subcategory', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      final food = cubit.state.categories.firstWhere((c) => c.name == 'Food');
+      await cubit.add(name: 'Groceries', parentId: food.id);
+      await Future<void>.delayed(Duration.zero);
+      final groceries = cubit.state.categories.firstWhere(
+        (c) => c.name == 'Groceries',
+      );
+
+      final created = await cubit.add(
+        name: 'Fresh produce',
+        parentId: groceries.id,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(created, isNull);
+      expect(cubit.state.status, CategoriesStatus.invalid);
+      expect(
+        cubit.state.categories.map((c) => c.name),
+        isNot(contains('Fresh produce')),
+      );
+    });
+
+    test(
+      'add() refuses a subcategory budget beyond what the parent has left',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        final food = cubit.state.categories.firstWhere(
+          (c) => c.name == 'Food',
+        );
+        await cubit.rename(food.id, name: 'Food', budgetedAmount: '1000');
+        await Future<void>.delayed(Duration.zero);
+
+        final created = await cubit.add(
+          name: 'Takeaways',
+          parentId: food.id,
+          budgetedAmount: '1200',
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(created, isNull);
+        expect(cubit.state.status, CategoriesStatus.invalid);
+        expect(
+          cubit.state.categories.map((c) => c.name),
+          isNot(contains('Takeaways')),
+        );
+      },
+    );
+
+    test(
+      'add() allows subcategory budgets that stay within the parent',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        final food = cubit.state.categories.firstWhere(
+          (c) => c.name == 'Food',
+        );
+        await cubit.rename(food.id, name: 'Food', budgetedAmount: '1000');
+        await Future<void>.delayed(Duration.zero);
+
+        await cubit.add(
+          name: 'Takeaways',
+          parentId: food.id,
+          budgetedAmount: '600',
+        );
+        await Future<void>.delayed(Duration.zero);
+        // A second subcategory eating into what's left is fine...
+        await cubit.add(
+          name: 'Groceries',
+          parentId: food.id,
+          budgetedAmount: '400',
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cubit.state.status, isNot(CategoriesStatus.invalid));
+        expect(
+          cubit.state.categories.map((c) => c.name),
+          containsAll(['Takeaways', 'Groceries']),
+        );
+
+        // ...but a third subcategory that would push the total over the
+        // parent's budget is refused.
+        final overBudget = await cubit.add(
+          name: 'Snacks',
+          parentId: food.id,
+          budgetedAmount: '1',
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(overBudget, isNull);
+        expect(cubit.state.status, CategoriesStatus.invalid);
+      },
+    );
   });
 }

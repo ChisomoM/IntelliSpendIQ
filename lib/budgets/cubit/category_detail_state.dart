@@ -12,7 +12,8 @@ class CategoryDetailState extends Equatable {
     this.category,
     this.allCategories = const [],
     this.children = const [],
-    this.spentMinor = 0,
+    this.directSpentMinor = 0,
+    this.directTransactions = const [],
     this.spentByChild = const {},
     this.errorMessage,
   });
@@ -27,9 +28,22 @@ class CategoryDetailState extends Equatable {
   /// Every category — used to offer transfer targets.
   final List<Category> allCategories;
   final List<Category> children;
-  final int spentMinor;
+
+  /// Spend posted directly against this category — not any of its
+  /// subcategories.
+  final int directSpentMinor;
+
+  /// The transactions behind [directSpentMinor], most recent first.
+  final List<Transaction> directTransactions;
   final Map<String, int> spentByChild;
   final String? errorMessage;
+
+  /// Direct spend plus every subcategory's spend — the figure the
+  /// category's own progress bar/gauge tracks against its budget, since
+  /// a subcategory's spend still counts against the parent envelope it
+  /// was carved out of.
+  int get spentMinor =>
+      directSpentMinor + spentByChild.values.fold(0, (a, b) => a + b);
 
   int get budgetedMinor => category?.budgetedAmountMinor ?? 0;
   int get remainingMinor => budgetedMinor - spentMinor;
@@ -58,7 +72,8 @@ class CategoryDetailState extends Equatable {
     Category? category,
     List<Category>? allCategories,
     List<Category>? children,
-    int? spentMinor,
+    int? directSpentMinor,
+    List<Transaction>? directTransactions,
     Map<String, int>? spentByChild,
     String? errorMessage,
   }) {
@@ -71,7 +86,8 @@ class CategoryDetailState extends Equatable {
       category: category ?? this.category,
       allCategories: allCategories ?? this.allCategories,
       children: children ?? this.children,
-      spentMinor: spentMinor ?? this.spentMinor,
+      directSpentMinor: directSpentMinor ?? this.directSpentMinor,
+      directTransactions: directTransactions ?? this.directTransactions,
       spentByChild: spentByChild ?? this.spentByChild,
       errorMessage: errorMessage,
     );
@@ -87,7 +103,8 @@ class CategoryDetailState extends Equatable {
     category,
     allCategories,
     children,
-    spentMinor,
+    directSpentMinor,
+    directTransactions,
     spentByChild,
     errorMessage,
   ];

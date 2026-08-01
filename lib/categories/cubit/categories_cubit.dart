@@ -70,6 +70,16 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       );
       return null;
     }
+    if (parentId != null) {
+      final error = _validateSubcategory(
+        parentId: parentId,
+        budgetedAmountMinor: budgetedAmountMinor,
+      );
+      if (error != null) {
+        emit(state.copyWith(status: CategoriesStatus.invalid, errorMessage: error));
+        return null;
+      }
+    }
     final created = await _categories.create(
       trimmed,
       icon: _trimIcon(icon),
@@ -110,6 +120,17 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       );
       return;
     }
+    if (parentId != null) {
+      final error = _validateSubcategory(
+        parentId: parentId,
+        budgetedAmountMinor: budgetedAmountMinor,
+        excludingCategoryId: id,
+      );
+      if (error != null) {
+        emit(state.copyWith(status: CategoriesStatus.invalid, errorMessage: error));
+        return;
+      }
+    }
     final trimmedIcon = _trimIcon(icon);
     await _categories.update(
       id,
@@ -143,6 +164,45 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       categoryId: categoryId,
       amountMinor: amountMinor,
     );
+  }
+
+  /// Enforces the two rules a subcategory must satisfy: it sits exactly
+  /// one level under a top-level category (no grandchildren), and its
+  /// own budget is carved out of what the parent has left after its
+  /// other subcategories — it can never make the parent over-allocated.
+  /// Returns an error message, or null when the subcategory is valid.
+  String? _validateSubcategory({
+    required String parentId,
+    required int? budgetedAmountMinor,
+    String? excludingCategoryId,
+  }) {
+    final parent = state.categories
+        .where((c) => c.id == parentId)
+        .firstOrNull;
+    if (parent == null) return null;
+    if (parent.parentId != null) {
+      return "A subcategory can't itself have subcategories — pick a "
+          'top-level category as the parent';
+    }
+    if (budgetedAmountMinor == null) return null;
+
+    final parentBudget = parent.budgetedAmountMinor;
+    if (parentBudget == null) {
+      return 'Give "${parent.name}" a budget first, then split it into '
+          'subcategories';
+    }
+    final siblingsTotal = state.categories
+        .where((c) => c.parentId == parentId && c.id != excludingCategoryId)
+        .fold<int>(0, (sum, c) => sum + (c.budgetedAmountMinor ?? 0));
+    final available = parentBudget - siblingsTotal;
+    if (budgetedAmountMinor > available) {
+      return available <= 0
+          ? '"${parent.name}"\'s budget is already fully split among its '
+                'other subcategories'
+          : 'Only ${Money.display(available)} of "${parent.name}"\'s budget '
+                'is left to give a subcategory';
+    }
+    return null;
   }
 
   int? _parseBudget(String? amount) {

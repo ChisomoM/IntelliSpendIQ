@@ -18,6 +18,7 @@ import 'package:intellispendiq/domain/models/label.dart';
 import 'package:intellispendiq/domain/models/payee.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
+import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -33,6 +34,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     required PayeeRepository payees,
     required LabelRepository labels,
     required RawCaptureRepository rawCaptures,
+    MerchantCategorizer? categorizer,
     Transaction? existing,
     String? rawCaptureId,
     Future<Directory> Function()? documentsDirectory,
@@ -42,6 +44,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
        _payees = payees,
        _labels = labels,
        _rawCaptures = rawCaptures,
+       _categorizer = categorizer,
        _existing = existing,
        _rawCaptureId = rawCaptureId,
        _documentsDirectory =
@@ -69,6 +72,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   final PayeeRepository _payees;
   final LabelRepository _labels;
   final RawCaptureRepository _rawCaptures;
+  final MerchantCategorizer? _categorizer;
   final Transaction? _existing;
   final String? _rawCaptureId;
   final Future<Directory> Function() _documentsDirectory;
@@ -279,6 +283,13 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
         }
       }
       await _transactions.setLabels(transactionId, state.labelIds);
+      final categoryId = state.categoryId;
+      if (categoryId != null && merchant.isNotEmpty) {
+        await _categorizer?.learnFrom(
+          merchant: merchant,
+          categoryId: categoryId,
+        );
+      }
       emit(state.copyWith(status: TransactionEntryStatus.saved));
     } on Object catch (error) {
       emit(

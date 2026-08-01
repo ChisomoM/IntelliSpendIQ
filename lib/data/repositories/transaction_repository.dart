@@ -555,6 +555,31 @@ class TransactionRepository {
     return row.read(total) ?? 0;
   }
 
+  /// Confirmed debit transactions posted directly against one category
+  /// — not any of its subcategories — in a half-open UTC range. Same
+  /// filter as [spentForCategoryInRange], as a list rather than a sum,
+  /// for the "Direct transactions" section of a category's detail page.
+  Future<List<Transaction>> directTransactionsForCategoryInRange(
+    String categoryId, {
+    required String from,
+    required String to,
+  }) async {
+    final t = _db.transactions;
+    final query = _db.select(t)
+      ..where(
+        (t) =>
+            t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.categoryId.equals(categoryId) &
+            t.direction.equals(TxDirection.debit.name) &
+            t.status.equals(TxStatus.confirmed.dbName) &
+            t.transactedAt.isBiggerOrEqualValue(from) &
+            t.transactedAt.isSmallerThanValue(to),
+      )
+      ..orderBy([(t) => OrderingTerm.desc(t.transactedAt)]);
+    return (await query.get()).map(_fromRow).toList();
+  }
+
   /// Confirmed credit total for one income category in a month — the
   /// credit-side mirror of [spentForCategory], for tracking actual
   /// income received against an income category's planned figure.

@@ -21,6 +21,7 @@ import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
+import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/home/home.dart';
@@ -65,6 +66,9 @@ class App extends StatelessWidget {
         RepositoryProvider<SettingsRepository>.value(value: services.settings),
         RepositoryProvider<CaptureService>.value(
           value: services.captureService,
+        ),
+        RepositoryProvider<MerchantCategorizer>.value(
+          value: services.merchantCategorizer,
         ),
         RepositoryProvider<SmsSyncService>.value(value: services.smsSync),
         RepositoryProvider<VoicePipeline>.value(value: services.voicePipeline),

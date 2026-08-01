@@ -11,6 +11,7 @@ import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
+import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 
 /// What happened to one ingested capture.
 enum IngestStatus {
@@ -55,12 +56,14 @@ class CaptureService {
     required AccountRepository accounts,
     required CategoryRepository categories,
     required DedupeService dedupe,
+    required MerchantCategorizer categorizer,
   }) : _registry = registry,
        _rawCaptures = rawCaptures,
        _transactions = transactions,
        _accounts = accounts,
        _categories = categories,
-       _dedupe = dedupe;
+       _dedupe = dedupe,
+       _categorizer = categorizer;
 
   final ParserRegistry _registry;
   final RawCaptureRepository _rawCaptures;
@@ -68,6 +71,7 @@ class CaptureService {
   final AccountRepository _accounts;
   final CategoryRepository _categories;
   final DedupeService _dedupe;
+  final MerchantCategorizer _categorizer;
 
   Future<IngestResult> ingest(CaptureInput input) async {
     // 1. Skip captures we have already stored (re-delivery, re-backfill).
@@ -124,11 +128,23 @@ class CaptureService {
   }
 
   Future<IngestResult> _persistDraft(
-    TransactionDraft draft, {
+    TransactionDraft rawDraft, {
     required RawCapture raw,
     required String providerKey,
     required String contentHash,
   }) async {
+    // Deterministic merchant categorization (plan: never guess with an
+    // LLM on the SMS path) — a learned correction wins, then the
+    // keyword table; a miss leaves the category unassigned exactly as
+    // before.
+    final draft = rawDraft.categoryId != null
+        ? rawDraft
+        : rawDraft.copyWith(
+            categoryId: await _categorizer.categorize(
+              merchant: rawDraft.merchant,
+              messageBody: raw.body,
+            ),
+          );
     final account = await _accounts.findOrCreateForProvider(providerKey);
     final idempotencyKey = Ids.idempotencyKey(
       providerKey: providerKey,

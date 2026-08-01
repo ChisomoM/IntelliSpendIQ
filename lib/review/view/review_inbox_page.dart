@@ -4,6 +4,7 @@ import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 import 'package:intellispendiq/review/cubit/cubit.dart';
 import 'package:intellispendiq/review/widgets/widgets.dart';
 
@@ -24,6 +25,7 @@ class ReviewInboxPage extends StatelessWidget {
         transactions: context.read<TransactionRepository>(),
         rawCaptures: context.read<RawCaptureRepository>(),
         transfers: context.read<TransferRepository>(),
+        categorizer: context.read<MerchantCategorizer>(),
       )..subscribe(),
       child: const ReviewInboxView(),
     );

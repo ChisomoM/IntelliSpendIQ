@@ -24,13 +24,14 @@ part 'app_database.g.dart';
     RawCaptures,
     Settings,
     CustomSenderIds,
+    MerchantCategoryRules,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -92,6 +93,9 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
           await _createTableIfMissing(m, budgetPeriods);
           await _createTableIfMissing(m, categoryBudgets);
           await _migrateOverallBudgetsToPeriods(this);
+        }
+        if (from < 9) {
+          await _createTableIfMissing(m, merchantCategoryRules);
         }
       });
     },

@@ -15,6 +15,7 @@ import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
+import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
 // Imported directly rather than through the widgets barrel: that
 // barrel also exports the tile, which imports this file back.
@@ -58,6 +59,7 @@ class TransactionEntryPage extends StatelessWidget {
         payees: context.read<PayeeRepository>(),
         labels: context.read<LabelRepository>(),
         rawCaptures: context.read<RawCaptureRepository>(),
+        categorizer: context.read<MerchantCategorizer>(),
         existing: existing,
         rawCaptureId: rawCaptureId,
       )..loadOptionsUnawaited(),
