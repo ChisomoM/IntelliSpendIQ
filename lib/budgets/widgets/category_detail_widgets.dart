@@ -76,6 +76,11 @@ class SubcategoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final money = Theme.of(context).extension<MoneyColors>()!;
+    final hue = CategoryPalette.forCategory(
+      categoryId: category.id,
+      storedColor: category.color,
+      brightness: Theme.of(context).brightness,
+    );
     final budgeted = category.budgetedAmountMinor;
     final isOver = budgeted != null && spentMinor > budgeted;
 
@@ -87,7 +92,12 @@ class SubcategoryRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                CategoryAvatar(iconKey: category.icon, size: 32),
+                CategoryAvatar(
+                  iconKey: category.icon,
+                  categoryId: category.id,
+                  colorName: category.color,
+                  size: 32,
+                ),
                 const SizedBox(width: Space.x1),
                 Expanded(
                   child: Text(
@@ -113,6 +123,7 @@ class SubcategoryRow extends StatelessWidget {
                 value: budgeted == 0 ? 0 : spentMinor / budgeted,
                 isOver: isOver,
                 height: 6,
+                fillColor: hue.series,
               ),
               const SizedBox(height: 6),
               Text(

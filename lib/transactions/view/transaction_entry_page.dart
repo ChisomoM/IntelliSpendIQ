@@ -398,7 +398,12 @@ class _CategoryPicker extends StatelessWidget {
             for (final category in shown)
               ChoiceChip(
                 label: Text(category.name),
-                avatar: CategoryAvatar(iconKey: category.icon, size: 20),
+                avatar: CategoryAvatar(
+                  iconKey: category.icon,
+                  categoryId: category.id,
+                  colorName: category.color,
+                  size: 20,
+                ),
                 selected: category.id == state.categoryId,
                 onSelected: (isSelected) =>
                     cubit.categoryChanged(isSelected ? category.id : null),

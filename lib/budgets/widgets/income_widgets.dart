@@ -39,7 +39,7 @@ class IncomeSummaryCard extends StatelessWidget {
         onTap: () => _openEditor(context),
         child: Row(
           children: [
-            AppIcon(AppIcons.moneyIn, color: colors.secondary),
+            AppIcon(AppIcons.moneyIn, color: colors.onSurfaceVariant),
             const SizedBox(width: Space.x2),
             Expanded(
               child: Column(
@@ -126,13 +126,18 @@ class _IncomeSourceRow extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return AppListRow(
-      leading: CategoryAvatar(iconKey: category.icon, size: 32),
+      leading: CategoryAvatar(
+        iconKey: category.icon,
+        categoryId: category.id,
+        colorName: category.color,
+        size: 32,
+      ),
       title: Text(category.name),
       trailing: category.hasBudget
           ? MoneyText(category.budgetedAmountMinor!, size: MoneySize.meta)
           : Text(
               'Set amount',
-              style: AppTypography.metadata(color: colors.secondary),
+              style: AppTypography.metadata(color: colors.primary),
             ),
       onTap: () => Navigator.of(context).push<String?>(
         CategoryEditorPage.route(existing: category, periodId: periodId),

@@ -34,6 +34,20 @@ class ReportsState extends Equatable {
 
   bool get isEmpty => status == ReportsStatus.loaded && rows.isEmpty;
 
+  /// [period] in prose. The raw value is a `YYYY-MM` key and was being
+  /// printed to the screen as the month label.
+  String get periodLabel {
+    final parts = period.split('-');
+    if (parts.length != 2) return period;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null) return period;
+    final date = DateTime(year, month);
+    return year == DateTime.now().year
+        ? DateFormat('MMMM').format(date)
+        : DateFormat('MMMM yyyy').format(date);
+  }
+
   /// Total confirmed spend for the month, in ngwee.
   int get totalMinor => rows.fold(0, (sum, row) => sum + row.spentMinor);
 

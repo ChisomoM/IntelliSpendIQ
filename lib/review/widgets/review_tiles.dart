@@ -60,9 +60,9 @@ class NeedsReviewTile extends StatelessWidget {
           ListTile(
             title: Text(transaction.merchant ?? 'Unknown merchant'),
             subtitle: Text(
-              Money.format(
+              Money.displayIn(
                 transaction.amountMinor,
-                currency: transaction.currency,
+                transaction.currency,
               ),
             ),
             trailing: transaction.confidence == null
@@ -112,7 +112,7 @@ class DuplicateTile extends StatelessWidget {
           ListTile(
             title: Text(transaction.merchant ?? 'Unknown merchant'),
             subtitle: Text(
-              '${Money.format(transaction.amountMinor, currency: transaction.currency)} · '
+              '${Money.displayIn(transaction.amountMinor, transaction.currency)} · '
               '${DateFormat('d MMM, HH:mm').format(transaction.transactedAt.toLocal())}',
             ),
           ),
@@ -171,10 +171,7 @@ class TransferCandidateTile extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      Money.format(
-                        debit.amountMinor,
-                        currency: debit.currency,
-                      ),
+                      Money.displayIn(debit.amountMinor, debit.currency),
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ],

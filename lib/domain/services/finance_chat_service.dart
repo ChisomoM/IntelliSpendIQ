@@ -198,7 +198,7 @@ class FinanceChatService {
       idempotencyKey: 'chat:${Ids.newId()}',
       status: TxStatus.confirmed,
     );
-    return 'Saved ${Money.format(action.amountMinor)}.';
+    return 'Saved ${Money.display(action.amountMinor)}.';
   }
 
   Future<String> _confirmBudget(ProposedBudget action) async {

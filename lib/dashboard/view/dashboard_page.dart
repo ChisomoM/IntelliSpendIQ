@@ -48,7 +48,6 @@ class DashboardView extends StatelessWidget {
         bottom: false,
         child: BlocBuilder<DashboardCubit, DashboardState>(
           builder: (context, state) {
-            final cubit = context.read<DashboardCubit>();
             final home = context.read<HomeCubit>();
 
             return ListView(
@@ -67,24 +66,37 @@ class DashboardView extends StatelessWidget {
                   onOpenSettings: () =>
                       Navigator.of(context).push<void>(SettingsPage.route()),
                 ),
-                const SizedBox(height: Space.x1),
-                GreetingHeader(
-                  periodLabel: state.periodDisplayLabel,
-                  isCurrentPeriod: state.isCurrentPeriod,
-                ),
-                const SizedBox(height: Space.sectionGap),
+                const SizedBox(height: Space.x2),
                 if (state.status == DashboardStatus.initial)
                   const _DashboardLoading()
                 else ...[
+                  // The one number first. Everything below it is
+                  // detail you go looking for, so nothing else on this
+                  // screen competes with it for weight.
+                  SafeToSpendHero(
+                    totalSpent: state.totalSpent,
+                    planMinor: state.planMinor,
+                    planSource: state.planSource,
+                    planRatio: state.planRatio,
+                    isOverPlan: state.isOverPlan,
+                    daysLeft: state.daysLeft,
+                    isCurrentPeriod: state.isCurrentPeriod,
+                    dailyAllowanceMinor: state.dailyAllowanceMinor,
+                    paceVerdict: state.paceVerdict,
+                    paceDeltaMinor: state.paceDeltaMinor,
+                    periodLabel: state.periodDisplayLabel,
+                    onTap: () => home.tabSelected(AppSection.budgets.tabIndex),
+                  ),
                   if (state.pendingReviewCount > 0) ...[
+                    const SizedBox(height: Space.x1),
                     ReviewBanner(
                       count: state.pendingReviewCount,
                       onTap: () => Navigator.of(
                         context,
                       ).push<void>(ReviewInboxPage.route()),
                     ),
-                    const SizedBox(height: Space.sectionGap),
                   ],
+                  const SizedBox(height: Space.sectionGap),
                   AccountBalanceStrip(
                     accounts: state.accounts,
                     balances: state.accountBalances,
@@ -93,26 +105,10 @@ class DashboardView extends StatelessWidget {
                   ),
                   if (state.accounts.isNotEmpty)
                     const SizedBox(height: Space.sectionGap),
-                  PeriodSelector(
-                    label: state.periodDisplayLabel,
-                    onPrevious: () => cubit.shiftPeriod(-1),
-                    onNext: () => cubit.shiftPeriod(1),
-                  ),
-                  const SizedBox(height: Space.x1),
-                  SpendHeroCard(
-                    totalSpent: state.totalSpent,
-                    planMinor: state.planMinor,
-                    planSource: state.planSource,
-                    planRatio: state.planRatio,
-                    isOverPlan: state.isOverPlan,
-                    daysLeft: state.daysLeft,
-                    isCurrentPeriod: state.isCurrentPeriod,
-                    onTap: () => home.tabSelected(AppSection.budgets.tabIndex),
-                  ),
-                  const SizedBox(height: Space.sectionGap),
-                  TopCategoriesCard(
+                  CategoryBreakdownCard(
                     categories: state.topCategories,
-                    categoryIcons: state.categoryIcons,
+                    categoriesById: state.categoriesById,
+                    totalSpent: state.totalSpent,
                     onSeeAll: () =>
                         home.tabSelected(AppSection.reports.tabIndex),
                   ),
@@ -127,7 +123,7 @@ class DashboardView extends StatelessWidget {
                   else
                     RecentActivityCard(
                       transactions: state.recentTransactions,
-                      categoryIcons: state.categoryIcons,
+                      categoriesById: state.categoriesById,
                       onSeeAll: () =>
                           home.tabSelected(AppSection.activity.tabIndex),
                       onOpenTransaction: (transaction) => Navigator.of(
@@ -162,9 +158,10 @@ class _DashboardLoading extends StatelessWidget {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        LoadingSkeleton(width: 168, height: 108),
+        // Shaped like what lands: the hero, then the strip, then rows.
+        LoadingSkeleton(width: double.infinity, height: 188),
         SizedBox(height: Space.sectionGap),
-        LoadingSkeleton(width: double.infinity, height: 132),
+        LoadingSkeleton(width: 168, height: 104),
         SizedBox(height: Space.sectionGap),
         LoadingSkeletonList(rowCount: 3),
       ],

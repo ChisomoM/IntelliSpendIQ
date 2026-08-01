@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intl/intl.dart';
 
 part 'reports_state.dart';
 

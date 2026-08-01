@@ -4,14 +4,17 @@ import 'package:intellispendiq/dashboard/cubit/cubit.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/account.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intl/intl.dart';
 
-/// Wordmark, review entry, and settings — the persistent chrome at the
-/// top of Home. Review's badge lives here rather than on the Home tab
-/// icon, where it used to point at a destination that was not the
-/// inbox.
+/// Greeting, review entry, settings.
+///
+/// The wordmark used to sit here. It has been dropped: a wordmark on
+/// the screen you see every day is a landing-page habit, and the user
+/// already knows which app they opened. It stays on the splash, which
+/// is the one place it earns its size.
 class DashboardHeader extends StatelessWidget {
   const DashboardHeader({
     required this.pendingReviewCount,
@@ -24,20 +27,32 @@ class DashboardHeader extends StatelessWidget {
   final VoidCallback onOpenReview;
   final VoidCallback onOpenSettings;
 
+  String get _greeting => switch (DateTime.now().hour) {
+    < 12 => 'Good morning',
+    < 17 => 'Good afternoon',
+    _ => 'Good evening',
+  };
+
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Row(
       children: [
-        const Expanded(child: Wordmark(size: 22)),
+        Expanded(
+          child: Text(
+            _greeting,
+            style: AppTypography.screenTitle(color: colors.onSurface),
+          ),
+        ),
         IconButton(
           onPressed: onOpenReview,
           tooltip: pendingReviewCount == 0
               ? 'Review inbox'
               : '$pendingReviewCount waiting in the review inbox',
           icon: Badge(
-            // Counts above 99 would push the badge wider than the icon
-            // it sits on; the exact number stops mattering long before
-            // that and the banner below carries it in full anyway.
+            // Past 99 the exact number stops mattering and the badge
+            // grows wider than the icon under it.
             label: Text(pendingReviewCount > 99 ? '99+' : '$pendingReviewCount'),
             isLabelVisible: pendingReviewCount > 0,
             child: AppIcon(AppIcons.bell),
@@ -53,56 +68,16 @@ class DashboardHeader extends StatelessWidget {
   }
 }
 
-class GreetingHeader extends StatelessWidget {
-  const GreetingHeader({
-    required this.periodLabel,
-    required this.isCurrentPeriod,
-    super.key,
-  });
-
-  /// Human-readable window, e.g. `1 – 31 Jul`.
-  final String periodLabel;
-
-  /// Whether [periodLabel] covers today, which decides the tense.
-  final bool isCurrentPeriod;
-
-  String get _greeting => switch (DateTime.now().hour) {
-    < 12 => 'Good morning',
-    < 17 => 'Good afternoon',
-    _ => 'Good evening',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    // The stored period label is machine output (`01/07/2026 –
-    // 31/07/2026`) and used to be dropped straight into this sentence.
-    final subtitle = periodLabel.isEmpty
-        ? "Here's how your money is doing"
-        : isCurrentPeriod
-        ? "Here's how $periodLabel is going"
-        : "Here's how $periodLabel went";
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(_greeting, style: AppTypography.screenTitle(color: colors.onSurface)),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: AppTypography.body(color: colors.onSurfaceVariant),
-        ),
-      ],
-    );
-  }
-}
-
-/// Spend for the period against whatever it is measured against, on a
-/// dark card in both themes — the one place cyan/violet-300 are allowed
-/// as a fill, because the surface under them is dark either way.
-class SpendHeroCard extends StatelessWidget {
-  const SpendHeroCard({
+/// The screen's one headline: what is left to spend, at what daily
+/// pace, and whether that pace is holding.
+///
+/// This replaces a card that led with **spend so far**. Spend so far is
+/// history — on day 2 of a period it looks alarming for no reason and
+/// on day 28 it looks reassuring for no reason. What changes the next
+/// decision is what is left and how long it has to last, so that is
+/// what the display figure now is.
+class SafeToSpendHero extends StatelessWidget {
+  const SafeToSpendHero({
     required this.totalSpent,
     required this.planMinor,
     required this.planSource,
@@ -110,6 +85,10 @@ class SpendHeroCard extends StatelessWidget {
     required this.isOverPlan,
     required this.daysLeft,
     required this.isCurrentPeriod,
+    required this.dailyAllowanceMinor,
+    required this.paceVerdict,
+    required this.paceDeltaMinor,
+    required this.periodLabel,
     required this.onTap,
     super.key,
   });
@@ -121,6 +100,10 @@ class SpendHeroCard extends StatelessWidget {
   final bool isOverPlan;
   final int daysLeft;
   final bool isCurrentPeriod;
+  final int? dailyAllowanceMinor;
+  final PaceVerdict paceVerdict;
+  final int? paceDeltaMinor;
+  final String periodLabel;
   final VoidCallback onTap;
 
   @override
@@ -129,11 +112,7 @@ class SpendHeroCard extends StatelessWidget {
     final surface = isDark ? AppColors.night800 : AppColors.ink900;
     const onSurface = AppColors.nightText;
     const onSurfaceMuted = AppColors.nightText2;
-    // This card is dark in both themes, so it takes the dark-mode
-    // money colours regardless of brightness rather than reading
-    // MoneyColors — light mode's outflow (#B91C1C) on an ink900 card
-    // would be a dark red on near-black.
-    const overColor = AppColors.outflowD;
+    final plan = planMinor;
 
     return Material(
       color: surface,
@@ -142,21 +121,38 @@ class SpendHeroCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(Space.cardPadding),
+          padding: const EdgeInsets.all(Space.x3),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'SPENT THIS PERIOD',
-                style: AppTypography.chipOverline(color: onSurfaceMuted),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      plan == null
+                          ? 'SPENT · ${periodLabel.toUpperCase()}'
+                          : isOverPlan
+                          ? 'OVER BUDGET · ${periodLabel.toUpperCase()}'
+                          : 'LEFT TO SPEND · ${periodLabel.toUpperCase()}',
+                      style: AppTypography.chipOverline(color: onSurfaceMuted),
+                    ),
+                  ),
+                  AppIcon(
+                    AppIcons.chevronRight,
+                    size: 18,
+                    color: onSurfaceMuted,
+                  ),
+                ],
               ),
               const SizedBox(height: Space.x1),
               MoneyText(
-                totalSpent,
+                plan == null
+                    ? totalSpent
+                    : (isOverPlan ? totalSpent - plan : plan - totalSpent),
                 size: MoneySize.display,
-                color: onSurface,
+                color: isOverPlan ? AppColors.outflowD : onSurface,
               ),
-              if (planMinor != null) ...[
+              if (plan != null) ...[
                 const SizedBox(height: Space.x2),
                 ProgressMeter(
                   value: planRatio,
@@ -164,18 +160,24 @@ class SpendHeroCard extends StatelessWidget {
                   onDarkSurface: true,
                 ),
                 const SizedBox(height: Space.x1),
-                // Colour never stands alone: the overspend is stated in
-                // words as well as carried by the meter's hue.
                 Text(
-                  _planSentence(),
-                  style: AppTypography.metadata(
-                    color: isOverPlan ? overColor : onSurfaceMuted,
-                  ),
+                  '${Money.display(totalSpent)} of ${Money.display(plan)} '
+                  '${planSource == PlanSource.income ? 'income' : 'budget'}'
+                  '${isCurrentPeriod ? ' · ${daysLeft == 1 ? '1 day' : '$daysLeft days'} left' : ''}',
+                  style: AppTypography.metadata(color: onSurfaceMuted),
                 ),
+                if (paceVerdict != PaceVerdict.none) ...[
+                  const SizedBox(height: Space.x2),
+                  _PaceChip(
+                    verdict: paceVerdict,
+                    dailyAllowanceMinor: dailyAllowanceMinor,
+                    paceDeltaMinor: paceDeltaMinor,
+                  ),
+                ],
               ] else ...[
                 const SizedBox(height: Space.x1),
                 Text(
-                  'Set a budget to track this against a plan.',
+                  'Set a budget and this becomes what you have left.',
                   style: AppTypography.metadata(color: onSurfaceMuted),
                 ),
               ],
@@ -185,19 +187,82 @@ class SpendHeroCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  String _planSentence() {
-    final plan = planMinor!;
-    final source = planSource == PlanSource.income ? 'income' : 'budget';
-    final tail = isCurrentPeriod
-        ? ', ${daysLeft == 1 ? '1 day' : '$daysLeft days'} left'
-        : '';
+/// Whether the current pace fits the days remaining, in words first.
+///
+/// Sits on the dark hero, so it takes the dark-mode money colours in
+/// both themes — [MoneyColors] is keyed to the *theme's* brightness and
+/// cannot express a dark card inside a light theme.
+class _PaceChip extends StatelessWidget {
+  const _PaceChip({
+    required this.verdict,
+    required this.dailyAllowanceMinor,
+    required this.paceDeltaMinor,
+  });
 
-    if (isOverPlan) {
-      return '${Money.display(totalSpent - plan)} over $source$tail';
-    }
-    return '${Money.display(plan - totalSpent)} left of '
-        '${Money.display(plan)} $source$tail';
+  final PaceVerdict verdict;
+  final int? dailyAllowanceMinor;
+  final int? paceDeltaMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, tone) = switch (verdict) {
+      PaceVerdict.onTrack => ('On track', AppColors.inflowD),
+      PaceVerdict.slow => ('Under your pace', AppColors.inflowD),
+      PaceVerdict.fast => ('Spending fast', AppColors.reviewD),
+      PaceVerdict.none => ('', AppColors.nightText2),
+    };
+
+    final allowance = dailyAllowanceMinor;
+    final detail = switch (verdict) {
+      PaceVerdict.fast when paceDeltaMinor != null =>
+        '${Money.display(paceDeltaMinor!)} ahead of an even pace',
+      PaceVerdict.slow when paceDeltaMinor != null =>
+        '${Money.display(-paceDeltaMinor!)} under an even pace',
+      _ when allowance != null =>
+        'About ${Money.display(allowance)} a day from here',
+      _ => '',
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Space.x2,
+        vertical: Space.x1,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.07),
+        borderRadius: Radii.cardRadius,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: Space.x1),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // The verdict is a word, never a colour on its own.
+                Text(label, style: AppTypography.rowTitle(color: tone)),
+                if (detail.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    detail,
+                    style: AppTypography.metadata(
+                      color: AppColors.nightText2,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -227,16 +292,11 @@ class AccountBalanceStrip extends StatelessWidget {
     if (accounts.isEmpty) return const SizedBox.shrink();
     final colors = Theme.of(context).colorScheme;
 
-    // A horizontal list needs a bound height, so it has to be derived
-    // rather than left to the content: card padding + icon + gaps,
-    // plus the two text lines at whatever the system font scale is.
-    // A fixed height would clip the balance at large scales.
+    // A horizontal list needs a bound height, so it is derived rather
+    // than fixed: a hard number clips the balance at large font scales.
     final textScaler = MediaQuery.textScalerOf(context);
     final stripHeight =
-        Space.cardPadding * 2 +
-        20 +
-        Space.x1 +
-        2 +
+        Space.x2 * 2 + 20 + Space.x1 + 2 +
         textScaler.scale(18) +
         textScaler.scale(22);
 
@@ -269,7 +329,7 @@ class AccountBalanceStrip extends StatelessWidget {
                       AppIcon(
                         _iconFor(account.type),
                         size: 20,
-                        color: colors.secondary,
+                        color: colors.onSurfaceVariant,
                       ),
                       const SizedBox(height: Space.x1),
                       Text(
@@ -282,10 +342,9 @@ class AccountBalanceStrip extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       // A negative balance is real — an overdrawn
-                      // account, or spend logged against an account
-                      // whose opening balance was never set — so it
-                      // renders as a true minus rather than being
-                      // clamped to zero.
+                      // account, or spend logged against one whose
+                      // opening balance was never set — so it renders
+                      // as a true minus rather than clamped to zero.
                       MoneyText(balance),
                     ],
                   ),
@@ -299,74 +358,115 @@ class AccountBalanceStrip extends StatelessWidget {
   }
 }
 
-class TopCategoriesCard extends StatelessWidget {
-  const TopCategoriesCard({
+/// Where the period's money went: one composition bar, then the rows.
+///
+/// The bar is the point. Four separate progress bars, each scaled to
+/// the largest category, showed four unrelated ratios and no sense of
+/// the whole. A single stacked bar shows share-of-spend directly, which
+/// is the actual question, and gives the category palette somewhere to
+/// mean something.
+class CategoryBreakdownCard extends StatelessWidget {
+  const CategoryBreakdownCard({
     required this.categories,
-    required this.categoryIcons,
+    required this.categoriesById,
+    required this.totalSpent,
     required this.onSeeAll,
     super.key,
   });
 
   final List<CategorySpend> categories;
-  final Map<String, String?> categoryIcons;
+  final Map<String, Category> categoriesById;
+  final int totalSpent;
   final VoidCallback onSeeAll;
 
   @override
   Widget build(BuildContext context) {
     if (categories.isEmpty) return const SizedBox.shrink();
     final colors = Theme.of(context).colorScheme;
-    final largest = categories.first.spentMinor;
+    final brightness = Theme.of(context).brightness;
+    final shown = categories.fold(0, (sum, c) => sum + c.spentMinor);
+    final rest = totalSpent - shown;
+
+    CategoryHue hueFor(CategorySpend spend) => CategoryPalette.forCategory(
+      categoryId: spend.categoryId,
+      storedColor: categoriesById[spend.categoryId]?.color,
+      brightness: brightness,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Top categories',
+          title: 'Where it went',
           action: 'See all',
           onActionTap: onSeeAll,
         ),
         AppCard(
           child: Column(
             children: [
-              for (final (index, category) in categories.indexed) ...[
-                if (index > 0) const SizedBox(height: Space.x2),
+              if (shown > 0)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: SizedBox(
+                    height: 10,
+                    child: Row(
+                      children: [
+                        for (final spend in categories)
+                          Expanded(
+                            flex: spend.spentMinor.clamp(1, 1 << 30),
+                            child: Padding(
+                              // A 2px gap so neighbouring fills stay
+                              // separable rather than blending.
+                              padding: const EdgeInsets.only(right: 2),
+                              child: ColoredBox(color: hueFor(spend).series),
+                            ),
+                          ),
+                        if (rest > 0)
+                          Expanded(
+                            flex: rest,
+                            child: ColoredBox(
+                              color: colors.surfaceContainerHigh,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: Space.x2),
+              for (final (index, spend) in categories.indexed) ...[
+                if (index > 0) const SizedBox(height: Space.x1),
                 Row(
                   children: [
-                    CategoryAvatar(
-                      iconKey: categoryIcons[category.categoryId],
-                      size: 32,
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: hueFor(spend).series,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
                     ),
                     const SizedBox(width: Space.x1),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  category.categoryName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.rowTitle(
-                                    color: colors.onSurface,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: Space.x1),
-                              MoneyText(category.spentMinor, size: MoneySize.meta),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          ProgressMeter(
-                            value: largest == 0
-                                ? 0
-                                : category.spentMinor / largest,
-                            height: 6,
-                          ),
-                        ],
+                      child: Text(
+                        spend.categoryName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        // Text wears text colours; the swatch beside it
+                        // carries the identity.
+                        style: AppTypography.body(color: colors.onSurface),
                       ),
                     ),
+                    const SizedBox(width: Space.x1),
+                    Text(
+                      totalSpent == 0
+                          ? '0%'
+                          : '${(spend.spentMinor / totalSpent * 100).round()}%',
+                      style: AppTypography.metadata(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: Space.x2),
+                    MoneyText(spend.spentMinor, size: MoneySize.meta),
                   ],
                 ),
               ],
@@ -381,14 +481,14 @@ class TopCategoriesCard extends StatelessWidget {
 class RecentActivityCard extends StatelessWidget {
   const RecentActivityCard({
     required this.transactions,
-    required this.categoryIcons,
+    required this.categoriesById,
     required this.onSeeAll,
     required this.onOpenTransaction,
     super.key,
   });
 
   final List<Transaction> transactions;
-  final Map<String, String?> categoryIcons;
+  final Map<String, Category> categoriesById;
   final VoidCallback onSeeAll;
   final ValueChanged<Transaction> onOpenTransaction;
 
@@ -403,7 +503,7 @@ class RecentActivityCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Recent activity',
+          title: 'Latest',
           action: 'See all',
           onActionTap: onSeeAll,
         ),
@@ -414,7 +514,9 @@ class RecentActivityCard extends StatelessWidget {
               for (final transaction in transactions)
                 AppListRow(
                   leading: CategoryAvatar(
-                    iconKey: categoryIcons[transaction.categoryId],
+                    iconKey: categoriesById[transaction.categoryId]?.icon,
+                    categoryId: transaction.categoryId,
+                    colorName: categoriesById[transaction.categoryId]?.color,
                     size: 36,
                   ),
                   title: Text(
@@ -426,10 +528,10 @@ class RecentActivityCard extends StatelessWidget {
                     _subtitleFor(transaction),
                     style: transaction.status == TxStatus.confirmed
                         ? null
-                        // An entry the app is unsure of is marked in
-                        // the review colour and named in words — it
-                        // still counts toward the totals above, so
-                        // silence here would overstate confidence.
+                        // An entry the app is unsure of is named in
+                        // words and marked — it still counts toward the
+                        // totals above, so silence would overstate
+                        // confidence.
                         : AppTypography.metadata(color: money.review),
                   ),
                   trailing: MoneyText.signed(
@@ -469,39 +571,50 @@ class ReviewBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     if (count == 0) return const SizedBox.shrink();
     final colors = Theme.of(context).colorScheme;
+    final review = Theme.of(context).extension<CaptureColors>()!.uncertainField;
 
-    return AppCard(
-      onTap: onTap,
-      child: Row(
-        children: [
-          AppIcon(AppIcons.inbox, color: colors.secondary),
-          const SizedBox(width: Space.x2),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  count == 1 ? '1 entry needs you' : '$count entries need you',
-                  style: AppTypography.rowTitle(color: colors.onSurface),
+    return Material(
+      color: review.withValues(alpha: 0.10),
+      borderRadius: Radii.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(Space.cardPadding),
+          child: Row(
+            children: [
+              AppIcon(AppIcons.inbox, color: review),
+              const SizedBox(width: Space.x2),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      count == 1
+                          ? '1 entry needs you'
+                          : '$count entries need you',
+                      style: AppTypography.rowTitle(color: colors.onSurface),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Not counted in the figures above until you '
+                      'confirm them',
+                      style: AppTypography.metadata(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Duplicates, missing details, and messages we could '
-                  'not read',
-                  style: AppTypography.metadata(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: Space.x1),
+              AppIcon(
+                AppIcons.chevronRight,
+                size: 20,
+                color: colors.onSurfaceVariant,
+              ),
+            ],
           ),
-          const SizedBox(width: Space.x1),
-          AppIcon(
-            AppIcons.chevronRight,
-            size: 20,
-            color: colors.onSurfaceVariant,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -533,7 +646,7 @@ class AssistantPromptCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              AppIcon(AppIcons.assistant, size: 20, color: colors.secondary),
+              AppIcon(AppIcons.assistant, size: 20, color: colors.primary),
               const SizedBox(width: Space.x1),
               Expanded(
                 child: Text(

@@ -82,7 +82,7 @@ class AccountsView extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      Money.format(state.totalBalanceMinor),
+                      Money.display(state.totalBalanceMinor),
                       style: theme.textTheme.headlineMedium?.copyWith(
                         color: theme.colorScheme.onPrimary,
                         fontWeight: FontWeight.bold,
@@ -103,7 +103,7 @@ class AccountsView extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        Money.format(
+                        Money.display(
                           entry.value.fold(
                             0,
                             (sum, a) => sum + state.balanceFor(a.id),

@@ -14,6 +14,22 @@ enum PlanSource {
   none,
 }
 
+/// Whether spending is running ahead of, behind, or level with an even
+/// pace through the period.
+enum PaceVerdict {
+  onTrack,
+
+  /// Spending faster than the period can carry.
+  fast,
+
+  /// Spending more slowly than planned — worth saying, because it is
+  /// the one piece of good news this screen can give.
+  slow,
+
+  /// No plan, or the period is not the current one.
+  none,
+}
+
 class DashboardState extends Equatable {
   const DashboardState({
     this.budgetPeriod,
@@ -21,7 +37,7 @@ class DashboardState extends Equatable {
     this.incomeCategories = const [],
     this.totalSpent = 0,
     this.topCategories = const [],
-    this.categoryIcons = const {},
+    this.categoriesById = const {},
     this.recentTransactions = const [],
     this.accounts = const [],
     this.accountBalances = const {},
@@ -43,9 +59,9 @@ class DashboardState extends Equatable {
   /// truncated to the top few.
   final List<CategorySpend> topCategories;
 
-  /// Category id to icon key, so a [CategorySpend] row — which carries
-  /// only a name and a total — can still render its avatar.
-  final Map<String, String?> categoryIcons;
+  /// Category per id, so a [CategorySpend] row — which carries only a
+  /// name and a total — can still resolve both its glyph and its hue.
+  final Map<String, Category> categoriesById;
 
   /// Most recent transactions, newest first.
   final List<Transaction> recentTransactions;
@@ -150,13 +166,80 @@ class DashboardState extends Equatable {
   int get totalBalanceMinor =>
       accountBalances.values.fold(0, (sum, value) => sum + value);
 
+  /// Total length of the period in whole days.
+  int get periodLengthDays {
+    final period = budgetPeriod;
+    if (period == null) return 0;
+    final start = Iso.toDateTime(period.startAt).toLocal();
+    final end = Iso.toDateTime(period.endAt).toLocal();
+    final days = DateTime(
+      end.year,
+      end.month,
+      end.day,
+    ).difference(DateTime(start.year, start.month, start.day)).inDays;
+    return days <= 0 ? 1 : days;
+  }
+
+  /// How far through the period we are, 0..1.
+  double get elapsedFraction {
+    if (!isCurrentPeriod) return 1;
+    final elapsed = periodLengthDays - daysLeft;
+    return (elapsed / periodLengthDays).clamp(0.0, 1.0);
+  }
+
+  /// What a perfectly even spender would have spent by now.
+  ///
+  /// The honest comparison for "am I okay?" — a raw total answers
+  /// "what have I spent", which on day 2 of the month is alarming for
+  /// no reason and on day 28 is reassuring for no reason.
+  int? get expectedSpendMinor {
+    final plan = planMinor;
+    if (plan == null) return null;
+    return (plan * elapsedFraction).round();
+  }
+
+  /// Spend minus the even-pace expectation. Positive means spending
+  /// faster than the period can carry.
+  int? get paceDeltaMinor {
+    final expected = expectedSpendMinor;
+    if (expected == null) return null;
+    return totalSpent - expected;
+  }
+
+  /// What is left, spread over the days that remain — the number that
+  /// actually informs the next decision, rather than reporting history.
+  int? get dailyAllowanceMinor {
+    final plan = planMinor;
+    if (plan == null || !isCurrentPeriod) return null;
+    final left = plan - totalSpent;
+    if (left <= 0) return 0;
+    // daysLeft counts whole days remaining; today still counts as one
+    // to spend in, so a period ending tomorrow allows one day, not zero.
+    final days = daysLeft <= 0 ? 1 : daysLeft;
+    return left ~/ days;
+  }
+
+  /// Verdict on pace, tolerant of small drift so the app is not
+  /// permanently scolding someone who is a few kwacha out.
+  PaceVerdict get paceVerdict {
+    final delta = paceDeltaMinor;
+    final plan = planMinor;
+    if (delta == null || plan == null || plan == 0) return PaceVerdict.none;
+    if (!isCurrentPeriod) return PaceVerdict.none;
+    // Inside 5% of the plan either way reads as "on track".
+    final tolerance = (plan * 0.05).round();
+    if (delta > tolerance) return PaceVerdict.fast;
+    if (delta < -tolerance) return PaceVerdict.slow;
+    return PaceVerdict.onTrack;
+  }
+
   DashboardState copyWith({
     BudgetPeriod? budgetPeriod,
     DashboardStatus? status,
     List<Category>? incomeCategories,
     int? totalSpent,
     List<CategorySpend>? topCategories,
-    Map<String, String?>? categoryIcons,
+    Map<String, Category>? categoriesById,
     List<Transaction>? recentTransactions,
     List<Account>? accounts,
     Map<String, int>? accountBalances,
@@ -169,7 +252,7 @@ class DashboardState extends Equatable {
       incomeCategories: incomeCategories ?? this.incomeCategories,
       totalSpent: totalSpent ?? this.totalSpent,
       topCategories: topCategories ?? this.topCategories,
-      categoryIcons: categoryIcons ?? this.categoryIcons,
+      categoriesById: categoriesById ?? this.categoriesById,
       recentTransactions: recentTransactions ?? this.recentTransactions,
       accounts: accounts ?? this.accounts,
       accountBalances: accountBalances ?? this.accountBalances,
@@ -185,7 +268,7 @@ class DashboardState extends Equatable {
     incomeCategories,
     totalSpent,
     topCategories,
-    categoryIcons,
+    categoriesById,
     recentTransactions,
     accounts,
     accountBalances,

@@ -51,7 +51,7 @@ class ProposedTransaction extends ProposedAction {
   String get title {
     final sign = direction == TxDirection.debit ? '-' : '+';
     final who = merchant?.isNotEmpty ?? false ? ' · $merchant' : '';
-    return '$sign${Money.format(amountMinor)}$who';
+    return '$sign${Money.display(amountMinor)}$who';
   }
 
   @override
@@ -86,7 +86,7 @@ class ProposedBudget extends ProposedAction {
   final int amountMinor;
 
   @override
-  String get title => '$categoryName: ${Money.format(amountMinor)} / month';
+  String get title => '$categoryName: ${Money.display(amountMinor)} / month';
 
   @override
   String get subtitle => 'Monthly budget';

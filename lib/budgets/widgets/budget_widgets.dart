@@ -45,7 +45,7 @@ class BudgetHeroCard extends StatelessWidget {
           children: [
             AppIcon(
               AppIcons.budgets,
-              color: Theme.of(context).colorScheme.secondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: Space.x2),
             Expanded(
@@ -281,6 +281,11 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final money = Theme.of(context).extension<MoneyColors>()!;
+    final hue = CategoryPalette.forCategory(
+      categoryId: category.id,
+      storedColor: category.color,
+      brightness: Theme.of(context).brightness,
+    );
     final limit = category.budgetedAmountMinor!;
     final isOver = spentMinor > limit;
 
@@ -300,7 +305,12 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CategoryAvatar(iconKey: category.icon, size: 36),
+                CategoryAvatar(
+                  iconKey: category.icon,
+                  categoryId: category.id,
+                  colorName: category.color,
+                  size: 36,
+                ),
                 const SizedBox(width: Space.x1),
                 Expanded(
                   child: Text(
@@ -319,6 +329,7 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
               value: limit == 0 ? 0 : spentMinor / limit,
               isOver: isOver,
               height: 6,
+              fillColor: hue.series,
             ),
             const SizedBox(height: 6),
             // Over-budget is stated, not just coloured — roughly one in

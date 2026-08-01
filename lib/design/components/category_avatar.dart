@@ -1,35 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:intellispendiq/design/components/app_icon.dart';
+import 'package:intellispendiq/design/tokens/category_palette.dart';
 import 'package:intellispendiq/design/tokens/icons.dart';
 import 'package:intellispendiq/design/tokens/radii.dart';
 
-/// A category's icon in a tinted rounded square — what every category
-/// glyph in the app renders through, replacing the emoji that used to
-/// sit directly in a `Text` widget.
+/// A category's glyph on its own tinted chip.
 ///
-/// Takes the stable icon key from `categories.icon` (see
-/// [CategoryIcons]), not a raw `HugeIcons` constant, so a screen never
-/// has to know the resolution rule itself.
+/// The colour is the category's, not the theme's. Every avatar in the
+/// app used to be `colorScheme.secondary` at 12% — one flat violet, so
+/// Food, Transport and Shopping rendered as identical swatches and a
+/// list of them read as wallpaper. Hue now comes from
+/// [CategoryPalette], keyed to the category so it never moves.
 class CategoryAvatar extends StatelessWidget {
-  const CategoryAvatar({required this.iconKey, this.size = 40, super.key});
+  const CategoryAvatar({
+    required this.iconKey,
+    this.categoryId,
+    this.colorName,
+    this.size = 40,
+    super.key,
+  });
 
+  /// Icon key from `categories.icon`.
   final String? iconKey;
+
+  /// Which category this is, so its hue stays put.
+  final String? categoryId;
+
+  /// `Category.color`, when the user has pinned one.
+  final String? colorName;
+
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final icon = CategoryIcons.byKey(iconKey);
+    final hue = CategoryPalette.forCategory(
+      categoryId: categoryId,
+      storedColor: colorName,
+      brightness: Theme.of(context).brightness,
+    );
 
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: colors.secondary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(Radii.card),
+        color: hue.tint,
+        borderRadius: BorderRadius.circular(size * 0.3),
       ),
       alignment: Alignment.center,
-      child: AppIcon(icon, size: size * 0.5, color: colors.secondary),
+      child: AppIcon(
+        CategoryIcons.byKey(iconKey),
+        size: size * 0.5,
+        color: hue.ink,
+      ),
     );
   }
 }

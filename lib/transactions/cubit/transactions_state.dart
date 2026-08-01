@@ -125,10 +125,10 @@ class TransactionsState extends Equatable {
     ];
   }
 
-  /// Icon key per category id, so a row can render its avatar from the
-  /// category id a [Transaction] carries.
-  Map<String, String?> get categoryIcons => {
-    for (final category in categories) category.id: category.icon,
+  /// Category per id, so a row can resolve both the glyph and the hue
+  /// for the category id a [Transaction] carries.
+  Map<String, Category> get categoriesById => {
+    for (final category in categories) category.id: category,
   };
 
   TransactionsState copyWith({

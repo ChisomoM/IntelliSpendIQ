@@ -26,6 +26,7 @@ export 'format/money_text.dart';
 export 'theme/app_theme.dart';
 export 'theme/capture_colors.dart';
 export 'theme/money_colors.dart';
+export 'tokens/category_palette.dart';
 export 'tokens/colors.dart';
 export 'tokens/icons.dart';
 export 'tokens/motion.dart';

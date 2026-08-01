@@ -196,7 +196,7 @@ class DashboardCubit extends Cubit<DashboardState> {
       state.copyWith(
         status: DashboardStatus.loaded,
         incomeCategories: incomeCategories,
-        categoryIcons: {for (final c in categories) c.id: c.icon},
+        categoriesById: {for (final c in categories) c.id: c},
         totalSpent: totalSpent,
       ),
     );
