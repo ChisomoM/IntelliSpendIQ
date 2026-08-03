@@ -161,5 +161,37 @@ void main() {
       expect(balances[accountId], -15000);
       expect(balances[cash.id], 15000);
     });
+
+    test(
+      'editing account or direction moves the computed balance',
+      () async {
+        final cash = await services.accounts.create(
+          name: 'Cash',
+          type: AccountType.cash,
+        );
+        final tx = await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 5000,
+            direction: TxDirection.debit,
+            source: TxSource.manual,
+            transactedAt: DateTime(2026, 7, 30),
+          ),
+          accountId: accountId,
+          idempotencyKey: 'test:${Ids.newId()}',
+          status: TxStatus.confirmed,
+        );
+
+        await services.transactions.updateFields(
+          tx.id,
+          accountId: cash.id,
+          direction: TxDirection.credit,
+        );
+
+        final balances = await services.accounts.watchComputedBalances().first;
+
+        expect(balances[accountId], 0);
+        expect(balances[cash.id], 5000);
+      },
+    );
   });
 }

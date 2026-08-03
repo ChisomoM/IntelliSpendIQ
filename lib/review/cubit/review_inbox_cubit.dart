@@ -35,7 +35,7 @@ class ReviewInboxCubit extends Cubit<ReviewInboxState> {
   final MerchantCategorizer? _categorizer;
   final _subscriptions = <StreamSubscription<void>>[];
 
-  /// Starts watching the four review sources.
+  /// Starts watching the review sources.
   void subscribe() {
     if (_subscriptions.isNotEmpty) return;
     emit(state.copyWith(status: ReviewInboxStatus.loading));
@@ -51,6 +51,14 @@ class ReviewInboxCubit extends Cubit<ReviewInboxState> {
               ),
             ),
           ),
+      _transactions.watchUncategorized().listen(
+        (rows) => emit(
+          state.copyWith(
+            status: ReviewInboxStatus.loaded,
+            uncategorized: rows,
+          ),
+        ),
+      ),
       _transactions
           .watchByStatus(TxStatus.duplicateSuspect)
           .listen(

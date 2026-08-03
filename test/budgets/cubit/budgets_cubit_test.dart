@@ -322,6 +322,90 @@ void main() {
     );
   });
 
+  group('BudgetsCubit visible expense categories', () {
+    test('hides unbudgeted categories with no spend', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.visibleExpenseCategories, isEmpty);
+      expect(cubit.state.isEmpty, isTrue);
+    });
+
+    test('shows an unbudgeted category once it has confirmed spend', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      final food = (await services.categories.byName('Food'))!;
+      await addConfirmedSpend(2500, categoryId: food.id);
+      await cubit.load();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        cubit.state.visibleExpenseCategories.map((c) => c.id),
+        contains(food.id),
+      );
+      expect(cubit.state.spentFor(food.id), 2500);
+      expect(cubit.state.budgetedExpenseCategories, isEmpty);
+    });
+
+    test(
+      'shows a parent when only a subcategory has confirmed spend',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        await cubit.load();
+
+        final food = (await services.categories.byName('Food'))!;
+        final takeaways = await services.categories.create(
+          'Takeaways',
+          parentId: food.id,
+        );
+        await addConfirmedSpend(4000, categoryId: takeaways.id);
+        await cubit.load();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          cubit.state.visibleExpenseCategories.map((c) => c.id),
+          contains(food.id),
+        );
+        expect(cubit.state.spentFor(food.id), 4000);
+        expect(food.hasBudget, isFalse);
+      },
+    );
+
+    test(
+      'shows a parent when only a subcategory has money assigned',
+      () async {
+        final cubit = await cubitWith();
+        addTearDown(cubit.close);
+        await cubit.load();
+
+        final food = (await services.categories.byName('Food'))!;
+        final takeaways = await services.categories.create(
+          'Takeaways',
+          parentId: food.id,
+          budgetedAmountMinor: 15000,
+        );
+        final period = cubit.state.budgetPeriod!;
+        await services.budgetPeriods.upsertCategoryBudget(
+          periodId: period.id,
+          categoryId: takeaways.id,
+          amountMinor: 15000,
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          cubit.state.visibleExpenseCategories.map((c) => c.id),
+          contains(food.id),
+        );
+        expect(cubit.state.budgetedExpenseCategories, isEmpty);
+      },
+    );
+  });
+
   group('BudgetsCubit shiftPeriod', () {
     test('moves the window and reloads spend for the new period', () async {
       final cubit = await cubitWith();

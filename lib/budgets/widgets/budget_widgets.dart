@@ -454,11 +454,12 @@ class _OverallBudgetEditorSheetState extends State<OverallBudgetEditorSheet> {
   }
 }
 
-/// A top-level expense category with a budget set.
+/// A top-level expense category with activity in the period — a budget,
+/// confirmed spend, or a subcategory with either.
 ///
 /// Laid out to be scannable down a column: avatar and name on the left,
-/// the limit and what is left stacked on the right, and the meter
-/// spanning underneath in the category's own hue.
+/// the limit and what is left stacked on the right when budgeted, and
+/// the meter spanning underneath in the category's own hue.
 class ExpenseCategoryEnvelopeCard extends StatelessWidget {
   const ExpenseCategoryEnvelopeCard({
     required this.category,
@@ -486,11 +487,14 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
       storedColor: category.color,
       brightness: Theme.of(context).brightness,
     );
-    final limit = category.budgetedAmountMinor!;
-    final isOver = spentMinor > limit;
-    final percent = (limit == 0 ? 0 : (spentMinor / limit * 100))
-        .clamp(0, 999)
-        .toStringAsFixed(0);
+    final limit = category.budgetedAmountMinor;
+    final hasBudget = limit != null;
+    final isOver = hasBudget && spentMinor > limit;
+    final percent = !hasBudget
+        ? null
+        : (limit == 0 ? 0 : (spentMinor / limit * 100))
+              .clamp(0, 999)
+              .toStringAsFixed(0);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.x1),
@@ -537,35 +541,45 @@ class ExpenseCategoryEnvelopeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: Space.x1),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    MoneyText(limit, size: MoneySize.meta),
-                    const SizedBox(height: 2),
-                    // Over-budget is said, not merely coloured — roughly
-                    // one man in twelve here cannot rely on red/green.
-                    Text(
-                      isOver
-                          ? '${Money.display(spentMinor - limit)} over '
-                                '· $percent%'
-                          : '${Money.display(limit - spentMinor)} left '
-                                '· $percent%',
-                      style: AppTypography.metadata(
-                        color: isOver ? money.outflow : money.inflow,
+                if (hasBudget)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MoneyText(limit, size: MoneySize.meta),
+                      const SizedBox(height: 2),
+                      // Over-budget is said, not merely coloured — roughly
+                      // one man in twelve here cannot rely on red/green.
+                      Text(
+                        isOver
+                            ? '${Money.display(spentMinor - limit)} over '
+                                  '· $percent%'
+                            : '${Money.display(limit - spentMinor)} left '
+                                  '· $percent%',
+                        style: AppTypography.metadata(
+                          color: isOver ? money.outflow : money.inflow,
+                        ),
                       ),
+                    ],
+                  )
+                else
+                  Text(
+                    'No budget',
+                    style: AppTypography.metadata(
+                      color: colors.onSurfaceVariant,
                     ),
-                  ],
-                ),
+                  ),
               ],
             ),
-            const SizedBox(height: Space.x2),
-            ProgressMeter(
-              value: limit == 0 ? 0 : spentMinor / limit,
-              isOver: isOver,
-              height: 6,
-              fillColor: hue.series,
-            ),
+            if (hasBudget) ...[
+              const SizedBox(height: Space.x2),
+              ProgressMeter(
+                value: limit == 0 ? 0 : spentMinor / limit,
+                isOver: isOver,
+                height: 6,
+                fillColor: hue.series,
+              ),
+            ],
           ],
         ),
       ),
@@ -682,9 +696,9 @@ class NoBudgetsYet extends StatelessWidget {
   Widget build(BuildContext context) {
     return EmptyState(
       icon: AppIcons.emptyWallet,
-      title: 'No category budgets yet',
-      message: 'Give a category an amount and this screen will track '
-          'your spending against it.',
+      title: 'No category activity yet',
+      message: 'Categories with a budget or spending in this period '
+          'will show up here.',
       actionLabel: 'Add a category budget',
       onAction: () => Navigator.of(context).push<String?>(
         CategoryEditorPage.route(initialType: CategoryType.expense),

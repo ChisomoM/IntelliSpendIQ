@@ -8,7 +8,9 @@ import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
+import 'package:intellispendiq/data/repositories/identity_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
+import 'package:intellispendiq/data/repositories/license_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -25,6 +27,7 @@ import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/home/home.dart';
+import 'package:intellispendiq/licensing/licensing.dart';
 
 /// Root widget. Repositories and services are exposed with
 /// [RepositoryProvider] so cubits resolve them from the tree rather
@@ -77,6 +80,8 @@ class App extends StatelessWidget {
         ),
         RepositoryProvider<BackupService>.value(value: services.backupService),
         RepositoryProvider<AppLockRepository>.value(value: services.appLock),
+        RepositoryProvider<IdentityRepository>.value(value: services.identity),
+        RepositoryProvider<LicenseRepository>.value(value: services.license),
         RepositoryProvider<SecureStore>.value(value: services.secureStore),
       ],
       // Theme, auth and deep links are app-wide, so they sit above the
@@ -85,6 +90,18 @@ class App extends StatelessWidget {
         providers: [
           BlocProvider(
             create: (_) => ThemeCubit(services.settings)..loadUnawaited(),
+          ),
+          BlocProvider(
+            create: (_) => IdentityCubit(
+              identity: services.identity,
+              license: services.license,
+            )..loadUnawaited(),
+          ),
+          BlocProvider(
+            create: (_) => EntitlementCubit(
+              identity: services.identity,
+              license: services.license,
+            ),
           ),
           BlocProvider(create: (_) => AuthCubit(services.appLock)),
           BlocProvider(
@@ -99,7 +116,11 @@ class App extends StatelessWidget {
               theme: AppTheme.light,
               darkTheme: AppTheme.dark,
               themeMode: themeMode,
-              home: const AuthGate(child: HomePage()),
+              home: const IdentityGate(
+                child: EntitlementGate(
+                  child: AuthGate(child: HomePage()),
+                ),
+              ),
             );
           },
         ),

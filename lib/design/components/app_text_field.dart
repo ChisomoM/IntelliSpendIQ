@@ -11,6 +11,7 @@ class AppTextField extends StatelessWidget {
     this.controller,
     this.label,
     this.hint,
+    this.prefixText,
     this.prefixIcon,
     this.suffixIcon,
     this.errorText,
@@ -26,6 +27,7 @@ class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
   final String? hint;
+  final String? prefixText;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final String? errorText;
@@ -38,12 +40,17 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return TextField(
       controller: controller,
-      style: AppTypography.body(color: Theme.of(context).colorScheme.onSurface),
+      style: AppTypography.body(color: colors.onSurface),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
+        prefixText: prefixText,
+        prefixStyle: prefixText == null
+            ? null
+            : AppTypography.body(color: colors.onSurfaceVariant),
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
         errorText: errorText,
@@ -58,14 +65,12 @@ class AppTextField extends StatelessWidget {
   }
 }
 
-/// A large, mono-styled field for entering an amount — the one field
-/// on the entry sheet that should not look like every other field.
-/// The keypad-driven redesign described in the redesign plan's Phase 4
-/// is a separate, larger change; this is the field shell it will sit
-/// behind.
+/// Amount entry — same size and chrome as [AppTextField], with a `K`
+/// prefix and a decimal keypad. No special display sizing.
 class AmountField extends StatelessWidget {
   const AmountField({
     required this.controller,
+    this.label = 'Amount',
     this.errorText,
     this.autofocus = false,
     this.onChanged,
@@ -73,25 +78,19 @@ class AmountField extends StatelessWidget {
   });
 
   final TextEditingController controller;
+  final String label;
   final String? errorText;
   final bool autofocus;
   final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return TextField(
+    return AppTextField(
       controller: controller,
+      label: label,
+      prefixText: 'K ',
+      errorText: errorText,
       autofocus: autofocus,
-      textAlign: TextAlign.center,
-      style: AppTypography.balanceDisplay(color: colors.onSurface),
-      decoration: InputDecoration(
-        prefixText: 'K',
-        prefixStyle: AppTypography.balanceDisplay(color: colors.onSurfaceVariant),
-        border: InputBorder.none,
-        errorText: errorText,
-      ),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp('[0-9.,]')),

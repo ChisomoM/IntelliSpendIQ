@@ -6,7 +6,9 @@ import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
+import 'package:intellispendiq/data/repositories/identity_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
+import 'package:intellispendiq/data/repositories/license_repository.dart';
 import 'package:intellispendiq/data/repositories/merchant_category_rule_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
@@ -52,6 +54,8 @@ class AppServices {
     required this.customSenders,
     required this.merchantCategoryRules,
     required this.appLock,
+    required this.identity,
+    required this.license,
     required this.registry,
     required this.merchantCategorizer,
     required this.captureService,
@@ -77,7 +81,14 @@ class AppServices {
     final userId = await store.userId();
 
     final db = AppDatabase(openEncryptedConnection(passphrase: passphrase));
-    return _wire(db: db, userId: userId, store: store, flavor: flavor);
+    return _wire(
+      db: db,
+      userId: userId,
+      store: store,
+      flavor: flavor,
+      identity: FirebaseIdentityRepository(),
+      license: FirestoreLicenseRepository(secureStore: store),
+    );
   }
 
   /// Wires services around an already-open database — used by tests with
@@ -91,6 +102,8 @@ class AppServices {
     ChatProvider? chatProvider,
     BiometricAuthenticator? biometrics,
     DeepLinkSource? deepLinkSource,
+    IdentityRepository? identity,
+    LicenseRepository? license,
     AppFlavor flavor = AppFlavor.development,
   }) => _wire(
     db: db,
@@ -101,6 +114,8 @@ class AppServices {
     chatProvider: chatProvider,
     biometrics: biometrics,
     deepLinkSource: deepLinkSource,
+    identity: identity,
+    license: license,
     flavor: flavor,
   );
 
@@ -114,6 +129,8 @@ class AppServices {
     ChatProvider? chatProvider,
     BiometricAuthenticator? biometrics,
     DeepLinkSource? deepLinkSource,
+    IdentityRepository? identity,
+    LicenseRepository? license,
   }) async {
     final accounts = AccountRepository(db, userId: userId);
     final categories = CategoryRepository(db, userId: userId);
@@ -176,6 +193,10 @@ class AppServices {
       transfers: transfers,
     );
 
+    final identityRepo = identity ?? FirebaseIdentityRepository();
+    final licenseRepo =
+        license ?? FirestoreLicenseRepository(secureStore: store);
+
     return AppServices._(
       db: db,
       userId: userId,
@@ -198,6 +219,8 @@ class AppServices {
         settings: settings,
         biometrics: biometrics ?? LocalAuthBiometrics(),
       ),
+      identity: identityRepo,
+      license: licenseRepo,
       registry: registry,
       merchantCategorizer: merchantCategorizer,
       captureService: captureService,
@@ -240,6 +263,8 @@ class AppServices {
   final CustomSenderRepository customSenders;
   final MerchantCategoryRuleRepository merchantCategoryRules;
   final AppLockRepository appLock;
+  final IdentityRepository identity;
+  final LicenseRepository license;
   final ParserRegistry registry;
   final MerchantCategorizer merchantCategorizer;
   final CaptureService captureService;
@@ -255,6 +280,7 @@ class AppServices {
   Future<void> dispose() async {
     await smsSync.dispose();
     await appLock.dispose();
+    await identity.dispose();
     await db.close();
   }
 }

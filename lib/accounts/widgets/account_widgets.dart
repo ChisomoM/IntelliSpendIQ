@@ -393,6 +393,7 @@ class RecordTransferSheet extends StatefulWidget {
 
 class _RecordTransferSheetState extends State<RecordTransferSheet> {
   final _amountController = TextEditingController();
+  final _feeController = TextEditingController();
   String? _fromAccountId;
   String? _toAccountId;
   DateTime _transactedAt = DateTime.now();
@@ -401,6 +402,7 @@ class _RecordTransferSheetState extends State<RecordTransferSheet> {
   @override
   void dispose() {
     _amountController.dispose();
+    _feeController.dispose();
     super.dispose();
   }
 
@@ -439,6 +441,7 @@ class _RecordTransferSheetState extends State<RecordTransferSheet> {
       toAccountId: _toAccountId!,
       amount: _amountController.text,
       transactedAt: _transactedAt,
+      fee: _feeController.text,
     );
     if (!mounted) return;
     final state = context.read<AccountsCubit>().state;
@@ -501,6 +504,11 @@ class _RecordTransferSheetState extends State<RecordTransferSheet> {
         ),
         const SizedBox(height: Space.x2),
         AmountField(controller: _amountController, errorText: _error),
+        const SizedBox(height: Space.x2),
+        AmountField(
+          controller: _feeController,
+          label: 'Fee (optional)',
+        ),
         const SizedBox(height: Space.x1),
         AppListRow(
           title: const Text('Date'),

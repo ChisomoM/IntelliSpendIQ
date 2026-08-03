@@ -331,7 +331,9 @@ class TransactionRepository {
     return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
-  /// Count of transactions needing human attention, for the inbox badge.
+  /// Count of items needing human attention, for the inbox badge —
+  /// needs-review, duplicate suspects, and confirmed entries that still
+  /// lack a category (auto-saved SMS with an unrecognized merchant).
   Stream<int> watchReviewCount() {
     final count = countAll();
     final query = _db.selectOnly(_db.transactions)
@@ -339,12 +341,30 @@ class TransactionRepository {
       ..where(
         _db.transactions.userId.equals(userId) &
             _db.transactions.deletedAt.isNull() &
-            _db.transactions.status.isIn([
-              TxStatus.needsReview.dbName,
-              TxStatus.duplicateSuspect.dbName,
-            ]),
+            (_db.transactions.status.isIn([
+                  TxStatus.needsReview.dbName,
+                  TxStatus.duplicateSuspect.dbName,
+                ]) |
+                (_db.transactions.status.equals(TxStatus.confirmed.dbName) &
+                    _db.transactions.categoryId.isNull())),
       );
     return query.watchSingle().map((row) => row.read(count) ?? 0);
+  }
+
+  /// Confirmed transactions with no category — typically SMS that
+  /// auto-saved before the merchant was known. Still count toward
+  /// balances; they only need a tag.
+  Stream<List<Transaction>> watchUncategorized() {
+    final query = _db.select(_db.transactions)
+      ..where(
+        (t) =>
+            t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.status.equals(TxStatus.confirmed.dbName) &
+            t.categoryId.isNull(),
+      )
+      ..orderBy([(t) => OrderingTerm.desc(t.transactedAt)]);
+    return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
   Future<void> updateFields(
@@ -358,6 +378,8 @@ class TransactionRepository {
     String? duplicateOfId,
     String? payeeId,
     bool clearPayee = false,
+    String? accountId,
+    TxDirection? direction,
   }) async {
     await (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
@@ -381,6 +403,10 @@ class TransactionRepository {
         payeeId: clearPayee
             ? const Value(null)
             : (payeeId == null ? const Value.absent() : Value(payeeId)),
+        accountId: accountId == null ? const Value.absent() : Value(accountId),
+        direction: direction == null
+            ? const Value.absent()
+            : Value(direction.name),
         updatedAt: Value(Iso.nowUtc()),
       ),
     );
@@ -457,6 +483,22 @@ class TransactionRepository {
     });
   }
 
+  /// The transfer candidate that involves [transactionId], if the inbox
+  /// would currently suggest one — used by Edit entry to offer linking
+  /// instead of a one-sided convert when a matching opposite leg exists.
+  Future<TransferCandidate?> findTransferCandidateFor(
+    String transactionId,
+  ) async {
+    final candidates = await watchTransferCandidates().first;
+    for (final candidate in candidates) {
+      if (candidate.debit.id == transactionId ||
+          candidate.credit.id == transactionId) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
   /// Marks both legs of a suggested transfer pairing as "not a
   /// transfer" so they stop being re-suggested on future reloads.
   Future<void> dismissTransferCandidate({
@@ -482,6 +524,17 @@ class TransactionRepository {
     final now = Iso.nowUtc();
     await (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
+  }
+
+  /// Clears [deletedAt] so a soft-deleted transaction reappears. Used
+  /// by the undo snackbar within [Motion.undoHold].
+  Future<void> undelete(String id) async {
+    await (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(Iso.nowUtc()),
+      ),
     );
   }
 

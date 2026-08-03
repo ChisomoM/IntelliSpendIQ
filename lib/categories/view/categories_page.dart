@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intellispendiq/budgets/view/category_detail_page.dart';
 import 'package:intellispendiq/categories/cubit/cubit.dart';
 import 'package:intellispendiq/categories/widgets/widgets.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
@@ -156,7 +157,13 @@ class CategoryChildrenPage extends StatelessWidget {
                     Space.x1,
                   ),
                   children: [
-                    for (final child in children) CategoryTile(category: child),
+                    for (final child in children)
+                      CategoryTile(
+                        category: child,
+                        onTap: () => Navigator.of(context).push<void>(
+                          CategoryDetailPage.route(categoryId: child.id),
+                        ),
+                      ),
                     _AddSubcategoryRow(onTap: addSubcategory),
                   ],
                 ),

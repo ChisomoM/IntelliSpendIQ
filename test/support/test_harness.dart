@@ -1,17 +1,19 @@
-import 'dart:async';
-
 import 'package:drift/native.dart';
 import 'package:intellispendiq/app/app_services.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/data/repositories/identity_repository.dart';
+import 'package:intellispendiq/data/repositories/license_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/ai/ai_provider.dart';
 import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/ai/transaction_extraction.dart';
 import 'package:intellispendiq/domain/models/capture_input.dart';
+import 'package:intellispendiq/licensing/entitlement.dart';
 import 'package:intellispendiq/platform/biometric_authenticator.dart';
 import 'package:intellispendiq/platform/capture_bridge.dart';
 import 'package:intellispendiq/platform/deep_link_source.dart';
 import 'package:mocktail/mocktail.dart';
+import 'dart:async';
 
 /// Builds [AppServices] over an in-memory database so pipeline tests run
 /// without a device, a Keystore, or SQLCipher.
@@ -22,12 +24,15 @@ Future<AppServices> createTestServices({
   SecureStore? secureStore,
   BiometricAuthenticator? biometrics,
   DeepLinkSource? deepLinkSource,
+  IdentityRepository? identity,
+  LicenseRepository? license,
 }) async {
+  final store = secureStore ?? FakeSecureStore();
   final db = AppDatabase(NativeDatabase.memory());
   return AppServices.forDatabase(
     db: db,
     userId: 'test-user',
-    secureStore: secureStore ?? FakeSecureStore(),
+    secureStore: store,
     aiProvider: aiProvider,
     chatProvider: chatProvider ?? FakeChatProvider(),
     // Without these the real implementations would reach for platform
@@ -35,6 +40,8 @@ Future<AppServices> createTestServices({
     captureBridge: captureBridge ?? FakeCaptureBridge(),
     biometrics: biometrics ?? FakeBiometrics(available: false),
     deepLinkSource: deepLinkSource ?? FakeDeepLinkSource(),
+    identity: identity ?? FakeIdentityRepository(),
+    license: license ?? FakeLicenseRepository(store: store),
   );
 }
 
@@ -43,6 +50,7 @@ Future<AppServices> createTestServices({
 class FakeSecureStore implements SecureStore {
   String? appLock;
   String? anthropicKey;
+  LicenseSnapshot? licenseCache;
 
   @override
   Future<String> dbPassphrase() async => 'test-passphrase';
@@ -63,6 +71,17 @@ class FakeSecureStore implements SecureStore {
 
   @override
   Future<void> setAppLockCredential(String? value) async => appLock = value;
+
+  @override
+  Future<LicenseSnapshot?> readLicenseCache() async => licenseCache;
+
+  @override
+  Future<void> writeLicenseCache(LicenseSnapshot snapshot) async {
+    licenseCache = snapshot;
+  }
+
+  @override
+  Future<void> clearLicenseCache() async => licenseCache = null;
 }
 
 /// Biometric sensor stand-in. [available] models a device with
@@ -192,5 +211,110 @@ class FakeChatProvider implements ChatProvider {
       );
     }
     return responses[_next++];
+  }
+}
+
+/// In-memory Firebase Auth stand-in for widget / pipeline tests.
+class FakeIdentityRepository implements IdentityRepository {
+  FakeIdentityRepository({IdentityUser? user}) : _user = user;
+
+  IdentityUser? _user;
+  final _controller = StreamController<IdentityUser?>.broadcast();
+
+  @override
+  IdentityUser? get currentUser => _user;
+
+  @override
+  Stream<IdentityUser?> get authStateChanges => _controller.stream;
+
+  @override
+  Future<IdentityUser> register({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    _user = IdentityUser(
+      uid: 'uid-${email.hashCode}',
+      email: email,
+      displayName: displayName,
+    );
+    _controller.add(_user);
+    return _user!;
+  }
+
+  @override
+  Future<IdentityUser> signIn({
+    required String email,
+    required String password,
+  }) async {
+    _user = IdentityUser(uid: 'uid-${email.hashCode}', email: email);
+    _controller.add(_user);
+    return _user!;
+  }
+
+  @override
+  Future<IdentityUser> signInWithGoogle() async {
+    _user = const IdentityUser(
+      uid: 'uid-google',
+      email: 'google@example.com',
+      displayName: 'Google User',
+    );
+    _controller.add(_user);
+    return _user!;
+  }
+
+  @override
+  Future<void> signOut() async {
+    _user = null;
+    _controller.add(null);
+  }
+
+  @override
+  Future<void> dispose() async {
+    await _controller.close();
+  }
+}
+
+class FakeLicenseRepository implements LicenseRepository {
+  FakeLicenseRepository({required SecureStore store}) : _store = store;
+
+  final SecureStore _store;
+
+  @override
+  Future<LicenseSnapshot?> readCache() => _store.readLicenseCache();
+
+  @override
+  Future<void> clearCache() => _store.clearLicenseCache();
+
+  @override
+  Future<LicenseSnapshot> ensureLicense({
+    required IdentityUser user,
+    String? appVersion,
+  }) async {
+    final existing = await readCache();
+    if (existing != null && existing.uid == user.uid) return existing;
+    final now = DateTime.now().toUtc();
+    final trialEndsAt = now.add(EntitlementEvaluator.trialDuration);
+    final snapshot = LicenseSnapshot(
+      uid: user.uid,
+      status: 'approved',
+      trialEndsAt: trialEndsAt,
+      subscriptionActive: false,
+      graceEndsAt: EntitlementEvaluator.computeGraceEndsAt(
+        trialEndsAt: trialEndsAt,
+        subscriptionActive: false,
+      ),
+      checkedAt: now,
+      email: user.email,
+      displayName: user.displayName,
+    );
+    await _store.writeLicenseCache(snapshot);
+    return snapshot;
+  }
+
+  @override
+  Future<LicenseSnapshot?> refreshIfOnline({IdentityUser? user}) async {
+    if (user == null) return readCache();
+    return ensureLicense(user: user);
   }
 }

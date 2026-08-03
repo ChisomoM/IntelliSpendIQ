@@ -53,7 +53,7 @@ void main() {
     );
 
     blocTest<ReviewInboxCubit, ReviewInboxState>(
-      'stays empty when everything parsed cleanly',
+      'does not flag needs-review when a message parses cleanly',
       setUp: () async {
         await services.captureService.ingest(
           Corpus.capture(Corpus.paymentTillNamed),
@@ -62,7 +62,13 @@ void main() {
       build: buildCubit,
       act: (cubit) => cubit.subscribe(),
       wait: const Duration(milliseconds: 100),
-      verify: (cubit) => expect(cubit.state.isEmpty, isTrue),
+      verify: (cubit) {
+        expect(cubit.state.needsReview, isEmpty);
+        expect(cubit.state.duplicates, isEmpty);
+        expect(cubit.state.failedCaptures, isEmpty);
+        // Unrecognized merchants still land in Needs a category.
+        expect(cubit.state.uncategorized, hasLength(1));
+      },
     );
 
     blocTest<ReviewInboxCubit, ReviewInboxState>(
@@ -113,7 +119,7 @@ void main() {
       },
       wait: const Duration(milliseconds: 100),
       verify: (cubit) async {
-        expect(cubit.state.isEmpty, isTrue);
+        expect(cubit.state.duplicates, isEmpty);
         expect(
           await services.transactions.watchRecent().first,
           hasLength(2),
@@ -144,7 +150,7 @@ void main() {
       },
       wait: const Duration(milliseconds: 100),
       verify: (cubit) async {
-        expect(cubit.state.isEmpty, isTrue);
+        expect(cubit.state.duplicates, isEmpty);
         expect(
           await services.transactions.watchRecent().first,
           hasLength(1),
@@ -179,6 +185,66 @@ void main() {
     );
 
     blocTest<ReviewInboxCubit, ReviewInboxState>(
+      'surfaces a confirmed entry that still lacks a category',
+      setUp: () async {
+        await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 5000,
+            direction: TxDirection.debit,
+            source: TxSource.sms,
+            transactedAt: DateTime(2026, 7, 28, 10),
+            merchant: 'Unknown Shop',
+          ),
+          accountId: (await services.accounts.getDefault()).id,
+          idempotencyKey: 'test:uncategorized',
+          status: TxStatus.confirmed,
+        );
+      },
+      build: buildCubit,
+      act: (cubit) => cubit.subscribe(),
+      wait: const Duration(milliseconds: 100),
+      verify: (cubit) {
+        expect(cubit.state.uncategorized, hasLength(1));
+        expect(cubit.state.uncategorized.single.merchant, 'Unknown Shop');
+        expect(cubit.state.pendingCount, 1);
+      },
+    );
+
+    blocTest<ReviewInboxCubit, ReviewInboxState>(
+      'categorizing clears an uncategorized confirmed entry',
+      setUp: () async {
+        await services.transactions.insertDraft(
+          TransactionDraft(
+            amountMinor: 5000,
+            direction: TxDirection.debit,
+            source: TxSource.sms,
+            transactedAt: DateTime(2026, 7, 28, 10),
+            merchant: 'Unknown Shop',
+          ),
+          accountId: (await services.accounts.getDefault()).id,
+          idempotencyKey: 'test:uncategorized-tag',
+          status: TxStatus.confirmed,
+        );
+      },
+      build: buildCubit,
+      act: (cubit) async {
+        final food = await services.categories.byName('Food');
+        cubit.subscribe();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await cubit.categorize(
+          cubit.state.uncategorized.single.id,
+          food!.id,
+          merchant: 'Unknown Shop',
+        );
+      },
+      wait: const Duration(milliseconds: 100),
+      verify: (cubit) {
+        expect(cubit.state.uncategorized, isEmpty);
+        expect(cubit.state.isEmpty, isTrue);
+      },
+    );
+
+    blocTest<ReviewInboxCubit, ReviewInboxState>(
       'ignoring a capture keeps the text but clears the inbox',
       setUp: () async {
         await services.captureService.ingest(
@@ -208,6 +274,7 @@ void main() {
           type: AccountType.cash,
         );
         final airtel = await services.accounts.getDefault();
+        final food = await services.categories.byName('Food');
         await services.transactions.insertDraft(
           TransactionDraft(
             amountMinor: 30000,
@@ -215,6 +282,7 @@ void main() {
             source: TxSource.manual,
             transactedAt: DateTime(2026, 7, 30, 9),
             merchant: 'Withdrawal',
+            categoryId: food!.id,
           ),
           accountId: airtel.id,
           idempotencyKey: 'test:${Ids.newId()}',
@@ -227,6 +295,7 @@ void main() {
             source: TxSource.manual,
             transactedAt: DateTime(2026, 7, 30, 9, 10),
             merchant: 'Deposit',
+            categoryId: food.id,
           ),
           accountId: cash.id,
           idempotencyKey: 'test:${Ids.newId()}',
@@ -251,6 +320,7 @@ void main() {
           type: AccountType.cash,
         );
         final airtel = await services.accounts.getDefault();
+        final food = await services.categories.byName('Food');
         await services.transactions.insertDraft(
           TransactionDraft(
             amountMinor: 30000,
@@ -258,6 +328,7 @@ void main() {
             source: TxSource.manual,
             transactedAt: DateTime(2026, 7, 30, 9),
             merchant: 'Withdrawal',
+            categoryId: food!.id,
           ),
           accountId: airtel.id,
           idempotencyKey: 'test:${Ids.newId()}',
@@ -270,6 +341,7 @@ void main() {
             source: TxSource.manual,
             transactedAt: DateTime(2026, 7, 30, 9, 10),
             merchant: 'Deposit',
+            categoryId: food.id,
           ),
           accountId: cash.id,
           idempotencyKey: 'test:${Ids.newId()}',
@@ -301,6 +373,7 @@ void main() {
           type: AccountType.cash,
         );
         final airtel = await services.accounts.getDefault();
+        final food = await services.categories.byName('Food');
         await services.transactions.insertDraft(
           TransactionDraft(
             amountMinor: 30000,
@@ -308,6 +381,7 @@ void main() {
             source: TxSource.manual,
             transactedAt: DateTime(2026, 7, 30, 9),
             merchant: 'Withdrawal',
+            categoryId: food!.id,
           ),
           accountId: airtel.id,
           idempotencyKey: 'test:${Ids.newId()}',
@@ -320,6 +394,7 @@ void main() {
             source: TxSource.manual,
             transactedAt: DateTime(2026, 7, 30, 9, 10),
             merchant: 'Deposit',
+            categoryId: food.id,
           ),
           accountId: cash.id,
           idempotencyKey: 'test:${Ids.newId()}',

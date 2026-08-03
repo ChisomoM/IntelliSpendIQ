@@ -83,11 +83,22 @@ class ReviewInboxView extends StatelessWidget {
                 const SectionHeader(
                   title: 'Needs a detail',
                   subtitle:
-                      'Captured, but missing a category or below the '
-                      'confidence bar for auto-saving.',
+                      'Captured, but below the confidence bar for '
+                      'auto-saving — or missing something required.',
                 ),
                 for (final transaction in state.needsReview)
                   NeedsReviewTile(transaction: transaction),
+              ],
+              if (state.uncategorized.isNotEmpty) ...[
+                const SectionHeader(
+                  title: 'Needs a category',
+                  subtitle:
+                      'Saved and counting toward your totals, but the '
+                      'merchant was not recognised. Tag it so budgets '
+                      'and reports stay accurate.',
+                ),
+                for (final transaction in state.uncategorized)
+                  UncategorizedTile(transaction: transaction),
               ],
               if (state.failedCaptures.isNotEmpty) ...[
                 const SectionHeader(

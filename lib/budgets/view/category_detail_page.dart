@@ -72,8 +72,9 @@ class CategoryDetailView extends StatelessWidget {
       builder: (context, state) {
         if (state.status == CategoryDetailStatus.initial ||
             state.status == CategoryDetailStatus.loading) {
-          return const Scaffold(
-            body: Padding(
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Padding(
               padding: EdgeInsets.all(Space.gutter),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,6 +187,14 @@ class CategoryDetailView extends StatelessWidget {
                   SubcategoryRow(
                     category: child,
                     spentMinor: state.spentFor(child.id),
+                    onTap: () => Navigator.of(context).push<void>(
+                      CategoryDetailPage.route(
+                        categoryId: child.id,
+                        periodId: state.periodId,
+                        periodStartAt: state.periodStartAt,
+                        periodEndAt: state.periodEndAt,
+                      ),
+                    ),
                   ),
               const SizedBox(height: Space.sectionGap),
               SectionHeader(

@@ -140,9 +140,14 @@ class TransactionsCubit extends Cubit<TransactionsState> {
         );
   }
 
-  /// Removes a transaction directly from the list — e.g. a transfer
-  /// that landed as both a bank debit and a mobile money credit.
+  /// Soft-deletes a transaction. Pair with [undelete] for the undo snackbar.
   Future<void> delete(String id) => _transactions.softDelete(id);
+
+  Future<void> undelete(String id) => _transactions.undelete(id);
+
+  Future<void> deleteTransfer(String id) => _transfers.softDelete(id);
+
+  Future<void> undeleteTransfer(String id) => _transfers.undelete(id);
 
   @override
   Future<void> close() async {

@@ -123,8 +123,8 @@ class TransactionTile extends StatelessWidget {
 
 /// Renders a confirmed [Transfer] — money moved between two of the
 /// user's own accounts — as a neutral row, distinct from a debit or
-/// credit transaction. Not dismissible: unlinking a transfer back into
-/// two separate transactions isn't supported.
+/// credit transaction. Tap opens the editor; swipe-to-delete lives on
+/// the Activity list (unlink back into two legs is still unsupported).
 class TransferTile extends StatelessWidget {
   const TransferTile({
     required this.transfer,
@@ -165,6 +165,9 @@ class TransferTile extends StatelessWidget {
         '${_timeFormat.format(transfer.transactedAt.toLocal())} · transfer',
       ),
       trailing: MoneyText(transfer.amountMinor, color: colors.onSurfaceVariant),
+      onTap: () => Navigator.of(
+        context,
+      ).push<TransferEntryResult?>(TransferEntryPage.route(transfer)),
     );
   }
 }

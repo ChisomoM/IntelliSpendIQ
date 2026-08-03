@@ -7,6 +7,7 @@ class ReviewInboxState extends Equatable {
   const ReviewInboxState({
     this.status = ReviewInboxStatus.initial,
     this.needsReview = const [],
+    this.uncategorized = const [],
     this.duplicates = const [],
     this.failedCaptures = const [],
     this.transferCandidates = const [],
@@ -14,12 +15,16 @@ class ReviewInboxState extends Equatable {
 
   final ReviewInboxStatus status;
   final List<Transaction> needsReview;
+
+  /// Confirmed entries that still lack a category (auto-saved SMS).
+  final List<Transaction> uncategorized;
   final List<Transaction> duplicates;
   final List<RawCapture> failedCaptures;
   final List<TransferCandidate> transferCandidates;
 
   bool get isEmpty =>
       needsReview.isEmpty &&
+      uncategorized.isEmpty &&
       duplicates.isEmpty &&
       failedCaptures.isEmpty &&
       transferCandidates.isEmpty;
@@ -27,6 +32,7 @@ class ReviewInboxState extends Equatable {
   /// Total items awaiting a human glance.
   int get pendingCount =>
       needsReview.length +
+      uncategorized.length +
       duplicates.length +
       failedCaptures.length +
       transferCandidates.length;
@@ -34,6 +40,7 @@ class ReviewInboxState extends Equatable {
   ReviewInboxState copyWith({
     ReviewInboxStatus? status,
     List<Transaction>? needsReview,
+    List<Transaction>? uncategorized,
     List<Transaction>? duplicates,
     List<RawCapture>? failedCaptures,
     List<TransferCandidate>? transferCandidates,
@@ -41,6 +48,7 @@ class ReviewInboxState extends Equatable {
     return ReviewInboxState(
       status: status ?? this.status,
       needsReview: needsReview ?? this.needsReview,
+      uncategorized: uncategorized ?? this.uncategorized,
       duplicates: duplicates ?? this.duplicates,
       failedCaptures: failedCaptures ?? this.failedCaptures,
       transferCandidates: transferCandidates ?? this.transferCandidates,
@@ -51,6 +59,7 @@ class ReviewInboxState extends Equatable {
   List<Object?> get props => [
     status,
     needsReview,
+    uncategorized,
     duplicates,
     failedCaptures,
     transferCandidates,

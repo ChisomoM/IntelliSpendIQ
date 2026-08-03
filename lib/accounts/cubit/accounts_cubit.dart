@@ -106,6 +106,7 @@ class AccountsCubit extends Cubit<AccountsState> {
     required String toAccountId,
     required String amount,
     required DateTime transactedAt,
+    String fee = '',
   }) async {
     if (fromAccountId == toAccountId) {
       emit(
@@ -126,12 +127,28 @@ class AccountsCubit extends Cubit<AccountsState> {
       );
       return;
     }
+    final trimmedFee = fee.trim();
+    int? feeMinor;
+    if (trimmedFee.isNotEmpty) {
+      feeMinor = Money.tryParseToMinor(trimmedFee);
+      if (feeMinor == null || feeMinor < 0) {
+        emit(
+          state.copyWith(
+            status: AccountsStatus.invalid,
+            errorMessage: 'Enter a fee like 2.50, or leave it blank',
+          ),
+        );
+        return;
+      }
+      if (feeMinor == 0) feeMinor = null;
+    }
 
     await _transfers.create(
       fromAccountId: fromAccountId,
       toAccountId: toAccountId,
       amountMinor: amountMinor,
       transactedAt: transactedAt,
+      feeMinor: feeMinor,
     );
     // Recording a transfer only touches the transfers table, which
     // this cubit doesn't otherwise watch — clear a stale invalid

@@ -11,6 +11,7 @@ import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -34,6 +35,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     required PayeeRepository payees,
     required LabelRepository labels,
     required RawCaptureRepository rawCaptures,
+    required TransferRepository transfers,
     MerchantCategorizer? categorizer,
     Transaction? existing,
     String? rawCaptureId,
@@ -44,6 +46,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
        _payees = payees,
        _labels = labels,
        _rawCaptures = rawCaptures,
+       _transfers = transfers,
        _categorizer = categorizer,
        _existing = existing,
        _rawCaptureId = rawCaptureId,
@@ -72,12 +75,33 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   final PayeeRepository _payees;
   final LabelRepository _labels;
   final RawCaptureRepository _rawCaptures;
+  final TransferRepository _transfers;
   final MerchantCategorizer? _categorizer;
   final Transaction? _existing;
   final String? _rawCaptureId;
   final Future<Directory> Function() _documentsDirectory;
 
   bool get isEditing => _existing != null;
+
+  /// True when this edit screen can offer "This was a transfer" — needs
+  /// an existing entry and at least one other account to move money to.
+  bool get canConvertToTransfer =>
+      isEditing && state.accounts.length >= 2;
+
+  /// Account currently selected on the form (for convert-to-transfer).
+  String? get transferSourceAccountId => state.accountId;
+
+  /// Direction currently selected on the form (for convert-to-transfer).
+  TxDirection get transferSourceDirection => state.direction;
+
+  /// Prefill for the convert sheet: merchant first, else the note.
+  String? get prefilledTransferNote {
+    final merchant = state.merchant.trim();
+    if (merchant.isNotEmpty) return merchant;
+    final description = state.description.trim();
+    if (description.isNotEmpty) return description;
+    return null;
+  }
 
   /// Fire-and-forget entry point for widget construction.
   void loadOptionsUnawaited() => unawaited(loadOptions());
@@ -250,6 +274,8 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
           status: status,
           payeeId: state.payeeId,
           clearPayee: state.payeeId == null,
+          accountId: state.accountId ?? existing.accountId,
+          direction: state.direction,
         );
         if (state.receiptPath != existing.receiptPath) {
           await _transactions.setReceiptPath(existing.id, state.receiptPath);
@@ -305,7 +331,88 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     final existing = _existing;
     if (existing == null) return;
     await _transactions.softDelete(existing.id);
-    if (existing.receiptPath != null) await _tryDelete(existing.receiptPath!);
+    // Leave the receipt file in place so undo can restore the entry
+    // fully within the snackbar hold window.
     emit(state.copyWith(status: TransactionEntryStatus.saved));
+  }
+
+  /// Matching opposite leg the Review Inbox would suggest for this
+  /// entry, if any. Callers should offer linking that pair instead of
+  /// a one-sided convert.
+  Future<TransferCandidate?> matchingTransferCandidate() async {
+    final existing = _existing;
+    if (existing == null) return null;
+    return _transactions.findTransferCandidateFor(existing.id);
+  }
+
+  /// Soft-deletes the existing entry and records a transfer to/from
+  /// [otherAccountId]. Uses the persisted account and direction; amount
+  /// and date come from the current form when valid.
+  Future<void> convertToTransfer({
+    required String otherAccountId,
+    String? note,
+    String fee = '',
+  }) async {
+    final existing = _existing;
+    if (existing == null) return;
+
+    final amountMinor = Money.tryParseToMinor(state.amount);
+    if (amountMinor == null || amountMinor <= 0) {
+      emit(
+        state.copyWith(
+          status: TransactionEntryStatus.invalid,
+          errorMessage: 'Enter an amount like 25.50',
+        ),
+      );
+      return;
+    }
+    if (otherAccountId == existing.accountId) {
+      emit(
+        state.copyWith(
+          status: TransactionEntryStatus.invalid,
+          errorMessage: 'Pick a different account',
+        ),
+      );
+      return;
+    }
+    final trimmedFee = fee.trim();
+    int? feeMinor;
+    if (trimmedFee.isNotEmpty) {
+      feeMinor = Money.tryParseToMinor(trimmedFee);
+      if (feeMinor == null || feeMinor < 0) {
+        emit(
+          state.copyWith(
+            status: TransactionEntryStatus.invalid,
+            errorMessage: 'Enter a fee like 2.50, or leave it blank',
+          ),
+        );
+        return;
+      }
+      if (feeMinor == 0) feeMinor = null;
+    }
+
+    emit(state.copyWith(status: TransactionEntryStatus.saving));
+    try {
+      final trimmedNote = note?.trim();
+      await _transfers.convertFromTransaction(
+        source: existing,
+        otherAccountId: otherAccountId,
+        amountMinor: amountMinor,
+        transactedAt: state.transactedAt,
+        note: trimmedNote == null || trimmedNote.isEmpty ? null : trimmedNote,
+        feeMinor: feeMinor,
+      );
+      if (existing.receiptPath != null) {
+        await _tryDelete(existing.receiptPath!);
+      }
+      emit(state.copyWith(status: TransactionEntryStatus.saved));
+    } on Object catch (error) {
+      emit(
+        state.copyWith(
+          status: TransactionEntryStatus.failure,
+          errorMessage: 'Could not convert: $error',
+        ),
+      );
+    }
   }
 }

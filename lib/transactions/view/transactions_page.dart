@@ -8,6 +8,7 @@ import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
+import 'package:intellispendiq/domain/models/transfer.dart';
 import 'package:intellispendiq/transactions/cubit/activity_entry.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
 import 'package:intellispendiq/transactions/view/transaction_entry_page.dart';
@@ -222,50 +223,75 @@ class _TransactionsViewState extends State<TransactionsView> {
             ],
           ),
         ),
-        confirmDismiss: (_) => _confirmDelete(context, transaction),
-        onDismissed: (_) =>
-            context.read<TransactionsCubit>().delete(transaction.id),
+        onDismissed: (_) => _deleteTransaction(context, transaction),
         child: TransactionTile(
           transaction: transaction,
           category: categoriesById[transaction.categoryId],
         ),
       ),
-      TransferEntry(:final transfer) => TransferTile(
+      TransferEntry(:final transfer) => Dismissible(
         key: ValueKey(transfer.id),
-        transfer: transfer,
-        fromAccountName: accountNames[transfer.fromAccountId] ?? 'Unknown',
-        toAccountName: accountNames[transfer.toAccountId] ?? 'Unknown',
+        direction: DismissDirection.endToStart,
+        background: Container(
+          color: Theme.of(context).colorScheme.errorContainer,
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.symmetric(horizontal: Space.x3),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              AppIcon(
+                AppIcons.delete,
+                size: 20,
+                color: Theme.of(context).colorScheme.onErrorContainer,
+              ),
+              const SizedBox(width: Space.x1),
+              Text(
+                'Delete',
+                style: AppTypography.rowTitle(
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+              ),
+            ],
+          ),
+        ),
+        onDismissed: (_) => _deleteTransfer(context, transfer),
+        child: TransferTile(
+          transfer: transfer,
+          fromAccountName: accountNames[transfer.fromAccountId] ?? 'Unknown',
+          toAccountName: accountNames[transfer.toAccountId] ?? 'Unknown',
+        ),
       ),
     };
   }
 
-  Future<bool> _confirmDelete(
+  Future<void> _deleteTransaction(
     BuildContext context,
     Transaction transaction,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete this entry?'),
-        content: Text(
-          transaction.merchant?.isNotEmpty ?? false
-              ? 'This removes the entry for "${transaction.merchant}". '
-                    'This cannot be undone.'
-              : 'This removes the entry. This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final cubit = context.read<TransactionsCubit>();
+    await cubit.delete(transaction.id);
+    if (!context.mounted) return;
+    showUndoSnackBar(
+      context,
+      message: transaction.merchant?.isNotEmpty ?? false
+          ? 'Deleted "${transaction.merchant}"'
+          : 'Entry deleted',
+      onUndo: () => cubit.undelete(transaction.id),
     );
-    return confirmed ?? false;
+  }
+
+  Future<void> _deleteTransfer(
+    BuildContext context,
+    Transfer transfer,
+  ) async {
+    final cubit = context.read<TransactionsCubit>();
+    await cubit.deleteTransfer(transfer.id);
+    if (!context.mounted) return;
+    showUndoSnackBar(
+      context,
+      message: 'Transfer deleted',
+      onUndo: () => cubit.undeleteTransfer(transfer.id),
+    );
   }
 }
 

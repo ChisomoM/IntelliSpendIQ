@@ -86,6 +86,18 @@ class BudgetsState extends Equatable {
       .where((c) => c.isExpense && c.parentId == null && c.hasBudget)
       .toList();
 
+  /// Top-level expense categories worth showing on the budget screen:
+  /// budgeted themselves, with confirmed spend (direct or via a
+  /// subcategory), or with a subcategory that has money assigned.
+  List<Category> get visibleExpenseCategories => categories
+      .where((c) => c.isExpense && c.parentId == null && _isVisibleExpense(c))
+      .toList();
+
+  bool _isVisibleExpense(Category category) {
+    if (category.hasBudget || spentFor(category.id) > 0) return true;
+    return childrenOf(category.id).any((child) => child.hasBudget);
+  }
+
   /// Every top-level income source — with or without a planned amount.
   List<Category> get topLevelIncomeCategories =>
       categories.where((c) => c.isIncome && c.parentId == null).toList();
@@ -97,7 +109,7 @@ class BudgetsState extends Equatable {
       categories.where((c) => c.parentId == parentId).toList();
 
   bool get isEmpty =>
-      status == BudgetsStatus.loaded && budgetedExpenseCategories.isEmpty;
+      status == BudgetsStatus.loaded && visibleExpenseCategories.isEmpty;
 
   bool get hasIncome => budgetedIncomeCategories.isNotEmpty;
 

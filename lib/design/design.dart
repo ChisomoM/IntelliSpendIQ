@@ -21,6 +21,7 @@ export 'components/progress_meter.dart';
 export 'components/section_header.dart';
 export 'components/source_chip.dart';
 export 'components/stat_tile.dart';
+export 'components/undo_snackbar.dart';
 export 'components/wordmark.dart';
 export 'format/money_text.dart';
 export 'theme/app_theme.dart';

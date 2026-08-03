@@ -91,7 +91,7 @@ class BudgetsView extends StatelessWidget {
                         context,
                       ).push<void>(BudgetCyclePage.route()),
                     ),
-                    for (final category in state.budgetedExpenseCategories)
+                    for (final category in state.visibleExpenseCategories)
                       ExpenseCategoryEnvelopeCard(
                         category: category,
                         spentMinor: state.spentFor(category.id),

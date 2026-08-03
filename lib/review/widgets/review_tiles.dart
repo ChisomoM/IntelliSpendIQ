@@ -9,8 +9,8 @@ import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/raw_capture.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
-import 'package:intellispendiq/review/cubit/cubit.dart';
-import 'package:intellispendiq/transactions/transactions.dart';
+import 'package:intellispendiq/review/open_review_details.dart';
+import 'package:intellispendiq/review/review_detail_target.dart';
 import 'package:intl/intl.dart';
 
 /// A round icon chip carrying the review reason — mirrors
@@ -37,22 +37,16 @@ class _ReasonAvatar extends StatelessWidget {
   }
 }
 
-/// One review item's shell: reason avatar + title/subtitle row, an
-/// optional body slot (category picker, raw text), and a bottom-right
-/// action pair. Every tile in this inbox is one of these, so the list
-/// reads as a set rather than four independently-styled cards.
-class _ReviewCard extends StatelessWidget {
-  const _ReviewCard({
+/// Compact list row for the inbox. Tap opens Review details;
+/// decisions live there rather than on the list itself.
+class _ReviewListTile extends StatelessWidget {
+  const _ReviewListTile({
     required this.icon,
     required this.iconColor,
     required this.title,
     required this.subtitle,
-    required this.secondaryLabel,
-    required this.onSecondary,
-    required this.primaryLabel,
-    required this.onPrimary,
+    required this.onTap,
     this.trailing,
-    this.body,
   });
 
   final List<List<dynamic>> icon;
@@ -60,11 +54,7 @@ class _ReviewCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget? trailing;
-  final Widget? body;
-  final String secondaryLabel;
-  final VoidCallback onSecondary;
-  final String primaryLabel;
-  final VoidCallback onPrimary;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -73,51 +63,42 @@ class _ReviewCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.cardGap),
       child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        onTap: onTap,
+        child: Row(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _ReasonAvatar(icon: icon, color: iconColor),
-                const SizedBox(width: Space.x2),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.rowTitle(color: colors.onSurface),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.metadata(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+            _ReasonAvatar(icon: icon, color: iconColor),
+            const SizedBox(width: Space.x2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.rowTitle(color: colors.onSurface),
                   ),
-                ),
-                if (trailing != null) ...[
-                  const SizedBox(width: Space.x1),
-                  trailing!,
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.metadata(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
                 ],
-              ],
+              ),
             ),
-            if (body != null) ...[const SizedBox(height: Space.x1), body!],
-            const SizedBox(height: Space.x1),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                AppButton.tertiary(label: secondaryLabel, onPressed: onSecondary),
-                const SizedBox(width: Space.x1),
-                AppButton.primary(label: primaryLabel, onPressed: onPrimary),
-              ],
+            if (trailing != null) ...[
+              const SizedBox(width: Space.x1),
+              trailing!,
+            ],
+            const SizedBox(width: Space.x1),
+            AppIcon(
+              AppIcons.chevronRight,
+              size: 18,
+              color: colors.onSurfaceVariant,
             ),
           ],
         ),
@@ -133,10 +114,9 @@ class NeedsReviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<ReviewInboxCubit>();
     final money = Theme.of(context).extension<MoneyColors>()!;
 
-    return _ReviewCard(
+    return _ReviewListTile(
       icon: AppIcons.review,
       iconColor: money.review,
       title: transaction.merchant ?? 'Unknown merchant',
@@ -144,21 +124,34 @@ class NeedsReviewTile extends StatelessWidget {
       trailing: transaction.confidence == null
           ? null
           : _ConfidenceChip(confidence: transaction.confidence!),
-      body: transaction.categoryId == null
-          ? CategoryPicker(
-              onSelected: (categoryId) => cubit.categorize(
-                transaction.id,
-                categoryId,
-                merchant: transaction.merchant,
-              ),
-            )
-          : null,
-      secondaryLabel: 'Edit',
-      onSecondary: () => Navigator.of(
+      onTap: () => openReviewDetails(
         context,
-      ).push<void>(TransactionEntryPage.route(existing: transaction)),
-      primaryLabel: 'Confirm',
-      onPrimary: () => cubit.confirm(transaction.id),
+        NeedsReviewDetail(transaction),
+      ),
+    );
+  }
+}
+
+class UncategorizedTile extends StatelessWidget {
+  const UncategorizedTile({required this.transaction, super.key});
+
+  final Transaction transaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final money = Theme.of(context).extension<MoneyColors>()!;
+
+    return _ReviewListTile(
+      icon: AppIcons.budgets,
+      iconColor: money.review,
+      title: transaction.merchant ?? 'Unknown merchant',
+      subtitle:
+          '${Money.displayIn(transaction.amountMinor, transaction.currency)} · '
+          'uncategorized',
+      onTap: () => openReviewDetails(
+        context,
+        UncategorizedDetail(transaction),
+      ),
     );
   }
 }
@@ -193,20 +186,19 @@ class DuplicateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<ReviewInboxCubit>();
     final money = Theme.of(context).extension<MoneyColors>()!;
 
-    return _ReviewCard(
+    return _ReviewListTile(
       icon: AppIcons.moneyOut,
       iconColor: money.review,
       title: transaction.merchant ?? 'Unknown merchant',
       subtitle:
           '${Money.displayIn(transaction.amountMinor, transaction.currency)} · '
           '${DateFormat('d MMM, HH:mm').format(transaction.transactedAt.toLocal())}',
-      secondaryLabel: 'Discard duplicate',
-      onSecondary: () => cubit.discardDuplicate(transaction.id),
-      primaryLabel: 'Keep both',
-      onPrimary: () => cubit.confirm(transaction.id),
+      onTap: () => openReviewDetails(
+        context,
+        DuplicateReviewDetail(transaction),
+      ),
     );
   }
 }
@@ -218,79 +210,35 @@ class TransferCandidateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<ReviewInboxCubit>();
     final colors = Theme.of(context).colorScheme;
     final debit = candidate.debit;
     final credit = candidate.credit;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Space.cardGap),
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _ReasonAvatar(icon: AppIcons.transfer, color: colors.primary),
-                const SizedBox(width: Space.x2),
-                Expanded(
-                  child: FutureBuilder<List<Account>>(
-                    future: context.read<AccountRepository>().getAll(),
-                    builder: (context, snapshot) {
-                      final accounts = {
-                        for (final account in snapshot.data ?? const <Account>[])
-                          account.id: account.name,
-                      };
-                      final fromName = accounts[debit.accountId] ?? 'Unknown';
-                      final toName = accounts[credit.accountId] ?? 'Unknown';
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$fromName  →  $toName',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.rowTitle(
-                              color: colors.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${DateFormat('d MMM, HH:mm').format(debit.transactedAt.toLocal())}'
-                            ' & '
-                            '${DateFormat('HH:mm').format(credit.transactedAt.toLocal())}',
-                            style: AppTypography.metadata(
-                              color: colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: Space.x1),
-                MoneyText(debit.amountMinor, size: MoneySize.meta),
-              ],
-            ),
-            const SizedBox(height: Space.x1),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                AppButton.tertiary(
-                  label: 'Not a transfer',
-                  onPressed: () => cubit.dismissTransferCandidate(candidate),
-                ),
-                const SizedBox(width: Space.x1),
-                AppButton.primary(
-                  label: 'Link them',
-                  onPressed: () => cubit.linkTransfer(candidate),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return FutureBuilder<List<Account>>(
+      future: context.read<AccountRepository>().getAll(),
+      builder: (context, snapshot) {
+        final accounts = {
+          for (final account in snapshot.data ?? const <Account>[])
+            account.id: account.name,
+        };
+        final fromName = accounts[debit.accountId] ?? 'Unknown';
+        final toName = accounts[credit.accountId] ?? 'Unknown';
+
+        return _ReviewListTile(
+          icon: AppIcons.transfer,
+          iconColor: colors.primary,
+          title: '$fromName  →  $toName',
+          subtitle:
+              '${DateFormat('d MMM, HH:mm').format(debit.transactedAt.toLocal())}'
+              ' & '
+              '${DateFormat('HH:mm').format(credit.transactedAt.toLocal())}',
+          trailing: MoneyText(debit.amountMinor, size: MoneySize.meta),
+          onTap: () => openReviewDetails(
+            context,
+            TransferCandidateDetail(candidate),
+          ),
+        );
+      },
     );
   }
 }
@@ -302,40 +250,25 @@ class FailedCaptureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<ReviewInboxCubit>();
     final colors = Theme.of(context).colorScheme;
 
-    return _ReviewCard(
+    return _ReviewListTile(
       icon: AppIcons.close,
       iconColor: colors.onSurfaceVariant,
       title: capture.sender ?? 'Unknown sender',
       subtitle: DateFormat(
         'd MMM, HH:mm',
       ).format(capture.receivedAt.toLocal()),
-      body: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(Space.x1),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHigh,
-          borderRadius: Radii.inputRadius,
-        ),
-        child: Text(
-          capture.body,
-          style: AppTypography.metadata(color: colors.onSurfaceVariant),
-        ),
-      ),
-      secondaryLabel: 'Not a transaction',
-      onSecondary: () => cubit.ignoreCapture(capture.id),
-      primaryLabel: 'Enter manually',
-      onPrimary: () => Navigator.of(
+      onTap: () => openReviewDetails(
         context,
-      ).push<void>(TransactionEntryPage.route(rawCaptureId: capture.id)),
+        FailedCaptureDetail(capture),
+      ),
     );
   }
 }
 
-/// Horizontal category chips, for tagging an entry without leaving the
-/// inbox.
+/// Horizontal category chips, for tagging an entry from Review details
+/// without opening the full editor.
 class CategoryPicker extends StatelessWidget {
   const CategoryPicker({required this.onSelected, super.key});
 

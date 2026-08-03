@@ -12,6 +12,9 @@ import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
+import 'package:intellispendiq/licensing/cubit/cubit.dart';
+import 'package:intellispendiq/licensing/entitlement.dart';
+import 'package:intellispendiq/licensing/view/payment_instructions.dart';
 import 'package:intellispendiq/senders/senders.dart';
 import 'package:intellispendiq/settings/budget_cadence_labels.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
@@ -52,6 +55,9 @@ class SettingsView extends StatelessWidget {
           Space.x4,
         ),
         children: const [
+          _SectionLabel('Account'),
+          _AccountSection(),
+          SizedBox(height: Space.sectionGap),
           _SectionLabel('Appearance'),
           _ThemeSelector(),
           SizedBox(height: Space.sectionGap),
@@ -113,6 +119,88 @@ class _SettingsGroup extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _AccountSection extends StatelessWidget {
+  const _AccountSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final email = context.select<IdentityCubit, String>(
+      (c) => c.state.user?.email ?? 'Not signed in',
+    );
+    final status = context.select<EntitlementCubit, EntitlementStatus>(
+      (c) => c.state.status,
+    );
+    final licenseLabel = switch (status) {
+      EntitlementStatus.trial => 'Trial active',
+      EntitlementStatus.grace => 'Grace period',
+      EntitlementStatus.active => 'Subscription active',
+      EntitlementStatus.disabled => 'Disabled',
+      EntitlementStatus.blocked => 'Blocked',
+      EntitlementStatus.unknown => 'Unknown',
+    };
+
+    return _SettingsGroup(
+      rows: [
+        ListTile(
+          title: const Text('Signed in as'),
+          subtitle: Text(email),
+        ),
+        ListTile(
+          title: const Text('License'),
+          subtitle: Text(licenseLabel),
+          trailing: TextButton(
+            onPressed: () => showPaywallModal(
+              context,
+              canDismiss: EntitlementEvaluator.canDismissPaywall(status),
+            ),
+            child: const Text('Pay'),
+          ),
+        ),
+        ListTile(
+          title: const Text('Refresh license'),
+          trailing: const Icon(Icons.refresh),
+          onTap: () => context.read<EntitlementCubit>().refreshUnawaited(),
+        ),
+        ListTile(
+          title: Text(
+            'Sign out',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+          onTap: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Sign out?'),
+                content: const Text(
+                  'You will need to sign in again. Your local data stays on '
+                  'this device.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Sign out'),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed != true || !context.mounted) return;
+            final identity = context.read<IdentityCubit>();
+            final entitlement = context.read<EntitlementCubit>();
+            final navigator = Navigator.of(context);
+            await identity.signOut();
+            await entitlement.signOut();
+            navigator.pop();
+          },
+        ),
+      ],
     );
   }
 }

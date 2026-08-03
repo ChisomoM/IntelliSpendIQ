@@ -135,10 +135,16 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     }
     // A top-level category's progress includes every subcategory's
     // spend — a subcategory budget is carved out of the parent's, so
-    // spending it still counts against the parent envelope.
+    // spending it still counts against the parent envelope. Roll up
+    // for every expense parent (budgeted or not) so unbudgeted
+    // categories with activity still surface on the list.
     final spent = <String, int>{};
     for (final category in effective) {
-      if (!category.isExpense || !category.hasBudget) continue;
+      if (!category.isExpense) continue;
+      if (category.parentId != null) {
+        spent[category.id] = directSpent[category.id] ?? 0;
+        continue;
+      }
       final childrenSpent = effective
           .where((c) => c.parentId == category.id)
           .fold<int>(0, (sum, c) => sum + (directSpent[c.id] ?? 0));

@@ -28,8 +28,9 @@ class CategoryStatTiles extends StatelessWidget {
     final money = Theme.of(context).extension<MoneyColors>()!;
     final isOver = remainingMinor < 0;
 
+    // ListView children have unbounded max height, so stretch would throw.
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: StatTile(
@@ -66,11 +67,13 @@ class SubcategoryRow extends StatelessWidget {
   const SubcategoryRow({
     required this.category,
     required this.spentMinor,
+    this.onTap,
     super.key,
   });
 
   final Category category;
   final int spentMinor;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +95,7 @@ class SubcategoryRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.x1),
       child: AppCard(
+        onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -114,6 +118,14 @@ class SubcategoryRow extends StatelessWidget {
                 ),
                 const SizedBox(width: Space.x1),
                 MoneyText(spentMinor, size: MoneySize.meta),
+                if (onTap != null) ...[
+                  const SizedBox(width: Space.x1),
+                  AppIcon(
+                    AppIcons.chevronRight,
+                    size: 18,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ],
               ],
             ),
             if (budgeted == null) ...[
