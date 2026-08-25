@@ -7,6 +7,7 @@ import 'package:intellispendiq/domain/models/enums.dart';
 abstract final class Corpus {
   static const airtelSender = 'AirtelMoney';
   static const airtelNumericSender = '24783566639';
+  static const mtnSender = '6666';
   static const stanChartSender = 'StanChartZM';
   static const stanChartNumericSender = '78262427896';
 
@@ -44,6 +45,19 @@ abstract final class Corpus {
       'successfully, ref. ZM2607260050941958 For any queries contact us on  '
       '5247';
 
+  static const mtnPaymentNfs =
+      "Y'ello. Payment of ZMW 3035.00 to AIRTEL NFS successful at "
+      '2026-07-13 09:24:45.Message:- Chedvah Lombe,24879. Your new balance: '
+      '300.84 ZMW.Financial Transaction ID: 9963344611. Enjoy quicker & easier '
+      'transactions on the MoMo app. Visit https://linktr.ee/MTNZambia to '
+      'download.';
+
+  static const mtnTransfer =
+      'You have transferred 1.00 ZMW to Brenda Mutalama (260769953282) from '
+      'your mobile money account 64254454 at 2026-08-10 11:25:11. Your new '
+      'balance: 37.25 ZMW. Message from sender: 00. Message to receiver: 00. '
+      'Financial Transaction ID: 10210893931.';
+
   /// Every Airtel sample, for coverage assertions.
   static const List<String> airtelSamples = [
     paymentTillNamed,
@@ -54,6 +68,9 @@ abstract final class Corpus {
     receivedShorthand,
     moneyReceived,
   ];
+
+  /// Every MTN sample, for coverage assertions.
+  static const List<String> mtnSamples = [mtnPaymentNfs, mtnTransfer];
 
   static CaptureInput capture(
     String body, {

@@ -75,4 +75,16 @@ class SmsSyncService {
     await _eventSubscription?.cancel();
     _eventSubscription = null;
   }
+
+  /// Clears the backfill watermark and re-runs [backfill].
+  ///
+  /// The watermark advances past every message scanned, known sender or
+  /// not (see the loop above), so a sender added *after* messages from
+  /// it already arrived is never retroactively picked up by a plain
+  /// [backfill] call. This re-opens the last [backfillWindow] so newly
+  /// recognized senders get a chance to match.
+  Future<int> rescan() async {
+    await _settings.remove(SettingsRepository.smsBackfillWatermarkKey);
+    return backfill();
+  }
 }

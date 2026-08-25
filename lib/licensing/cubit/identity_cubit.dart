@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/data/repositories/identity_repository.dart';
 import 'package:intellispendiq/data/repositories/license_repository.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 
 part 'identity_state.dart';
 
@@ -12,8 +13,10 @@ class IdentityCubit extends Cubit<IdentityState> {
   IdentityCubit({
     required IdentityRepository identity,
     required LicenseRepository license,
+    FeeScheduleRepository? fees,
   }) : _identity = identity,
        _license = license,
+       _fees = fees,
        super(const IdentityState()) {
     _sub = _identity.authStateChanges.listen((user) {
       emit(state.copyWith(user: user, clearUser: user == null));
@@ -22,13 +25,17 @@ class IdentityCubit extends Cubit<IdentityState> {
 
   final IdentityRepository _identity;
   final LicenseRepository _license;
+  final FeeScheduleRepository? _fees;
   StreamSubscription<IdentityUser?>? _sub;
 
   Future<void> load() async {
     emit(state.copyWith(user: _identity.currentUser, clearError: true));
+    if (_identity.currentUser != null) _refreshFees();
   }
 
   void loadUnawaited() => load();
+
+  void _refreshFees() => unawaited(_fees?.refreshIfOnline());
 
   Future<void> register({
     required String email,
@@ -43,6 +50,7 @@ class IdentityCubit extends Cubit<IdentityState> {
         displayName: displayName,
       );
       await _license.ensureLicense(user: user);
+      _refreshFees();
       emit(state.copyWith(busy: false, user: user));
     } on FirebaseAuthException catch (e) {
       emit(state.copyWith(busy: false, errorMessage: _mapAuthError(e)));
@@ -59,6 +67,7 @@ class IdentityCubit extends Cubit<IdentityState> {
     try {
       final user = await _identity.signIn(email: email, password: password);
       await _license.ensureLicense(user: user);
+      _refreshFees();
       emit(state.copyWith(busy: false, user: user));
     } on FirebaseAuthException catch (e) {
       emit(state.copyWith(busy: false, errorMessage: _mapAuthError(e)));
@@ -72,6 +81,7 @@ class IdentityCubit extends Cubit<IdentityState> {
     try {
       final user = await _identity.signInWithGoogle();
       await _license.ensureLicense(user: user);
+      _refreshFees();
       emit(state.copyWith(busy: false, user: user));
     } on FirebaseAuthException catch (e) {
       emit(state.copyWith(busy: false, errorMessage: _mapAuthError(e)));

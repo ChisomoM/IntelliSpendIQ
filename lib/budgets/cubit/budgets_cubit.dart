@@ -165,8 +165,10 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     );
   }
 
+  /// Overlays this period's envelopes only — never the standing
+  /// template on [Category.budgetedAmountMinor], so a previous cycle's
+  /// amounts cannot leak into the view.
   List<Category> _withPeriodBudgets(List<Category> categories) {
-    if (state.categoryBudgets.isEmpty) return categories;
     return [
       for (final category in categories)
         Category(
@@ -178,8 +180,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
           isSystem: category.isSystem,
           sortOrder: category.sortOrder,
           type: category.type,
-          budgetedAmountMinor:
-              state.categoryBudgets[category.id] ?? category.budgetedAmountMinor,
+          budgetedAmountMinor: state.categoryBudgets[category.id],
         ),
     ];
   }

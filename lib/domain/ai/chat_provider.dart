@@ -12,16 +12,21 @@ abstract interface class ChatProvider {
   /// Sends [messages] (Anthropic wire format — each a `{role, content}`
   /// map) with the given [tools], and returns Claude's raw content
   /// blocks and stop reason.
+  ///
+  /// When [onTextDelta] is provided, implementations that support
+  /// streaming should invoke it with each incremental text chunk so the
+  /// UI can render a reply before the full turn finishes.
   Future<ChatCompletion> complete({
     required List<Map<String, dynamic>> messages,
     required List<Map<String, dynamic>> tools,
+    void Function(String delta)? onTextDelta,
   });
 }
 
 class ChatCompletion {
   const ChatCompletion({required this.content, required this.stopReason});
 
-  /// Raw content blocks — `text` and/or a single `tool_use` block.
+  /// Raw content blocks — `text` and/or one or more `tool_use` blocks.
   final List<Map<String, dynamic>> content;
 
   /// `end_turn`, `tool_use`, `max_tokens`, or `refusal`.

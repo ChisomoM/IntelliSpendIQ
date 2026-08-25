@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/services/fee_lookup.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
 
 /// Picks the other account and turns the entry being edited into a
@@ -30,6 +36,7 @@ class _ConvertToTransferSheetState extends State<ConvertToTransferSheet> {
   late final TextEditingController _feeController;
   String? _otherAccountId;
   String? _error;
+  var _feeTouched = false;
 
   @override
   void initState() {
@@ -46,6 +53,38 @@ class _ConvertToTransferSheetState extends State<ConvertToTransferSheet> {
     _noteController.dispose();
     _feeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _maybePrefillFee() async {
+    if (_feeTouched || !mounted) return;
+    final otherId = _otherAccountId;
+    if (otherId == null) return;
+    final cubit = context.read<TransactionEntryCubit>();
+    final amountMinor = Money.tryParseToMinor(cubit.state.amount);
+    if (amountMinor == null || amountMinor <= 0) return;
+    final sourceId = cubit.transferSourceAccountId;
+    if (sourceId == null) return;
+    Account? source;
+    Account? other;
+    for (final account in cubit.state.accounts) {
+      if (account.id == sourceId) source = account;
+      if (account.id == otherId) other = account;
+    }
+    if (source == null || other == null) return;
+    final isDebit = cubit.transferSourceDirection == TxDirection.debit;
+    final from = isDebit ? source : other;
+    final to = isDebit ? other : source;
+    final schedule = await context.read<FeeScheduleRepository>().current();
+    if (!mounted || _feeTouched) return;
+    final text = FeeLookup.fieldText(
+      FeeLookup.forTransfer(
+        schedule: schedule,
+        from: from,
+        to: to,
+        amountMinor: amountMinor,
+      ),
+    );
+    if (_feeController.text != text) _feeController.text = text;
   }
 
   Future<void> _confirm() async {
@@ -140,15 +179,19 @@ class _ConvertToTransferSheetState extends State<ConvertToTransferSheet> {
                 child: Text(account.name),
               ),
           ],
-          onChanged: (value) => setState(() {
-            _otherAccountId = value;
-            _error = null;
-          }),
+          onChanged: (value) {
+            setState(() {
+              _otherAccountId = value;
+              _error = null;
+            });
+            unawaited(_maybePrefillFee());
+          },
         ),
         const SizedBox(height: Space.x2),
         AmountField(
           controller: _feeController,
           label: 'Fee (optional)',
+          onChanged: (_) => _feeTouched = true,
         ),
         const SizedBox(height: Space.x2),
         AppTextField(

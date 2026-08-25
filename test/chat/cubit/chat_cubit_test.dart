@@ -226,8 +226,12 @@ void main() {
             .having((s) => s.status, 'status', ChatTurnStatus.working)
             .having((s) => s.messages, 'messages', hasLength(1)),
         isA<ChatState>()
+            .having((s) => s.status, 'status', ChatTurnStatus.working)
+            .having((s) => s.streamingText, 'streamingText', 'Sure, go ahead.'),
+        isA<ChatState>()
             .having((s) => s.status, 'status', ChatTurnStatus.idle)
-            .having((s) => s.messages, 'messages', hasLength(2)),
+            .having((s) => s.messages, 'messages', hasLength(2))
+            .having((s) => s.streamingText, 'streamingText', isNull),
       ],
     );
   });

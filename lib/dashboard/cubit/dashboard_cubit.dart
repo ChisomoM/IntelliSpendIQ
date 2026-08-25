@@ -181,7 +181,7 @@ class DashboardCubit extends Cubit<DashboardState> {
             isSystem: c.isSystem,
             sortOrder: c.sortOrder,
             type: c.type,
-            budgetedAmountMinor: periodAmounts[c.id] ?? c.budgetedAmountMinor,
+            budgetedAmountMinor: periodAmounts[c.id],
           ),
         )
         .where((c) => c.hasBudget)

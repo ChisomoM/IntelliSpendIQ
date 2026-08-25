@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/accounts/cubit/cubit.dart';
+import 'package:intellispendiq/core/money.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/services/fee_lookup.dart';
 
 String accountTypeLabel(AccountType type) => switch (type) {
   AccountType.cash => 'Cash',
@@ -24,10 +29,11 @@ List<List<dynamic>> accountTypeIcon(AccountType type) => switch (type) {
 /// account's id, same mechanism [CategoryAvatar] uses for categories, so
 /// a column of accounts catches light the same way a column of
 /// categories does instead of every account wearing the same violet.
-class _AccountAvatar extends StatelessWidget {
-  const _AccountAvatar({required this.account});
+class AccountAvatar extends StatelessWidget {
+  const AccountAvatar({required this.account, this.size = 44, super.key});
 
   final Account account;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +43,8 @@ class _AccountAvatar extends StatelessWidget {
     );
 
     return Container(
-      width: 44,
-      height: 44,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -48,10 +54,14 @@ class _AccountAvatar extends StatelessWidget {
             hue.tint,
           ],
         ),
-        borderRadius: BorderRadius.circular(44 * 0.3),
+        borderRadius: BorderRadius.circular(size * 0.3),
       ),
       alignment: Alignment.center,
-      child: AppIcon(accountTypeIcon(account.type), size: 20, color: hue.ink),
+      child: AppIcon(
+        accountTypeIcon(account.type),
+        size: size * 20 / 44,
+        color: hue.ink,
+      ),
     );
   }
 }
@@ -60,6 +70,7 @@ class AccountTile extends StatelessWidget {
   const AccountTile({
     required this.account,
     required this.balanceMinor,
+    this.onTap,
     super.key,
   });
 
@@ -69,6 +80,10 @@ class AccountTile extends StatelessWidget {
   /// `AccountRepository.watchComputedBalances`.
   final int balanceMinor;
 
+  /// Opens this account's ledger. The overflow menu still handles
+  /// set-default / edit-balance / delete without going inside.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -76,9 +91,10 @@ class AccountTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.cardGap),
       child: AppCard(
+        onTap: onTap,
         child: Row(
           children: [
-            _AccountAvatar(account: account),
+            AccountAvatar(account: account),
             const SizedBox(width: Space.x2),
             Expanded(
               child: Column(
@@ -98,7 +114,11 @@ class AccountTile extends StatelessWidget {
                       ),
                       if (account.isDefault) ...[
                         const SizedBox(width: 6),
-                        AppIcon(AppIcons.check, size: 14, color: colors.primary),
+                        AppIcon(
+                          AppIcons.check,
+                          size: 14,
+                          color: colors.primary,
+                        ),
                       ],
                     ],
                   ),
@@ -113,6 +133,14 @@ class AccountTile extends StatelessWidget {
               ),
             ),
             MoneyText(balanceMinor, size: MoneySize.row),
+            if (onTap != null) ...[
+              const SizedBox(width: Space.x1),
+              AppIcon(
+                AppIcons.chevronRight,
+                size: 18,
+                color: colors.onSurfaceVariant,
+              ),
+            ],
             PopupMenuButton<_AccountAction>(
               icon: AppIcon(
                 AppIcons.more,
@@ -185,6 +213,49 @@ class AccountTile extends StatelessWidget {
 
 enum _AccountAction { setDefault, editBalance, delete }
 
+/// Money in / money out on one account, side by side. Transfers are
+/// left out of both figures — they move money the user already had.
+class AccountStatTiles extends StatelessWidget {
+  const AccountStatTiles({
+    required this.moneyInMinor,
+    required this.moneyOutMinor,
+    super.key,
+  });
+
+  final int moneyInMinor;
+  final int moneyOutMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: StatTile(
+            label: 'Money in',
+            value: MoneyText.signed(
+              moneyInMinor,
+              isInflow: true,
+              size: MoneySize.meta,
+            ),
+          ),
+        ),
+        const SizedBox(width: Space.x1),
+        Expanded(
+          child: StatTile(
+            label: 'Money out',
+            value: MoneyText.signed(
+              moneyOutMinor,
+              isInflow: false,
+              size: MoneySize.meta,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Adds a new account. There is deliberately no edit path here — a
 /// mistaken account is deleted and re-added rather than renamed.
 class AccountEditorSheet extends StatefulWidget {
@@ -255,7 +326,10 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
           decoration: const InputDecoration(labelText: 'Type'),
           items: [
             for (final type in AccountType.values)
-              DropdownMenuItem(value: type, child: Text(accountTypeLabel(type))),
+              DropdownMenuItem(
+                value: type,
+                child: Text(accountTypeLabel(type)),
+              ),
           ],
           onChanged: (value) => setState(() => _type = value ?? _type),
         ),
@@ -398,12 +472,47 @@ class _RecordTransferSheetState extends State<RecordTransferSheet> {
   String? _toAccountId;
   DateTime _transactedAt = DateTime.now();
   String? _error;
+  var _feeTouched = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController.addListener(_maybePrefillFee);
+  }
 
   @override
   void dispose() {
     _amountController.dispose();
     _feeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _maybePrefillFee() async {
+    if (_feeTouched || !mounted) return;
+    final fromId = _fromAccountId;
+    final toId = _toAccountId;
+    if (fromId == null || toId == null) return;
+    final amountMinor = Money.tryParseToMinor(_amountController.text);
+    if (amountMinor == null || amountMinor <= 0) return;
+    final accounts = context.read<AccountsCubit>().state.accounts;
+    Account? from;
+    Account? to;
+    for (final account in accounts) {
+      if (account.id == fromId) from = account;
+      if (account.id == toId) to = account;
+    }
+    if (from == null || to == null) return;
+    final schedule = await context.read<FeeScheduleRepository>().current();
+    if (!mounted || _feeTouched) return;
+    final text = FeeLookup.fieldText(
+      FeeLookup.forTransfer(
+        schedule: schedule,
+        from: from,
+        to: to,
+        amountMinor: amountMinor,
+      ),
+    );
+    if (_feeController.text != text) _feeController.text = text;
   }
 
   Future<void> _pickDate() async {
@@ -486,10 +595,13 @@ class _RecordTransferSheetState extends State<RecordTransferSheet> {
             for (final account in accounts)
               DropdownMenuItem(value: account.id, child: Text(account.name)),
           ],
-          onChanged: (value) => setState(() {
-            _fromAccountId = value;
-            if (_toAccountId == value) _toAccountId = null;
-          }),
+          onChanged: (value) {
+            setState(() {
+              _fromAccountId = value;
+              if (_toAccountId == value) _toAccountId = null;
+            });
+            unawaited(_maybePrefillFee());
+          },
         ),
         const SizedBox(height: Space.x2),
         DropdownButtonFormField<String>(
@@ -500,7 +612,10 @@ class _RecordTransferSheetState extends State<RecordTransferSheet> {
               if (account.id != _fromAccountId)
                 DropdownMenuItem(value: account.id, child: Text(account.name)),
           ],
-          onChanged: (value) => setState(() => _toAccountId = value),
+          onChanged: (value) {
+            setState(() => _toAccountId = value);
+            unawaited(_maybePrefillFee());
+          },
         ),
         const SizedBox(height: Space.x2),
         AmountField(controller: _amountController, errorText: _error),
@@ -508,6 +623,7 @@ class _RecordTransferSheetState extends State<RecordTransferSheet> {
         AmountField(
           controller: _feeController,
           label: 'Fee (optional)',
+          onChanged: (_) => _feeTouched = true,
         ),
         const SizedBox(height: Space.x1),
         AppListRow(
@@ -535,7 +651,8 @@ class NoAccountsYet extends StatelessWidget {
     return EmptyState(
       icon: AppIcons.emptyWallet,
       title: 'No accounts yet',
-      message: 'Add a cash wallet, bank account, or mobile money account to '
+      message:
+          'Add a cash wallet, bank account, or mobile money account to '
           'record transactions against.',
       actionLabel: 'Add account',
       onAction: () => AccountEditorSheet.show(context),

@@ -95,6 +95,25 @@ void main() {
       expect(cubit.state.transactions.single.merchant, 'Shoprite Cairo Road');
     });
 
+    test('queryChanged() matches amount', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await addTransaction(merchant: 'Shoprite', amountMinor: 5000);
+      await addTransaction(merchant: 'Taxi', amountMinor: 2500);
+      await cubit.subscribe();
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.transactions, hasLength(2));
+
+      cubit.queryChanged('50.00');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      expect(
+        cubit.state.transactions.map((t) => t.merchant),
+        ['Shoprite'],
+      );
+      expect(cubit.state.transactions.single.amountMinor, 5000);
+    });
+
     test('categoryFilterChanged() narrows to one category', () async {
       final cubit = await cubitWith();
       addTearDown(cubit.close);

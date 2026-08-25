@@ -35,4 +35,8 @@ class SettingsRepository {
     final value = await get(key);
     return value == null ? defaultValue : value == 'true';
   }
+
+  Future<void> remove(String key) async {
+    await (_db.delete(_db.settings)..where((s) => s.key.equals(key))).go();
+  }
 }

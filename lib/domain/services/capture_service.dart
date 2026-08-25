@@ -3,6 +3,7 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/domain/models/capture_input.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/parse_result.dart';
@@ -11,6 +12,7 @@ import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
+import 'package:intellispendiq/domain/services/fee_lookup.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 
 /// What happened to one ingested capture.
@@ -57,13 +59,15 @@ class CaptureService {
     required CategoryRepository categories,
     required DedupeService dedupe,
     required MerchantCategorizer categorizer,
+    FeeScheduleRepository? fees,
   }) : _registry = registry,
        _rawCaptures = rawCaptures,
        _transactions = transactions,
        _accounts = accounts,
        _categories = categories,
        _dedupe = dedupe,
-       _categorizer = categorizer;
+       _categorizer = categorizer,
+       _fees = fees;
 
   final ParserRegistry _registry;
   final RawCaptureRepository _rawCaptures;
@@ -72,6 +76,7 @@ class CaptureService {
   final CategoryRepository _categories;
   final DedupeService _dedupe;
   final MerchantCategorizer _categorizer;
+  final FeeScheduleRepository? _fees;
 
   Future<IngestResult> ingest(CaptureInput input) async {
     // 1. Skip captures we have already stored (re-delivery, re-backfill).
@@ -206,6 +211,8 @@ class CaptureService {
         await _recordFeeIfAny(
           draft,
           accountId: account.id,
+          providerKey: providerKey,
+          parentTransactionId: transaction.id,
           idempotencyKey: idempotencyKey,
           rawCaptureId: raw.id,
         );
@@ -222,16 +229,33 @@ class CaptureService {
     }
   }
 
-  /// Non-zero provider charges become their own fee line (plan §6.3),
-  /// categorized as Fees/Charges.
+  /// Provider charges and tariff-list matches become their own fee
+  /// line, categorized as Fees/Charges.
   Future<void> _recordFeeIfAny(
     TransactionDraft draft, {
     required String accountId,
+    required String providerKey,
+    required String parentTransactionId,
     required String idempotencyKey,
     required String rawCaptureId,
   }) async {
-    final fee = draft.feeMinor;
-    if (fee == null || fee <= 0) return;
+    var fee = draft.feeMinor;
+    var source = 'sms';
+    String? scheduleBandId;
+    if (fee == null || fee <= 0) {
+      final fees = _fees;
+      if (fees == null) return;
+      final schedule = await fees.current();
+      final band = FeeLookup.bandForDraft(
+        schedule: schedule,
+        providerKey: providerKey,
+        draft: draft,
+      );
+      if (band == null || band.feeMinor <= 0) return;
+      fee = band.feeMinor;
+      source = 'schedule';
+      scheduleBandId = band.id;
+    }
     final feeCategory = await _categories.byName('Fees/Charges');
     await _transactions.insertDraft(
       TransactionDraft(
@@ -245,7 +269,12 @@ class CaptureService {
         paymentMethod: draft.paymentMethod,
         confidence: draft.confidence,
         typeHint: 'fee',
-        metadata: const {'family': 'fee'},
+        metadata: {
+          'family': 'fee',
+          'source': source,
+          'parentTransactionId': parentTransactionId,
+          if (scheduleBandId != null) 'scheduleBandId': scheduleBandId,
+        },
       ),
       accountId: accountId,
       idempotencyKey: '$idempotencyKey:fee',

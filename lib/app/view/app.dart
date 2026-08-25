@@ -11,6 +11,7 @@ import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
 import 'package:intellispendiq/data/repositories/identity_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/license_repository.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -22,6 +23,7 @@ import 'package:intellispendiq/design/theme/app_theme.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
+import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
@@ -79,9 +81,13 @@ class App extends StatelessWidget {
           value: services.financeChat,
         ),
         RepositoryProvider<BackupService>.value(value: services.backupService),
+        RepositoryProvider<DataResetService>.value(
+          value: services.dataResetService,
+        ),
         RepositoryProvider<AppLockRepository>.value(value: services.appLock),
         RepositoryProvider<IdentityRepository>.value(value: services.identity),
         RepositoryProvider<LicenseRepository>.value(value: services.license),
+        RepositoryProvider<FeeScheduleRepository>.value(value: services.fees),
         RepositoryProvider<SecureStore>.value(value: services.secureStore),
       ],
       // Theme, auth and deep links are app-wide, so they sit above the
@@ -95,12 +101,14 @@ class App extends StatelessWidget {
             create: (_) => IdentityCubit(
               identity: services.identity,
               license: services.license,
+              fees: services.fees,
             )..loadUnawaited(),
           ),
           BlocProvider(
             create: (_) => EntitlementCubit(
               identity: services.identity,
               license: services.license,
+              fees: services.fees,
             ),
           ),
           BlocProvider(create: (_) => AuthCubit(services.appLock)),

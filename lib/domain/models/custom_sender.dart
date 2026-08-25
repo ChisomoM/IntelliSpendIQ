@@ -12,7 +12,7 @@ class CustomSender extends Equatable {
 
   final String id;
 
-  /// e.g. `airtel_money` | `stan_chart`.
+  /// e.g. `airtel_money` | `mtn_momo` | `stan_chart`.
   final String providerKey;
 
   /// Already normalized via `Ids.normalizeSender`.

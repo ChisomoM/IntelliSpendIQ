@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
@@ -29,6 +30,7 @@ class TransferEntryPage extends StatelessWidget {
           transfers: context.read<TransferRepository>(),
           accounts: context.read<AccountRepository>(),
           transfer: transfer,
+          fees: context.read<FeeScheduleRepository>(),
         );
         unawaited(cubit.loadOptions());
         return cubit;

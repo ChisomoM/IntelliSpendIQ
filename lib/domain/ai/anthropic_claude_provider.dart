@@ -10,14 +10,13 @@ import 'package:intellispendiq/domain/ai/transaction_extraction.dart';
 /// Claude via the Anthropic Messages API (D43).
 ///
 /// Uses a forced strict tool call so the extraction always comes back as
-/// schema-valid JSON. The API key lives in Keystore-backed secure
-/// storage — acceptable for the private sideload phase; move to a thin
-/// backend proxy before wider distribution (D42).
+/// schema-valid JSON. The API key is the compile-time
+/// `ANTHROPIC_API_KEY` from `secrets.json` (D42).
 class AnthropicClaudeProvider implements AiProvider {
   AnthropicClaudeProvider({
     required SecureStore secureStore,
     http.Client? httpClient,
-    this.model = 'claude-sonnet-5',
+    this.model = 'claude-haiku-4-5',
   }) : _secureStore = secureStore,
        _http = httpClient ?? http.Client();
 
@@ -122,7 +121,6 @@ class AnthropicClaudeProvider implements AiProvider {
     final body = jsonEncode({
       'model': model,
       'max_tokens': 1024,
-      'output_config': {'effort': 'low'},
       'system':
           'You extract personal finance transactions from short spoken '
           'expense notes in $locale, recorded in Zambia (currency ZMW, '

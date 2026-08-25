@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/ids.dart';
+import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -291,10 +292,22 @@ class TransactionRepository {
     final trimmedQuery = query?.trim();
     if (trimmedQuery != null && trimmedQuery.isNotEmpty) {
       final pattern = '%${trimmedQuery.toLowerCase()}%';
-      predicate =
-          predicate &
-          (t.merchant.lower().like(pattern) |
-              t.description.lower().like(pattern));
+      final amountMinor = Money.tryParseToMinor(trimmedQuery);
+      // Pure amount queries (e.g. "50", "50.00", "K50") match the
+      // stored minor units exactly. Mixed text still ORs amount in so
+      // "50" also finds a merchant named "50 Cent Cafe".
+      if (amountMinor != null) {
+        predicate =
+            predicate &
+            (t.merchant.lower().like(pattern) |
+                t.description.lower().like(pattern) |
+                t.amountMinor.equals(amountMinor));
+      } else {
+        predicate =
+            predicate &
+            (t.merchant.lower().like(pattern) |
+                t.description.lower().like(pattern));
+      }
     }
     if (categoryId != null) {
       predicate = predicate & t.categoryId.equals(categoryId);

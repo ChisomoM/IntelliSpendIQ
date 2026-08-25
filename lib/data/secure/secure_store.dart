@@ -3,11 +3,13 @@ import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intellispendiq/core/ids.dart';
+import 'package:intellispendiq/domain/models/fee_schedule.dart';
 import 'package:intellispendiq/licensing/entitlement.dart';
 
 /// Keystore-backed storage for secrets and identity (D36, D41):
-/// the DB passphrase, the stable local user id, and the Anthropic API
-/// key. Nothing here ever goes to SharedPreferences or source control.
+/// the DB passphrase, the stable local user id, and the app-lock
+/// credential. Nothing here ever goes to SharedPreferences or source
+/// control.
 class SecureStore {
   SecureStore({FlutterSecureStorage? storage})
     : _storage =
@@ -23,6 +25,7 @@ class SecureStore {
   static const _anthropicApiKeyKey = 'anthropic_api_key';
   static const _appLockKey = 'app_lock_credential';
   static const _licenseCacheKey = 'license_cache_v1';
+  static const _feeScheduleCacheKey = 'fee_schedule_cache_v1';
 
   /// Returns the SQLCipher passphrase, generating a random 256-bit hex
   /// value on first launch.
@@ -48,15 +51,10 @@ class SecureStore {
     return id;
   }
 
+  /// Leftover user-pasted Anthropic key, if one was saved before that
+  /// Settings field was removed. New installs should use the compile-time
+  /// `ANTHROPIC_API_KEY` from `secrets.json`.
   Future<String?> anthropicApiKey() => _storage.read(key: _anthropicApiKeyKey);
-
-  Future<void> setAnthropicApiKey(String? value) async {
-    if (value == null || value.isEmpty) {
-      await _storage.delete(key: _anthropicApiKeyKey);
-    } else {
-      await _storage.write(key: _anthropicApiKeyKey, value: value);
-    }
-  }
 
   /// The serialised app-lock credential, or null when no PIN is set.
   ///
@@ -113,5 +111,23 @@ class SecureStore {
 
   Future<void> clearLicenseCache() async {
     await _storage.delete(key: _licenseCacheKey);
+  }
+
+  /// Cached copy of the shared tariff list (not a secret — stored here
+  /// so it survives process death the same way the license cache does).
+  Future<FeeSchedule?> readFeeScheduleCache() async {
+    final raw = await _storage.read(key: _feeScheduleCacheKey);
+    return FeeScheduleCacheCodec.decode(raw);
+  }
+
+  Future<void> writeFeeScheduleCache(FeeSchedule schedule) async {
+    await _storage.write(
+      key: _feeScheduleCacheKey,
+      value: FeeScheduleCacheCodec.encode(schedule),
+    );
+  }
+
+  Future<void> clearFeeScheduleCache() async {
+    await _storage.delete(key: _feeScheduleCacheKey);
   }
 }

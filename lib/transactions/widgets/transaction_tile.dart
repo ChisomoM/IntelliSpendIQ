@@ -124,12 +124,14 @@ class TransactionTile extends StatelessWidget {
 /// Renders a confirmed [Transfer] — money moved between two of the
 /// user's own accounts — as a neutral row, distinct from a debit or
 /// credit transaction. Tap opens the editor; swipe-to-delete lives on
-/// the Activity list (unlink back into two legs is still unsupported).
+/// the list that owns the row (unlink back into two legs is still
+/// unsupported).
 class TransferTile extends StatelessWidget {
   const TransferTile({
     required this.transfer,
     required this.fromAccountName,
     required this.toAccountName,
+    this.perspectiveAccountId,
     super.key,
   });
 
@@ -137,11 +139,27 @@ class TransferTile extends StatelessWidget {
   final String fromAccountName;
   final String toAccountName;
 
+  /// When set, the row is worded from this account's point of view
+  /// ("To Cash" / "From Bank") and the amount is signed. The global
+  /// Activity feed leaves this null so a transfer stays a neutral move.
+  final String? perspectiveAccountId;
+
   static final _timeFormat = DateFormat('HH:mm');
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final perspective = perspectiveAccountId;
+    final isOutgoing =
+        perspective != null && transfer.fromAccountId == perspective;
+    final isIncoming =
+        perspective != null && transfer.toAccountId == perspective;
+
+    final title = switch ((isOutgoing, isIncoming)) {
+      (true, false) => 'To $toAccountName',
+      (false, true) => 'From $fromAccountName',
+      _ => '$fromAccountName → $toAccountName',
+    };
 
     return AppListRow(
       leading: Container(
@@ -158,13 +176,15 @@ class TransferTile extends StatelessWidget {
           color: colors.onSurfaceVariant,
         ),
       ),
-      title: Text('$fromAccountName → $toAccountName'),
+      title: Text(title),
       // Named in words, not just styled neutrally: a transfer moves
       // money without spending it, and nothing else on the row says so.
       subtitle: Text(
         '${_timeFormat.format(transfer.transactedAt.toLocal())} · transfer',
       ),
-      trailing: MoneyText(transfer.amountMinor, color: colors.onSurfaceVariant),
+      trailing: isOutgoing || isIncoming
+          ? MoneyText.signed(transfer.amountMinor, isInflow: isIncoming)
+          : MoneyText(transfer.amountMinor, color: colors.onSurfaceVariant),
       onTap: () => Navigator.of(
         context,
       ).push<TransferEntryResult?>(TransferEntryPage.route(transfer)),
@@ -182,7 +202,8 @@ class NoTransactionsYet extends StatelessWidget {
     return EmptyState(
       icon: AppIcons.emptyActivity,
       title: 'No entries yet',
-      message: 'Bank and mobile money alerts are captured on their own '
+      message:
+          'Bank and mobile money alerts are captured on their own '
           'once SMS access is granted. You can also add one by hand.',
       actionLabel: onAddTransaction == null ? null : 'Add an entry',
       onAction: onAddTransaction,

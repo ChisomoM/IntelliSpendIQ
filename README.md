@@ -66,7 +66,7 @@ lib/
     db/               Drift schema, SQLCipher connection
     repositories/     accounts, categories, transactions, raw captures,
                       budgets, app lock
-    secure/           Keystore-backed passphrase, user id, API key, PIN verifier
+    secure/           Keystore-backed passphrase, user id, PIN verifier
   domain/
     models/           Transaction, Account, Category, Budget, RawCapture —
                       what repositories return; Drift rows never leave data/
@@ -136,9 +136,9 @@ until then https links open in the browser.
   instead of quietly opening an unencrypted database.
 - Long digit runs are masked out of voice transcripts before they leave the
   device.
-- The Anthropic API key lives in Keystore, never in source or shared
-  preferences. Acceptable for a private sideload; move it behind a thin proxy
-  before sharing the APK more widely.
+- The Anthropic API key is compiled in from `secrets.json` via
+  `--dart-define-from-file` (`ANTHROPIC_API_KEY`). Acceptable for a private
+  sideload; move it behind a thin proxy before sharing the APK more widely.
 
 ## Adding a provider parser
 
@@ -157,8 +157,8 @@ dart run build_runner build --delete-conflicting-outputs   # Drift codegen
 flutter test
 
 # Three flavours, each with its own entrypoint and applicationId suffix
-flutter run --flavor development -t lib/main_development.dart
-flutter build apk --flavor production -t lib/main_production.dart --release
+flutter run --flavor development -t lib/main_development.dart --dart-define-from-file=secrets.json
+flutter build apk --flavor production -t lib/main_production.dart --release --dart-define-from-file=secrets.json
 ```
 
 Release builds fall back to debug signing when no keystore is configured, so a

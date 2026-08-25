@@ -6,6 +6,9 @@ abstract final class ParsingUtils {
   static const String currencyAmount =
       r'(?:ZMW|K)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)';
 
+  /// Amount followed by ZMW: `1.00 ZMW`, `300.84 ZMW`.
+  static const String amountThenZmw = r'([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*ZMW';
+
   /// Airtel transaction reference: `MP260728.0729.D08222` after a
   /// `TID`/`Txn. ID` label, with or without a colon.
   static final RegExp airtelTid = RegExp(
@@ -16,6 +19,12 @@ abstract final class ParsingUtils {
   /// `Your bal is K260.23`.
   static final RegExp balance = RegExp(
     r'[Bb]al(?:ance)?\s+(?:is\s+)?' + currencyAmount,
+  );
+
+  /// MTN-style reported balance: `Your new balance: 300.84 ZMW`.
+  static final RegExp newBalance = RegExp(
+    r'new balance:\s*' + amountThenZmw,
+    caseSensitive: false,
   );
 
   /// `Date: 26-July-2026 15:24` as embedded in some Airtel messages.
@@ -45,7 +54,7 @@ abstract final class ParsingUtils {
   }
 
   static int? balanceMinor(String body) {
-    final match = balance.firstMatch(body);
+    final match = balance.firstMatch(body) ?? newBalance.firstMatch(body);
     if (match == null) return null;
     return amountMinorFrom(match, 1);
   }

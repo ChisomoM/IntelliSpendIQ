@@ -53,7 +53,9 @@ class DashboardHeader extends StatelessWidget {
           icon: Badge(
             // Past 99 the exact number stops mattering and the badge
             // grows wider than the icon under it.
-            label: Text(pendingReviewCount > 99 ? '99+' : '$pendingReviewCount'),
+            label: Text(
+              pendingReviewCount > 99 ? '99+' : '$pendingReviewCount',
+            ),
             isLabelVisible: pendingReviewCount > 0,
             child: AppIcon(AppIcons.bell),
           ),
@@ -259,12 +261,14 @@ class AccountBalanceStrip extends StatelessWidget {
     required this.accounts,
     required this.balances,
     required this.onOpenAccounts,
+    required this.onOpenAccount,
     super.key,
   });
 
   final List<Account> accounts;
   final Map<String, int> balances;
   final VoidCallback onOpenAccounts;
+  final ValueChanged<String> onOpenAccount;
 
   static List<List<dynamic>> _iconFor(AccountType type) => switch (type) {
     AccountType.cash => AppIcons.accountCash,
@@ -282,7 +286,10 @@ class AccountBalanceStrip extends StatelessWidget {
     // than fixed: a hard number clips the balance at large font scales.
     final textScaler = MediaQuery.textScalerOf(context);
     final stripHeight =
-        Space.x2 * 2 + 20 + Space.x1 + 2 +
+        Space.x2 * 2 +
+        20 +
+        Space.x1 +
+        2 +
         textScaler.scale(18) +
         textScaler.scale(22);
 
@@ -307,7 +314,7 @@ class AccountBalanceStrip extends StatelessWidget {
               return SizedBox(
                 width: 168,
                 child: AppCard(
-                  onTap: onOpenAccounts,
+                  onTap: () => onOpenAccount(account.id),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -671,7 +678,8 @@ class DashboardEmptyState extends StatelessWidget {
     return EmptyState(
       icon: AppIcons.emptyActivity,
       title: 'Nothing captured yet',
-      message: 'Messages from your bank and mobile money land here on '
+      message:
+          'Messages from your bank and mobile money land here on '
           'their own. Add one by hand to get started.',
       actionLabel: 'Add a transaction',
       onAction: onAddTransaction,

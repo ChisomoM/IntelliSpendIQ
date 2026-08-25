@@ -78,8 +78,8 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
       isSystem: category.isSystem,
       sortOrder: category.sortOrder,
       type: category.type,
-      budgetedAmountMinor:
-          periodAmounts[category.id] ?? category.budgetedAmountMinor,
+      // Period envelope only — never the standing template.
+      budgetedAmountMinor: periodAmounts[category.id],
     );
 
     final directSpentMinor = await _transactions.spentForCategoryInRange(

@@ -39,6 +39,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     MerchantCategorizer? categorizer,
     Transaction? existing,
     String? rawCaptureId,
+    String? initialAccountId,
     Future<Directory> Function()? documentsDirectory,
   }) : _transactions = transactions,
        _accounts = accounts,
@@ -54,7 +55,10 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
            documentsDirectory ?? getApplicationDocumentsDirectory,
        super(
          existing == null
-             ? TransactionEntryState(transactedAt: DateTime.now())
+             ? TransactionEntryState(
+                 transactedAt: DateTime.now(),
+                 accountId: initialAccountId,
+               )
              : TransactionEntryState(
                  amount: (existing.amountMinor / 100).toStringAsFixed(2),
                  merchant: existing.merchant ?? '',
@@ -85,8 +89,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
 
   /// True when this edit screen can offer "This was a transfer" — needs
   /// an existing entry and at least one other account to move money to.
-  bool get canConvertToTransfer =>
-      isEditing && state.accounts.length >= 2;
+  bool get canConvertToTransfer => isEditing && state.accounts.length >= 2;
 
   /// Account currently selected on the form (for convert-to-transfer).
   String? get transferSourceAccountId => state.accountId;

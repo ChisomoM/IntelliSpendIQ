@@ -19,6 +19,7 @@ class ChatTurnResult {
     required this.assistantText,
     required this.pending,
     required this.wireHistory,
+    this.deferredToolResults = const [],
   });
 
   /// Text to show as the assistant's reply. Can be empty when the turn
@@ -34,6 +35,12 @@ class ChatTurnResult {
   /// caller must hold onto this and pass it back to `confirm` or
   /// `dismiss` — there is nowhere else it is stored.
   final List<Map<String, dynamic>> wireHistory;
+
+  /// Tool-result content blocks for sibling tools already executed in
+  /// the same assistant turn as a paused propose_* call. Must be sent
+  /// together with the propose tool_result when the user confirms or
+  /// dismisses.
+  final List<Map<String, dynamic>> deferredToolResults;
 }
 
 /// Read-only analysis plus propose-and-confirm actions over the user's
@@ -68,6 +75,8 @@ class FinanceChatService {
 
   static const _proposeAddTransaction = 'propose_add_transaction';
   static const _proposeSetBudget = 'propose_set_budget';
+  static const _maxToolRounds = 4;
+  static const _maxWireMessages = 24;
 
   Future<bool> get isConfigured => _provider.isConfigured;
 
@@ -75,11 +84,15 @@ class FinanceChatService {
   Future<ChatTurnResult> send({
     required List<Map<String, dynamic>> history,
     required String userText,
+    void Function(String partialText)? onPartialText,
   }) {
-    return _runLoop([
-      ...history,
-      {'role': 'user', 'content': stripPiiForLlm(userText)},
-    ]);
+    return _runLoop(
+      [
+        ...history,
+        {'role': 'user', 'content': stripPiiForLlm(userText)},
+      ],
+      onPartialText: onPartialText,
+    );
   }
 
   /// Applies a previously proposed action, then resumes the paused
@@ -87,31 +100,74 @@ class FinanceChatService {
   Future<ChatTurnResult> confirm({
     required List<Map<String, dynamic>> history,
     required ProposedAction action,
+    List<Map<String, dynamic>> deferredToolResults = const [],
+    void Function(String partialText)? onPartialText,
   }) async {
     final outcome = await _applyAction(action);
-    return _runLoop([
-      ...history,
-      _toolResult(action.toolUseId, {'confirmed': true, 'result': outcome}),
-    ]);
+    return _runLoop(
+      [
+        ...history,
+        _toolResultsMessage([
+          ...deferredToolResults,
+          _toolResultBlock(action.toolUseId, {
+            'confirmed': true,
+            'result': outcome,
+          }),
+        ]),
+      ],
+      onPartialText: onPartialText,
+    );
   }
 
   /// Declines a previously proposed action without writing anything.
   Future<ChatTurnResult> dismiss({
     required List<Map<String, dynamic>> history,
     required ProposedAction action,
+    List<Map<String, dynamic>> deferredToolResults = const [],
+    void Function(String partialText)? onPartialText,
   }) {
-    return _runLoop([
-      ...history,
-      _toolResult(action.toolUseId, {'confirmed': false}),
-    ]);
+    return _runLoop(
+      [
+        ...history,
+        _toolResultsMessage([
+          ...deferredToolResults,
+          _toolResultBlock(action.toolUseId, {'confirmed': false}),
+        ]),
+      ],
+      onPartialText: onPartialText,
+    );
   }
 
-  Future<ChatTurnResult> _runLoop(List<Map<String, dynamic>> messages) async {
-    var current = messages;
+  Future<ChatTurnResult> _runLoop(
+    List<Map<String, dynamic>> messages, {
+    void Function(String partialText)? onPartialText,
+  }) async {
+    var current = _trimWireHistory(messages);
+    var rounds = 0;
+    final streamed = StringBuffer();
+
     while (true) {
+      rounds++;
+      if (rounds > _maxToolRounds) {
+        return ChatTurnResult(
+          assistantText:
+              'That took too many steps — try asking a simpler question.',
+          pending: const [],
+          wireHistory: current,
+        );
+      }
+
+      streamed.clear();
+      onPartialText?.call('');
       final completion = await _provider.complete(
         messages: current,
         tools: _tools,
+        onTextDelta: onPartialText == null
+            ? null
+            : (delta) {
+                streamed.write(delta);
+                onPartialText(streamed.toString());
+              },
       );
       current = [
         ...current,
@@ -124,15 +180,11 @@ class FinanceChatService {
           .join('\n')
           .trim();
 
-      Map<String, dynamic>? toolUse;
-      for (final block in completion.content) {
-        if (block['type'] == 'tool_use') {
-          toolUse = block;
-          break;
-        }
-      }
+      final toolUses = completion.content
+          .where((block) => block['type'] == 'tool_use')
+          .toList(growable: false);
 
-      if (completion.stopReason != 'tool_use' || toolUse == null) {
+      if (completion.stopReason != 'tool_use' || toolUses.isEmpty) {
         return ChatTurnResult(
           assistantText: text,
           pending: const [],
@@ -140,40 +192,77 @@ class FinanceChatService {
         );
       }
 
-      final name = toolUse['name'] as String;
-      final toolUseId = toolUse['id'] as String;
-      final input = (toolUse['input'] as Map<String, dynamic>?) ?? const {};
+      final readUses = <Map<String, dynamic>>[];
+      final proposeUses = <Map<String, dynamic>>[];
+      for (final toolUse in toolUses) {
+        final name = toolUse['name'] as String;
+        if (name == _proposeAddTransaction || name == _proposeSetBudget) {
+          proposeUses.add(toolUse);
+        } else {
+          readUses.add(toolUse);
+        }
+      }
 
-      if (name == _proposeAddTransaction || name == _proposeSetBudget) {
+      final readBlocks = await Future.wait([
+        for (final toolUse in readUses)
+          _executeReadTool(
+            toolUse['name'] as String,
+            (toolUse['input'] as Map<String, dynamic>?) ?? const {},
+          ).then(
+            (result) => _toolResultBlock(toolUse['id'] as String, result),
+          ),
+      ]);
+
+      final pending = <ProposedAction>[];
+      final proposeBlocks = <Map<String, dynamic>>[];
+      for (final toolUse in proposeUses) {
+        final name = toolUse['name'] as String;
+        final toolUseId = toolUse['id'] as String;
+        final input = (toolUse['input'] as Map<String, dynamic>?) ?? const {};
         final resolved = name == _proposeAddTransaction
             ? await _resolveAddTransaction(toolUseId, input)
             : await _resolveSetBudget(toolUseId, input);
 
         if (resolved == null) {
-          // Couldn't resolve (e.g. an unknown category) — tell Claude
-          // why so it can ask the user or retry, instead of pausing on
-          // a proposal that can never be confirmed correctly.
-          current = [
-            ...current,
-            _toolResult(toolUseId, {
+          proposeBlocks.add(
+            _toolResultBlock(toolUseId, {
               'error':
                   'Could not find a category matching that name. Ask the '
                   'user which category to use, or list categories first.',
             }),
-          ];
-          continue;
+          );
+        } else {
+          pending.add(resolved);
         }
+      }
 
+      if (pending.isNotEmpty) {
+        // Pause for human confirmation. Already-finished sibling tool
+        // results (reads + failed proposes) travel with the later
+        // confirm/dismiss so Anthropic still sees one result per tool_use.
         return ChatTurnResult(
           assistantText: text,
-          pending: [resolved],
+          pending: pending,
           wireHistory: current,
+          deferredToolResults: [...readBlocks, ...proposeBlocks],
         );
       }
 
-      final result = await _executeReadTool(name, input);
-      current = [...current, _toolResult(toolUseId, result)];
+      current = [
+        ...current,
+        _toolResultsMessage([...readBlocks, ...proposeBlocks]),
+      ];
     }
+  }
+
+  /// Keeps recent turns so chat latency does not grow with the session.
+  /// Preserves tool_use / tool_result pairing by dropping from the front
+  /// in whole messages only.
+  List<Map<String, dynamic>> _trimWireHistory(
+    List<Map<String, dynamic>> messages,
+  ) {
+    if (messages.length <= _maxWireMessages) return messages;
+    return messages.sublist(messages.length - _maxWireMessages);
   }
 
   Future<String> _applyAction(ProposedAction action) => switch (action) {
@@ -336,6 +425,17 @@ class FinanceChatService {
           ),
     ].where((row) => row.limit != null).toList();
 
+    final spentByCategory = <String, int>{
+      for (final row
+          in await _transactions
+              .watchSpendByCategoryInRange(
+                from: resolved.from,
+                to: resolved.to,
+              )
+              .first)
+        if (row.categoryId != null) row.categoryId!: row.spentMinor,
+    };
+
     return {
       'period': resolved.label,
       'budgets': [
@@ -343,11 +443,7 @@ class FinanceChatService {
           {
             'category': row.category.displayName,
             'limit_minor': row.limit,
-            'spent_minor': await _transactions.spentForCategoryInRange(
-              row.category.id,
-              from: resolved.from,
-              to: resolved.to,
-            ),
+            'spent_minor': spentByCategory[row.category.id] ?? 0,
           },
       ],
     };
@@ -403,19 +499,23 @@ class FinanceChatService {
     );
   }
 
-  Map<String, dynamic> _toolResult(
+  Map<String, dynamic> _toolResultBlock(
     String toolUseId,
     Map<String, dynamic> content,
   ) {
     return {
+      'type': 'tool_result',
+      'tool_use_id': toolUseId,
+      'content': jsonEncode(content),
+    };
+  }
+
+  Map<String, dynamic> _toolResultsMessage(
+    List<Map<String, dynamic>> blocks,
+  ) {
+    return {
       'role': 'user',
-      'content': [
-        {
-          'type': 'tool_result',
-          'tool_use_id': toolUseId,
-          'content': jsonEncode(content),
-        },
-      ],
+      'content': blocks,
     };
   }
 

@@ -1,7 +1,7 @@
 name: intellispendiq
 description: AI-powered personal finance tracker capturing transactions from
   SMS alerts and voice. Offline-first, encrypted, Android-first.
-version: 0.1.0+1
+version: 0.1.0+5
 publish_to: none
 
 environment:

@@ -163,56 +163,60 @@ class CategoryDetailView extends StatelessWidget {
                 icon: AppIcon(AppIcons.transfer, size: 18),
                 label: 'Move budget to another category',
               ),
-              const SizedBox(height: Space.sectionGap),
-              SectionHeader(
-                title: 'Subcategories',
-                subtitle: state.children.isEmpty
-                    ? null
-                    : '${Money.display(state.totalSubcategoriesBudgetedMinor)}'
-                          ' budgeted across them',
-                action: state.children.isEmpty ? null : 'Add',
-                onActionTap: () => _addSubcategory(context, state),
-              ),
-              if (state.children.isEmpty)
-                EmptyState(
-                  icon: AppIcons.emptyWallet,
-                  title: 'No subcategories yet',
-                  message: 'Break this budget down to see where inside it '
-                      'the money goes.',
-                  actionLabel: 'Add a subcategory',
-                  onAction: () => _addSubcategory(context, state),
-                )
-              else
-                for (final child in state.children)
-                  SubcategoryRow(
-                    category: child,
-                    spentMinor: state.spentFor(child.id),
-                    onTap: () => Navigator.of(context).push<void>(
-                      CategoryDetailPage.route(
-                        categoryId: child.id,
-                        periodId: state.periodId,
-                        periodStartAt: state.periodStartAt,
-                        periodEndAt: state.periodEndAt,
+              // Subcategories are one level deep — never under another
+              // subcategory.
+              if (category.parentId == null) ...[
+                const SizedBox(height: Space.sectionGap),
+                SectionHeader(
+                  title: 'Subcategories',
+                  subtitle: state.children.isEmpty
+                      ? null
+                      : '${Money.display(state.totalSubcategoriesBudgetedMinor)}'
+                            ' budgeted across them',
+                  action: state.children.isEmpty ? null : 'Add',
+                  onActionTap: () => _addSubcategory(context, state),
+                ),
+                if (state.children.isEmpty)
+                  EmptyState(
+                    icon: AppIcons.emptyWallet,
+                    title: 'No subcategories yet',
+                    message: 'Break this budget down to see where inside it '
+                        'the money goes.',
+                    actionLabel: 'Add a subcategory',
+                    onAction: () => _addSubcategory(context, state),
+                  )
+                else
+                  for (final child in state.children)
+                    SubcategoryRow(
+                      category: child,
+                      spentMinor: state.spentFor(child.id),
+                      onTap: () => Navigator.of(context).push<void>(
+                        CategoryDetailPage.route(
+                          categoryId: child.id,
+                          periodId: state.periodId,
+                          periodStartAt: state.periodStartAt,
+                          periodEndAt: state.periodEndAt,
+                        ),
                       ),
                     ),
-                  ),
+              ],
               const SizedBox(height: Space.sectionGap),
               SectionHeader(
                 title: 'Direct transactions',
-                subtitle: state.children.isEmpty
-                    ? null
-                    : 'Not assigned to a subcategory, but still counted in '
-                          'the total above',
+                subtitle: category.parentId == null && state.children.isNotEmpty
+                    ? 'Not assigned to a subcategory, but still counted in '
+                          'the total above'
+                    : null,
               ),
               if (state.directTransactions.isEmpty)
                 EmptyState(
                   icon: AppIcons.emptyActivity,
                   title: 'No direct transactions',
-                  message: state.children.isEmpty
-                      ? 'Entries you tag with this category will show up '
-                            'here.'
-                      : 'Entries tagged with this category itself — rather '
+                  message: category.parentId == null && state.children.isNotEmpty
+                      ? 'Entries tagged with this category itself — rather '
                             'than one of its subcategories — will show up '
+                            'here.'
+                      : 'Entries you tag with this category will show up '
                             'here.',
                 )
               else
@@ -230,6 +234,7 @@ class CategoryDetailView extends StatelessWidget {
 
   void _addSubcategory(BuildContext context, CategoryDetailState state) {
     final category = state.category!;
+    if (category.parentId != null) return;
     Navigator.of(context).push<String?>(
       CategoryEditorPage.route(
         parentId: category.id,

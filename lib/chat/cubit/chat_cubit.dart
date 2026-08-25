@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
@@ -22,6 +23,7 @@ class ChatCubit extends Cubit<ChatState> {
 
   final FinanceChatService _service;
   List<Map<String, dynamic>> _wireHistory = [];
+  List<Map<String, dynamic>> _deferredToolResults = [];
 
   void draftChanged(String value) => emit(state.copyWith(draft: value));
 
@@ -33,6 +35,7 @@ class ChatCubit extends Cubit<ChatState> {
       state.copyWith(
         status: ChatTurnStatus.working,
         draft: '',
+        streamingText: '',
         messages: [
           ...state.messages,
           ChatMessage(role: ChatRole.user, text: text),
@@ -40,32 +43,91 @@ class ChatCubit extends Cubit<ChatState> {
       ),
     );
 
-    await _runTurn(() => _service.send(history: _wireHistory, userText: text));
+    await _runTurn(
+      () => _service.send(
+        history: _wireHistory,
+        userText: text,
+        onPartialText: _onPartialText,
+      ),
+    );
   }
 
   Future<void> confirmAction(ProposedAction action) async {
     if (state.status == ChatTurnStatus.working) return;
-    emit(state.copyWith(status: ChatTurnStatus.working));
+    emit(
+      state.copyWith(
+        status: ChatTurnStatus.working,
+        streamingText: '',
+      ),
+    );
+    final siblings = state.pendingActions
+        .where((item) => item.toolUseId != action.toolUseId)
+        .toList(growable: false);
+    final deferred = [
+      ..._deferredToolResults,
+      for (final sibling in siblings)
+        {
+          'type': 'tool_result',
+          'tool_use_id': sibling.toolUseId,
+          'content': jsonEncode({'confirmed': false}),
+        },
+    ];
+    _deferredToolResults = [];
     await _runTurn(
-      () => _service.confirm(history: _wireHistory, action: action),
+      () => _service.confirm(
+        history: _wireHistory,
+        action: action,
+        deferredToolResults: deferred,
+        onPartialText: _onPartialText,
+      ),
     );
   }
 
   Future<void> dismissAction(ProposedAction action) async {
     if (state.status == ChatTurnStatus.working) return;
-    emit(state.copyWith(status: ChatTurnStatus.working));
-    await _runTurn(
-      () => _service.dismiss(history: _wireHistory, action: action),
+    emit(
+      state.copyWith(
+        status: ChatTurnStatus.working,
+        streamingText: '',
+      ),
     );
+    final siblings = state.pendingActions
+        .where((item) => item.toolUseId != action.toolUseId)
+        .toList(growable: false);
+    final deferred = [
+      ..._deferredToolResults,
+      for (final sibling in siblings)
+        {
+          'type': 'tool_result',
+          'tool_use_id': sibling.toolUseId,
+          'content': jsonEncode({'confirmed': false}),
+        },
+    ];
+    _deferredToolResults = [];
+    await _runTurn(
+      () => _service.dismiss(
+        history: _wireHistory,
+        action: action,
+        deferredToolResults: deferred,
+        onPartialText: _onPartialText,
+      ),
+    );
+  }
+
+  void _onPartialText(String partial) {
+    if (isClosed) return;
+    emit(state.copyWith(streamingText: partial));
   }
 
   Future<void> _runTurn(Future<ChatTurnResult> Function() run) async {
     try {
       final result = await run();
       _wireHistory = result.wireHistory;
+      _deferredToolResults = result.deferredToolResults;
       emit(
         state.copyWith(
           status: ChatTurnStatus.idle,
+          clearStreamingText: true,
           messages: [
             ...state.messages,
             if (result.assistantText.isNotEmpty)
@@ -78,6 +140,7 @@ class ChatCubit extends Cubit<ChatState> {
       emit(
         state.copyWith(
           status: ChatTurnStatus.idle,
+          clearStreamingText: true,
           errorMessage: 'Could not reach the assistant: $error',
         ),
       );

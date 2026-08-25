@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/accounts/cubit/cubit.dart';
+import 'package:intellispendiq/accounts/view/account_detail_page.dart';
 import 'package:intellispendiq/accounts/widgets/widgets.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
@@ -113,6 +114,9 @@ class AccountsView extends StatelessWidget {
                   AccountTile(
                     account: account,
                     balanceMinor: state.balanceFor(account.id),
+                    onTap: () => Navigator.of(context).push<void>(
+                      AccountDetailPage.route(accountId: account.id),
+                    ),
                   ),
                 const SizedBox(height: Space.x1),
               ],

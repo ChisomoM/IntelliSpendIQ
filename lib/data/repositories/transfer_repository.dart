@@ -114,12 +114,15 @@ class TransferRepository {
           TransactionsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
         );
       }
+      await _retireCaptureFees(fromTransaction.rawCaptureId, now);
+      await _retireCaptureFees(toTransaction.rawCaptureId, now);
       await _syncFee(
         transferId: id,
         fromAccountId: fromTransaction.accountId,
         transactedAt: fromTransaction.transactedAt,
         feeMinor: feeMinor,
         now: now,
+        source: feeMinor == null ? 'manual' : 'schedule',
       );
     });
     return Transfer(
@@ -239,6 +242,7 @@ class TransferRepository {
       )..where((t) => t.id.equals(source.id))).write(
         TransactionsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
       );
+      await _retireCaptureFees(source.rawCaptureId, now);
       await _syncFee(
         transferId: id,
         fromAccountId: fromAccountId,
@@ -427,6 +431,7 @@ class TransferRepository {
     required DateTime transactedAt,
     required int? feeMinor,
     required String now,
+    String source = 'manual',
   }) async {
     if (feeMinor == null || feeMinor <= 0) {
       await _softDeleteFeeRow(await _feeRowForTransfer(transferId), now);
@@ -438,6 +443,7 @@ class TransferRepository {
     final metadata = jsonEncode({
       'family': 'fee',
       'transferId': transferId,
+      'source': source,
     });
 
     if (existing != null) {
@@ -491,5 +497,34 @@ class TransferRepository {
     )..where((t) => t.id.equals(fee.id))).write(
       TransactionsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
     );
+  }
+
+  /// Drops SMS-capture fee siblings so converting/linking that capture
+  /// cannot leave two Fees/Charges rows for the same move.
+  Future<void> _retireCaptureFees(String? rawCaptureId, String now) async {
+    if (rawCaptureId == null || rawCaptureId.isEmpty) return;
+    final rows = await (_db.select(_db.transactions)..where(
+          (t) =>
+              t.userId.equals(userId) &
+              t.rawCaptureId.equals(rawCaptureId) &
+              t.deletedAt.isNull(),
+        ))
+        .get();
+    for (final row in rows) {
+      if (!_isCaptureFee(row)) continue;
+      await _softDeleteFeeRow(row, now);
+    }
+  }
+
+  static bool _isCaptureFee(TransactionRow row) {
+    final raw = row.metadataJson;
+    if (raw == null || raw.isEmpty) return false;
+    try {
+      final metadata = jsonDecode(raw);
+      if (metadata is! Map) return false;
+      return metadata['family'] == 'fee' && metadata['transferId'] == null;
+    } on Object {
+      return false;
+    }
   }
 }

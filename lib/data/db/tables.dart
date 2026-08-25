@@ -25,7 +25,7 @@ class Accounts extends SyncedTable {
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
 
   /// Parser provider key this account captures from,
-  /// e.g. `airtel_money` | `stan_chart`.
+  /// e.g. `airtel_money` | `mtn_momo` | `stan_chart`.
   TextColumn get providerKey => text().nullable()();
 
   /// A manually-set balance checkpoint, in ngwee. SMS delivery isn't
@@ -241,7 +241,7 @@ class Transfers extends SyncedTable {
 @DataClassName('CustomSenderRow')
 class CustomSenderIds extends SyncedTable {
   /// Which provider parser this sender's messages should route to,
-  /// e.g. `airtel_money` | `stan_chart`.
+  /// e.g. `airtel_money` | `mtn_momo` | `stan_chart`.
   TextColumn get providerKey => text()();
 
   /// Normalized via `Ids.normalizeSender` before storage.

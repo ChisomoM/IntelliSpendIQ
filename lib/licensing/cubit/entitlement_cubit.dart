@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/identity_repository.dart';
 import 'package:intellispendiq/data/repositories/license_repository.dart';
 import 'package:intellispendiq/licensing/entitlement.dart';
@@ -10,12 +13,15 @@ class EntitlementCubit extends Cubit<EntitlementState> {
   EntitlementCubit({
     required IdentityRepository identity,
     required LicenseRepository license,
+    FeeScheduleRepository? fees,
   }) : _identity = identity,
        _license = license,
+       _fees = fees,
        super(const EntitlementState());
 
   final IdentityRepository _identity;
   final LicenseRepository _license;
+  final FeeScheduleRepository? _fees;
 
   Future<void> load() async {
     emit(state.copyWith(phase: EntitlementPhase.loading, clearError: true));
@@ -35,6 +41,7 @@ class EntitlementCubit extends Cubit<EntitlementState> {
       final cached = await _license.readCache();
       final license = await _license.ensureLicense(user: user);
       _emitFromLicense(license);
+      _refreshFees();
       // Prefer freshly ensured license; cached is fallback already handled.
       if (cached != null && cached.uid != user.uid) {
         await _license.clearCache();
@@ -70,6 +77,8 @@ class EntitlementCubit extends Cubit<EntitlementState> {
 
   void loadUnawaited() => load();
 
+  void _refreshFees() => unawaited(_fees?.refreshIfOnline());
+
   Future<void> refresh() async {
     final user = _identity.currentUser;
     if (user == null) {
@@ -86,6 +95,7 @@ class EntitlementCubit extends Cubit<EntitlementState> {
       final license = await _license.refreshIfOnline(user: user);
       if (license != null) {
         _emitFromLicense(license);
+        _refreshFees();
       } else {
         final cached = await _license.readCache();
         if (cached != null) {

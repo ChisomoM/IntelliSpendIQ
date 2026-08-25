@@ -119,7 +119,12 @@ class TransactionsCubit extends Cubit<TransactionsState> {
   }
 
   void _resubscribe() {
-    unawaited(_subscription?.cancel());
+    unawaited(_resubscribeAsync());
+  }
+
+  Future<void> _resubscribeAsync() async {
+    await _subscription?.cancel();
+    if (isClosed) return;
     _subscription = _transactions
         .watchFiltered(
           query: state.query,
@@ -131,12 +136,15 @@ class TransactionsCubit extends Cubit<TransactionsState> {
           to: state.dateTo?.add(const Duration(days: 1)),
         )
         .listen(
-          (rows) => emit(
-            state.copyWith(
-              status: TransactionsStatus.loaded,
-              transactions: rows,
-            ),
-          ),
+          (rows) {
+            if (isClosed) return;
+            emit(
+              state.copyWith(
+                status: TransactionsStatus.loaded,
+                transactions: rows,
+              ),
+            );
+          },
         );
   }
 

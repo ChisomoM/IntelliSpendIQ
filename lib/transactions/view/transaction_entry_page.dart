@@ -37,7 +37,12 @@ import 'package:intl/intl.dart';
 /// left alone — account, payee, note, labels, receipt — lives behind
 /// "More details" instead of padding the first screen.
 class TransactionEntryPage extends StatelessWidget {
-  const TransactionEntryPage({this.existing, this.rawCaptureId, super.key});
+  const TransactionEntryPage({
+    this.existing,
+    this.rawCaptureId,
+    this.initialAccountId,
+    super.key,
+  });
 
   /// Transaction being edited, or null when adding a new one.
   final Transaction? existing;
@@ -45,11 +50,20 @@ class TransactionEntryPage extends StatelessWidget {
   /// Raw capture this entry resolves, when opened from the inbox.
   final String? rawCaptureId;
 
-  static Route<void> route({Transaction? existing, String? rawCaptureId}) {
+  /// Account to pre-select when adding a new entry, e.g. from an
+  /// account's own ledger. Ignored when [existing] is set.
+  final String? initialAccountId;
+
+  static Route<void> route({
+    Transaction? existing,
+    String? rawCaptureId,
+    String? initialAccountId,
+  }) {
     return MaterialPageRoute<void>(
       builder: (_) => TransactionEntryPage(
         existing: existing,
         rawCaptureId: rawCaptureId,
+        initialAccountId: initialAccountId,
       ),
     );
   }
@@ -68,6 +82,7 @@ class TransactionEntryPage extends StatelessWidget {
         categorizer: context.read<MerchantCategorizer>(),
         existing: existing,
         rawCaptureId: rawCaptureId,
+        initialAccountId: initialAccountId,
       )..loadOptionsUnawaited(),
       child: TransactionEntryView(existing: existing),
     );
@@ -490,9 +505,7 @@ class _CategoryPicker extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final options = ordered(state.categoriesForDirection);
-    final selected = options
-        .where((c) => c.id == state.categoryId)
-        .firstOrNull;
+    final selected = options.where((c) => c.id == state.categoryId).firstOrNull;
     final hue = selected == null
         ? null
         : CategoryPalette.forCategory(

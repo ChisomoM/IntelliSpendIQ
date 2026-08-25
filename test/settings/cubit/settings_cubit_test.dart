@@ -31,7 +31,7 @@ void main() {
     await services.dispose();
   });
 
-  SettingsCubit buildCubit() => SettingsCubit(repository, store);
+  SettingsCubit buildCubit() => SettingsCubit(repository);
 
   group('SettingsCubit', () {
     blocTest<SettingsCubit, SettingsState>(
@@ -118,44 +118,6 @@ void main() {
           isFalse,
           reason: 'A stale opt-in would re-enable itself on the next PIN',
         );
-      },
-    );
-
-    blocTest<SettingsCubit, SettingsState>(
-      'reports the Anthropic key as missing until one is saved',
-      build: buildCubit,
-      act: (cubit) => cubit.load(),
-      verify: (cubit) {
-        expect(cubit.state.anthropicApiKeyConfigured, isFalse);
-      },
-    );
-
-    blocTest<SettingsCubit, SettingsState>(
-      'saves the Anthropic key to the secure store',
-      build: buildCubit,
-      act: (cubit) async {
-        await cubit.load();
-        await cubit.saveAnthropicApiKey('  sk-ant-test  ');
-      },
-      verify: (cubit) {
-        expect(cubit.state.anthropicApiKeyConfigured, isTrue);
-        expect(store.anthropicKey, 'sk-ant-test');
-      },
-    );
-
-    blocTest<SettingsCubit, SettingsState>(
-      'clears the Anthropic key',
-      setUp: () async {
-        await store.setAnthropicApiKey('sk-ant-test');
-      },
-      build: buildCubit,
-      act: (cubit) async {
-        await cubit.load();
-        await cubit.clearAnthropicApiKey();
-      },
-      verify: (cubit) {
-        expect(cubit.state.anthropicApiKeyConfigured, isFalse);
-        expect(store.anthropicKey, isNull);
       },
     );
   });

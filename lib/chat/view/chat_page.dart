@@ -85,7 +85,8 @@ class _ChatViewState extends State<ChatView> {
       body: SafeArea(
         child: BlocConsumer<ChatCubit, ChatState>(
           listenWhen: (previous, current) =>
-              previous.messages.length != current.messages.length,
+              previous.messages.length != current.messages.length ||
+              previous.streamingText != current.streamingText,
           listener: (context, state) => _scrollToBottom(),
           builder: (context, state) {
             return Column(
@@ -99,6 +100,8 @@ class _ChatViewState extends State<ChatView> {
                           children: [
                             for (final message in state.messages)
                               _MessageBubble(message: message),
+                            if (state.streamingText != null)
+                              _StreamingBubble(text: state.streamingText!),
                             for (final action in state.pendingActions)
                               ProposedActionCard(
                                 key: ValueKey(action.toolUseId),
@@ -160,6 +163,57 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == ChatRole.user;
+    return _BubbleShell(
+      isUser: isUser,
+      child: Text(
+        message.text,
+        style: AppTypography.body(
+          color: isUser
+              ? (Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.ink900
+                    : AppColors.paper)
+              : Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
+}
+
+class _StreamingBubble extends StatelessWidget {
+  const _StreamingBubble({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return _BubbleShell(
+      isUser: false,
+      child: text.isEmpty
+          ? SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.onSurfaceVariant,
+              ),
+            )
+          : Text(
+              text,
+              style: AppTypography.body(color: colors.onSurface),
+            ),
+    );
+  }
+}
+
+class _BubbleShell extends StatelessWidget {
+  const _BubbleShell({required this.isUser, required this.child});
+
+  final bool isUser;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -178,7 +232,9 @@ class _MessageBubble extends StatelessWidget {
           vertical: Space.x1,
         ),
         decoration: BoxDecoration(
-          gradient: isUser ? AppGradients.action(Theme.of(context).brightness) : null,
+          gradient: isUser
+              ? AppGradients.action(Theme.of(context).brightness)
+              : null,
           color: isUser
               ? null
               : (isDark ? colors.surfaceContainerLow : colors.surface),
@@ -190,14 +246,7 @@ class _MessageBubble extends StatelessWidget {
               ? null
               : AppShadows.card(Theme.of(context).brightness),
         ),
-        child: Text(
-          message.text,
-          style: AppTypography.body(
-            color: isUser
-                ? (isDark ? AppColors.ink900 : AppColors.paper)
-                : colors.onSurface,
-          ),
-        ),
+        child: child,
       ),
     );
   }

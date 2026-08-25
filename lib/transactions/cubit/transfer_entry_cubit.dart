@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
+import 'package:intellispendiq/domain/services/fee_lookup.dart';
 
 part 'transfer_entry_state.dart';
 
@@ -14,9 +18,11 @@ class TransferEntryCubit extends Cubit<TransferEntryState> {
     required TransferRepository transfers,
     required AccountRepository accounts,
     required Transfer transfer,
+    FeeScheduleRepository? fees,
   }) : _transfers = transfers,
        _accounts = accounts,
        _transfer = transfer,
+       _fees = fees,
        super(
          TransferEntryState(
            fromAccountId: transfer.fromAccountId,
@@ -30,18 +36,23 @@ class TransferEntryCubit extends Cubit<TransferEntryState> {
   final TransferRepository _transfers;
   final AccountRepository _accounts;
   final Transfer _transfer;
+  final FeeScheduleRepository? _fees;
+  var _feeTouched = false;
 
   Transfer get transfer => _transfer;
 
   Future<void> loadOptions() async {
     final accounts = await _accounts.getAll();
     final fee = await _transfers.findFeeForTransfer(_transfer.id);
+    var feeText = fee == null ? '' : (fee.amountMinor / 100).toStringAsFixed(2);
+    if (fee != null) _feeTouched = true;
     emit(
       state.copyWith(
         accounts: accounts,
-        fee: fee == null ? '' : (fee.amountMinor / 100).toStringAsFixed(2),
+        fee: feeText,
       ),
     );
+    if (fee == null) await _prefillFee();
   }
 
   void fromAccountChanged(String? value) {
@@ -52,20 +63,54 @@ class TransferEntryCubit extends Cubit<TransferEntryState> {
         toAccountId: state.toAccountId == value ? null : state.toAccountId,
       ),
     );
+    unawaited(_prefillFee());
   }
 
   void toAccountChanged(String? value) {
     if (value == null) return;
     emit(state.copyWith(toAccountId: value));
+    unawaited(_prefillFee());
   }
 
-  void amountChanged(String value) => emit(state.copyWith(amount: value));
+  void amountChanged(String value) {
+    emit(state.copyWith(amount: value));
+    unawaited(_prefillFee());
+  }
 
-  void feeChanged(String value) => emit(state.copyWith(fee: value));
+  void feeChanged(String value) {
+    _feeTouched = true;
+    emit(state.copyWith(fee: value));
+  }
 
   void noteChanged(String value) => emit(state.copyWith(note: value));
 
   void dateChanged(DateTime value) => emit(state.copyWith(transactedAt: value));
+
+  Future<void> _prefillFee() async {
+    if (_feeTouched) return;
+    final fees = _fees;
+    final fromId = state.fromAccountId;
+    final toId = state.toAccountId;
+    if (fees == null || fromId == null || toId == null) return;
+    final amountMinor = Money.tryParseToMinor(state.amount);
+    if (amountMinor == null || amountMinor <= 0) return;
+    Account? from;
+    Account? to;
+    for (final account in state.accounts) {
+      if (account.id == fromId) from = account;
+      if (account.id == toId) to = account;
+    }
+    if (from == null || to == null) return;
+    final schedule = await fees.current();
+    final feeMinor = FeeLookup.forTransfer(
+      schedule: schedule,
+      from: from,
+      to: to,
+      amountMinor: amountMinor,
+    );
+    final text = FeeLookup.fieldText(feeMinor);
+    if (state.fee != text) emit(state.copyWith(fee: text));
+  }
 
   Future<void> submit() async {
     final amountMinor = Money.tryParseToMinor(state.amount);

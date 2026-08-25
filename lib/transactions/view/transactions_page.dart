@@ -120,7 +120,7 @@ class _TransactionsViewState extends State<TransactionsView> {
                   }
                   return AppTextField(
                     controller: _searchController,
-                    hint: 'Search merchant or note',
+                    hint: 'Search merchant, note, or amount',
                     autofocus: true,
                     prefixIcon: AppIcon(AppIcons.search, size: 20),
                     onChanged: cubit.queryChanged,

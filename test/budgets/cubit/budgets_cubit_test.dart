@@ -427,6 +427,32 @@ void main() {
 
       expect(cubit.state.periodLabel, '01/08/2026 – 31/08/2026');
       expect(cubit.state.totalSpent, 0);
+      expect(cubit.state.hasOverallBudget, isFalse);
+      expect(cubit.state.budgetedExpenseCategories, isEmpty);
+    });
+
+    test('does not carry category envelopes into the next period', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      final transportId =
+          (await services.categories.byName('Transport'))!.id;
+      final period = cubit.state.budgetPeriod!;
+      await services.budgetPeriods.upsertCategoryBudget(
+        periodId: period.id,
+        categoryId: transportId,
+        amountMinor: 50000,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.budgetedExpenseCategories, isNotEmpty);
+
+      cubit.shiftPeriod(1);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(cubit.state.periodLabel, '01/08/2026 – 31/08/2026');
+      expect(cubit.state.categoryBudgets, isEmpty);
+      expect(cubit.state.budgetedExpenseCategories, isEmpty);
     });
 
     test('setOverallBudget writes to the currently selected period', () async {

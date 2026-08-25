@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/raw_capture.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
+import 'package:intellispendiq/domain/services/fee_lookup.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 
 part 'review_inbox_state.dart';
@@ -23,16 +26,22 @@ class ReviewInboxCubit extends Cubit<ReviewInboxState> {
     required RawCaptureRepository rawCaptures,
     required TransferRepository transfers,
     MerchantCategorizer? categorizer,
+    AccountRepository? accounts,
+    FeeScheduleRepository? fees,
   }) : _transactions = transactions,
        _rawCaptures = rawCaptures,
        _transfers = transfers,
        _categorizer = categorizer,
+       _accounts = accounts,
+       _fees = fees,
        super(const ReviewInboxState());
 
   final TransactionRepository _transactions;
   final RawCaptureRepository _rawCaptures;
   final TransferRepository _transfers;
   final MerchantCategorizer? _categorizer;
+  final AccountRepository? _accounts;
+  final FeeScheduleRepository? _fees;
   final _subscriptions = <StreamSubscription<void>>[];
 
   /// Starts watching the review sources.
@@ -122,12 +131,31 @@ class ReviewInboxCubit extends Cubit<ReviewInboxState> {
 
   /// Confirms a suggested transfer pairing: links the two legs into a
   /// [Transfer] and soft-deletes them, which is what removes them from
-  /// spend/income totals.
-  Future<void> linkTransfer(TransferCandidate candidate) =>
-      _transfers.linkTransfer(
-        fromTransaction: candidate.debit,
-        toTransaction: candidate.credit,
-      );
+  /// spend/income totals. Applies the tariff-list fee when one matches.
+  Future<void> linkTransfer(TransferCandidate candidate) async {
+    int? feeMinor;
+    final accounts = _accounts;
+    final fees = _fees;
+    if (accounts != null && fees != null) {
+      final all = await accounts.getAll();
+      final from = all.where((a) => a.id == candidate.debit.accountId).firstOrNull;
+      final to = all.where((a) => a.id == candidate.credit.accountId).firstOrNull;
+      if (from != null && to != null) {
+        final schedule = await fees.current();
+        feeMinor = FeeLookup.forTransfer(
+          schedule: schedule,
+          from: from,
+          to: to,
+          amountMinor: candidate.debit.amountMinor,
+        );
+      }
+    }
+    await _transfers.linkTransfer(
+      fromTransaction: candidate.debit,
+      toTransaction: candidate.credit,
+      feeMinor: feeMinor,
+    );
+  }
 
   /// Declines a suggested transfer pairing — both legs stay as
   /// ordinary transactions and stop being re-suggested.

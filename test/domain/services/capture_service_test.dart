@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intellispendiq/app/app_services.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/fee_schedule.dart';
 import 'package:intellispendiq/domain/parsers/airtel_money_parser.dart';
+import 'package:intellispendiq/domain/parsers/mtn_momo_parser.dart';
 import 'package:intellispendiq/domain/parsers/stanchart_parser.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 
@@ -68,6 +71,24 @@ void main() {
         );
       },
     );
+
+    test('creates the MTN MoMo account on its first parsed message', () async {
+      final before = await services.accounts.getAll();
+      expect(before.map((a) => a.providerKey), isNot(contains('mtn_momo')));
+
+      final result = await services.captureService.ingest(
+        Corpus.capture(Corpus.mtnTransfer, sender: Corpus.mtnSender),
+      );
+
+      expect(result.status, IngestStatus.saved);
+      final after = await services.accounts.getAll();
+      final mtn = after.firstWhere(
+        (a) => a.providerKey == MtnMoMoParser.providerKey,
+      );
+      expect(result.transaction!.accountId, mtn.id);
+      expect(mtn.type, AccountType.mobileMoney);
+      expect(mtn.name, 'MTN MoMo');
+    });
 
     test('creates the StanChart account on its first parsed message', () async {
       final before = await services.accounts.getAll();
@@ -287,11 +308,21 @@ void main() {
         sender: Corpus.stanChartSender,
       ),
     );
+    for (final body in Corpus.mtnSamples) {
+      final result = await services.captureService.ingest(
+        Corpus.capture(body, sender: Corpus.mtnSender),
+      );
+      expect(
+        result.status,
+        IngestStatus.saved,
+        reason: 'Expected a clean capture for: $body',
+      );
+    }
 
     final rows = await services.transactions.watchRecent().first;
-    // Seven Airtel samples plus the StanChart transfer; no fee lines
-    // because every charge in the corpus is zero.
-    expect(rows, hasLength(8));
+    // Seven Airtel samples plus the StanChart transfer plus two MTN
+    // samples; no fee lines because every charge in the corpus is zero.
+    expect(rows, hasLength(10));
     expect(await services.rawCaptures.watchFailed().first, isEmpty);
   });
 
@@ -354,5 +385,39 @@ void main() {
         expect(second.transaction!.categoryId, shopping.id);
       },
     );
+  });
+
+  group('tariff list', () {
+    test('records a cash-out fee from the schedule when SMS has none', () async {
+      await services.dispose();
+      services = await createTestServices(
+        fees: MemoryFeeScheduleRepository(
+          schedule: const FeeSchedule(
+            bands: [
+              FeeBand(
+                id: 'airtel-cash-0-500',
+                providerKey: 'airtel_money',
+                operation: FeeOperation.cashOut,
+                minAmountMinor: 0,
+                maxAmountMinor: 50000,
+                feeMinor: 250,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      final result = await services.captureService.ingest(
+        Corpus.capture(Corpus.withdrawal),
+      );
+      expect(result.status, IngestStatus.saved);
+
+      final rows = await services.transactions.getAllForExport();
+      final fees = rows.where((t) => t.metadata['family'] == 'fee').toList();
+      expect(fees, hasLength(1));
+      expect(fees.single.amountMinor, 250);
+      expect(fees.single.metadata['source'], 'schedule');
+      expect(fees.single.metadata['parentTransactionId'], result.transaction!.id);
+    });
   });
 }

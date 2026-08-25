@@ -156,9 +156,9 @@ class NoCustomSendersYet extends StatelessWidget {
     return EmptyState(
       icon: AppIcons.senders,
       title: 'No extra senders added',
-      message: 'Airtel Money and Standard Chartered are recognized '
-          'automatically. Add a sender ID here if another bank or '
-          "wallet's alerts aren't being captured.",
+      message: 'Airtel Money, MTN MoMo, and Standard Chartered are '
+          'recognized automatically. Add a sender ID here if another bank '
+          "or wallet's alerts aren't being captured.",
       actionLabel: 'Add a sender',
       onAction: () => CustomSenderEditorSheet.show(context),
     );

@@ -6,6 +6,7 @@ import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/custom_sender_repository.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/identity_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/license_repository.dart';
@@ -24,6 +25,7 @@ import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
+import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
@@ -56,6 +58,7 @@ class AppServices {
     required this.appLock,
     required this.identity,
     required this.license,
+    required this.fees,
     required this.registry,
     required this.merchantCategorizer,
     required this.captureService,
@@ -65,6 +68,7 @@ class AppServices {
     required this.chatProvider,
     required this.financeChat,
     required this.backupService,
+    required this.dataResetService,
     required this.captureBridge,
     required this.deepLinkSource,
   });
@@ -88,6 +92,7 @@ class AppServices {
       flavor: flavor,
       identity: FirebaseIdentityRepository(),
       license: FirestoreLicenseRepository(secureStore: store),
+      fees: FirestoreFeeScheduleRepository(secureStore: store),
     );
   }
 
@@ -104,6 +109,7 @@ class AppServices {
     DeepLinkSource? deepLinkSource,
     IdentityRepository? identity,
     LicenseRepository? license,
+    FeeScheduleRepository? fees,
     AppFlavor flavor = AppFlavor.development,
   }) => _wire(
     db: db,
@@ -116,6 +122,7 @@ class AppServices {
     deepLinkSource: deepLinkSource,
     identity: identity,
     license: license,
+    fees: fees,
     flavor: flavor,
   );
 
@@ -131,6 +138,7 @@ class AppServices {
     DeepLinkSource? deepLinkSource,
     IdentityRepository? identity,
     LicenseRepository? license,
+    FeeScheduleRepository? fees,
   }) async {
     final accounts = AccountRepository(db, userId: userId);
     final categories = CategoryRepository(db, userId: userId);
@@ -164,6 +172,11 @@ class AppServices {
       rules: merchantCategoryRules,
       categories: categories,
     );
+    final identityRepo = identity ?? FirebaseIdentityRepository();
+    final licenseRepo =
+        license ?? FirestoreLicenseRepository(secureStore: store);
+    final feeRepo = fees ?? MemoryFeeScheduleRepository();
+
     final captureService = CaptureService(
       registry: registry,
       rawCaptures: rawCaptures,
@@ -172,6 +185,7 @@ class AppServices {
       categories: categories,
       dedupe: DedupeService(transactions),
       categorizer: merchantCategorizer,
+      fees: feeRepo,
     );
     final bridge = captureBridge ?? CaptureBridge();
     final ai = aiProvider ?? AnthropicClaudeProvider(secureStore: store);
@@ -192,10 +206,13 @@ class AppServices {
       labels: labels,
       transfers: transfers,
     );
-
-    final identityRepo = identity ?? FirebaseIdentityRepository();
-    final licenseRepo =
-        license ?? FirestoreLicenseRepository(secureStore: store);
+    final dataResetService = DataResetService(
+      db: db,
+      settings: settings,
+      categories: categories,
+      accounts: accounts,
+      budgetPeriods: budgetPeriods,
+    );
 
     return AppServices._(
       db: db,
@@ -221,6 +238,7 @@ class AppServices {
       ),
       identity: identityRepo,
       license: licenseRepo,
+      fees: feeRepo,
       registry: registry,
       merchantCategorizer: merchantCategorizer,
       captureService: captureService,
@@ -241,6 +259,7 @@ class AppServices {
       chatProvider: chat,
       financeChat: financeChatService,
       backupService: backupService,
+      dataResetService: dataResetService,
       captureBridge: bridge,
       deepLinkSource: deepLinkSource ?? AppLinksSource(),
     );
@@ -265,6 +284,7 @@ class AppServices {
   final AppLockRepository appLock;
   final IdentityRepository identity;
   final LicenseRepository license;
+  final FeeScheduleRepository fees;
   final ParserRegistry registry;
   final MerchantCategorizer merchantCategorizer;
   final CaptureService captureService;
@@ -274,6 +294,7 @@ class AppServices {
   final ChatProvider chatProvider;
   final FinanceChatService financeChat;
   final BackupService backupService;
+  final DataResetService dataResetService;
   final CaptureBridge captureBridge;
   final DeepLinkSource deepLinkSource;
 

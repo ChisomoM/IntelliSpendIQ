@@ -7,7 +7,7 @@ import 'package:intellispendiq/domain/models/parse_result.dart';
 /// registering it — no engine rewrite.
 abstract class ParserProvider {
   /// Stable key stored on accounts and raw captures,
-  /// e.g. `airtel_money`, `stan_chart`.
+  /// e.g. `airtel_money`, `mtn_momo`, `stan_chart`.
   String get key;
 
   /// Human-readable provider name, e.g. "Airtel Money".

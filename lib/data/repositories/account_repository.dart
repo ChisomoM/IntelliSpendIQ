@@ -5,6 +5,7 @@ import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/parsers/airtel_money_parser.dart';
+import 'package:intellispendiq/domain/parsers/mtn_momo_parser.dart';
 import 'package:intellispendiq/domain/parsers/stanchart_parser.dart';
 
 class AccountRepository {
@@ -97,6 +98,7 @@ class AccountRepository {
         'Airtel Money',
         AccountType.mobileMoney,
       ),
+      MtnMoMoParser.providerKey => ('MTN MoMo', AccountType.mobileMoney),
       StanChartParser.providerKey => ('Standard Chartered', AccountType.bank),
       _ => (providerKey, AccountType.bank),
     };

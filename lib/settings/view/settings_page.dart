@@ -9,9 +9,10 @@ import 'package:intellispendiq/auth/auth.dart';
 import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
-import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
+import 'package:intellispendiq/domain/services/data_reset_service.dart';
+import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/licensing/cubit/cubit.dart';
 import 'package:intellispendiq/licensing/entitlement.dart';
 import 'package:intellispendiq/licensing/view/payment_instructions.dart';
@@ -31,10 +32,8 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => SettingsCubit(
-        context.read<AppLockRepository>(),
-        context.read<SecureStore>(),
-      )..loadUnawaited(),
+      create: (context) =>
+          SettingsCubit(context.read<AppLockRepository>())..loadUnawaited(),
       child: const SettingsView(),
     );
   }
@@ -69,9 +68,6 @@ class SettingsView extends StatelessWidget {
           SizedBox(height: Space.sectionGap),
           _SectionLabel('Security'),
           _AppLockSection(),
-          SizedBox(height: Space.sectionGap),
-          _SectionLabel('AI'),
-          _AnthropicApiKeySection(),
         ],
       ),
     );
@@ -536,6 +532,35 @@ class _DataSectionState extends State<_DataSection> {
               ),
               onTap: _busy ? null : () => _restoreBackup(context),
             ),
+            AppListRow(
+              leading: const _RowIcon(icon: AppIcons.senders),
+              title: const Text('Rescan SMS inbox'),
+              subtitle: const Text(
+                'Re-checks the last 30 days for a sender you just added',
+              ),
+              trailing: const Icon(Icons.refresh),
+              onTap: _busy ? null : () => _rescanSms(context),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.x2),
+        _SettingsGroup(
+          rows: [
+            AppListRow(
+              leading: _RowIcon(
+                icon: AppIcons.close,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                'Reset all data',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              subtitle: const Text(
+                'Erases every account, transaction, and budget on this '
+                'device and starts fresh from today',
+              ),
+              onTap: _busy ? null : () => _resetAllData(context),
+            ),
           ],
         ),
         if (_busy)
@@ -639,146 +664,69 @@ class _DataSectionState extends State<_DataSection> {
       if (mounted) setState(() => _busy = false);
     }
   }
-}
 
-class _AnthropicApiKeySection extends StatelessWidget {
-  const _AnthropicApiKeySection();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return BlocBuilder<SettingsCubit, SettingsState>(
-      builder: (context, state) {
-        if (state.status == SettingsStatus.initial) {
-          return const SizedBox.shrink();
-        }
-
-        return _SettingsGroup(
-          rows: [
-            AppListRow(
-              leading: _RowIcon(
-                icon: state.anthropicApiKeyConfigured
-                    ? AppIcons.check
-                    : AppIcons.assistant,
-              ),
-              title: const Text('Anthropic API key'),
-              subtitle: Text(
-                state.anthropicApiKeyConfigured
-                    ? 'Configured — used for voice and assistant'
-                    : 'Paste in secrets.json, or here',
-              ),
-              onTap: () => _editKey(
-                context,
-                configured: state.anthropicApiKeyConfigured,
-              ),
-            ),
-            if (state.anthropicApiKeyConfigured)
-              AppListRow(
-                leading: _RowIcon(icon: AppIcons.delete, color: colors.error),
-                title: Text(
-                  'Remove API key',
-                  style: TextStyle(color: colors.error),
-                ),
-                onTap: () => _confirmClear(context),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _editKey(
-    BuildContext context, {
-    required bool configured,
-  }) async {
-    final settings = context.read<SettingsCubit>();
-    final controller = TextEditingController();
-    var obscure = true;
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(configured ? 'Replace API key' : 'Add API key'),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                obscureText: obscure,
-                autocorrect: false,
-                enableSuggestions: false,
-                keyboardType: TextInputType.visiblePassword,
-                decoration: InputDecoration(
-                  labelText: 'sk-ant-…',
-                  hintText: configured
-                      ? 'Paste a new key to replace the stored one'
-                      : 'Paste your Anthropic API key',
-                  suffixIcon: IconButton(
-                    icon: AppIcon(obscure ? AppIcons.eye : AppIcons.close, size: 20),
-                    onPressed: () => setState(() => obscure = !obscure),
-                  ),
-                ),
-                onSubmitted: (_) => Navigator.of(dialogContext).pop(true),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    final value = controller.text;
-    controller.dispose();
-
-    if (saved ?? false) {
-      await settings.saveAnthropicApiKey(value);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              value.trim().isEmpty ? 'API key removed' : 'API key saved',
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _confirmClear(BuildContext context) async {
-    final settings = context.read<SettingsCubit>();
+  Future<void> _resetAllData(BuildContext context) async {
+    final dataReset = context.read<DataResetService>();
+    final messenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Remove API key?'),
+        title: const Text('Reset all data?'),
         content: const Text(
-          'Voice extraction and the assistant will stop working until '
-          'you add a key again.',
+          'This permanently erases every account, category, budget, and '
+          'transaction on this device. It cannot be undone — back up '
+          'first if you want to keep a copy. From this point on, only '
+          'new SMS and entries you make from now are tracked; nothing '
+          'older is re-imported.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Remove'),
+            child: const Text('Reset everything'),
           ),
         ],
       ),
     );
+    if (confirmed != true || !context.mounted) return;
 
-    if (confirmed ?? false) await settings.clearAnthropicApiKey();
+    setState(() => _busy = true);
+    try {
+      await dataReset.resetAllData();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('All data reset. Starting fresh.')),
+      );
+    } on Exception catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not reset data: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _rescanSms(BuildContext context) async {
+    final smsSync = context.read<SmsSyncService>();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final ingested = await smsSync.rescan();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Rescan found $ingested new message(s).')),
+      );
+    } on Exception catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not rescan: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 }

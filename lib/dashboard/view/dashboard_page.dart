@@ -102,6 +102,10 @@ class DashboardView extends StatelessWidget {
                     balances: state.accountBalances,
                     onOpenAccounts: () =>
                         Navigator.of(context).push<void>(AccountsPage.route()),
+                    onOpenAccount: (accountId) =>
+                        Navigator.of(context).push<void>(
+                          AccountDetailPage.route(accountId: accountId),
+                        ),
                   ),
                   if (state.accounts.isNotEmpty)
                     const SizedBox(height: Space.sectionGap),
@@ -126,11 +130,12 @@ class DashboardView extends StatelessWidget {
                       categoriesById: state.categoriesById,
                       onSeeAll: () =>
                           home.tabSelected(AppSection.activity.tabIndex),
-                      onOpenTransaction: (transaction) => Navigator.of(
-                        context,
-                      ).push<void>(
-                        TransactionEntryPage.route(existing: transaction),
-                      ),
+                      onOpenTransaction: (transaction) =>
+                          Navigator.of(
+                            context,
+                          ).push<void>(
+                            TransactionEntryPage.route(existing: transaction),
+                          ),
                     ),
                   const SizedBox(height: Space.sectionGap),
                   AssistantPromptCard(

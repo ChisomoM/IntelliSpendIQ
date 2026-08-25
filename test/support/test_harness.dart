@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:intellispendiq/app/app_services.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/identity_repository.dart';
 import 'package:intellispendiq/data/repositories/license_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
@@ -8,12 +11,12 @@ import 'package:intellispendiq/domain/ai/ai_provider.dart';
 import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/ai/transaction_extraction.dart';
 import 'package:intellispendiq/domain/models/capture_input.dart';
+import 'package:intellispendiq/domain/models/fee_schedule.dart';
 import 'package:intellispendiq/licensing/entitlement.dart';
 import 'package:intellispendiq/platform/biometric_authenticator.dart';
 import 'package:intellispendiq/platform/capture_bridge.dart';
 import 'package:intellispendiq/platform/deep_link_source.dart';
 import 'package:mocktail/mocktail.dart';
-import 'dart:async';
 
 /// Builds [AppServices] over an in-memory database so pipeline tests run
 /// without a device, a Keystore, or SQLCipher.
@@ -26,6 +29,7 @@ Future<AppServices> createTestServices({
   DeepLinkSource? deepLinkSource,
   IdentityRepository? identity,
   LicenseRepository? license,
+  FeeScheduleRepository? fees,
 }) async {
   final store = secureStore ?? FakeSecureStore();
   final db = AppDatabase(NativeDatabase.memory());
@@ -42,6 +46,7 @@ Future<AppServices> createTestServices({
     deepLinkSource: deepLinkSource ?? FakeDeepLinkSource(),
     identity: identity ?? FakeIdentityRepository(),
     license: license ?? FakeLicenseRepository(store: store),
+    fees: fees,
   );
 }
 
@@ -51,6 +56,7 @@ class FakeSecureStore implements SecureStore {
   String? appLock;
   String? anthropicKey;
   LicenseSnapshot? licenseCache;
+  FeeSchedule? feeScheduleCache;
 
   @override
   Future<String> dbPassphrase() async => 'test-passphrase';
@@ -60,11 +66,6 @@ class FakeSecureStore implements SecureStore {
 
   @override
   Future<String?> anthropicApiKey() async => anthropicKey;
-
-  @override
-  Future<void> setAnthropicApiKey(String? value) async {
-    anthropicKey = (value == null || value.isEmpty) ? null : value;
-  }
 
   @override
   Future<String?> appLockCredential() async => appLock;
@@ -82,6 +83,17 @@ class FakeSecureStore implements SecureStore {
 
   @override
   Future<void> clearLicenseCache() async => licenseCache = null;
+
+  @override
+  Future<FeeSchedule?> readFeeScheduleCache() async => feeScheduleCache;
+
+  @override
+  Future<void> writeFeeScheduleCache(FeeSchedule schedule) async {
+    feeScheduleCache = schedule;
+  }
+
+  @override
+  Future<void> clearFeeScheduleCache() async => feeScheduleCache = null;
 }
 
 /// Biometric sensor stand-in. [available] models a device with
@@ -203,6 +215,7 @@ class FakeChatProvider implements ChatProvider {
   Future<ChatCompletion> complete({
     required List<Map<String, dynamic>> messages,
     required List<Map<String, dynamic>> tools,
+    void Function(String delta)? onTextDelta,
   }) async {
     calls.add(messages);
     if (_next >= responses.length) {
@@ -210,7 +223,16 @@ class FakeChatProvider implements ChatProvider {
         'FakeChatProvider: no scripted response for call #$_next',
       );
     }
-    return responses[_next++];
+    final response = responses[_next++];
+    if (onTextDelta != null) {
+      for (final block in response.content) {
+        if (block['type'] == 'text') {
+          final text = block['text'] as String? ?? '';
+          if (text.isNotEmpty) onTextDelta(text);
+        }
+      }
+    }
+    return response;
   }
 }
 

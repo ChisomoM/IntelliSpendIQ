@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
@@ -35,6 +36,8 @@ class ReviewDetailsPage extends StatelessWidget {
         rawCaptures: context.read<RawCaptureRepository>(),
         transfers: context.read<TransferRepository>(),
         categorizer: context.read<MerchantCategorizer>(),
+        accounts: context.read<AccountRepository>(),
+        fees: context.read<FeeScheduleRepository>(),
       ),
       child: ReviewDetailsView(target: target),
     );
