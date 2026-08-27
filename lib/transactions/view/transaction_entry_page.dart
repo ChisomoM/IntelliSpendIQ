@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
@@ -79,6 +80,7 @@ class TransactionEntryPage extends StatelessWidget {
         labels: context.read<LabelRepository>(),
         rawCaptures: context.read<RawCaptureRepository>(),
         transfers: context.read<TransferRepository>(),
+        budgetPeriods: context.read<BudgetPeriodRepository>(),
         categorizer: context.read<MerchantCategorizer>(),
         existing: existing,
         rawCaptureId: rawCaptureId,

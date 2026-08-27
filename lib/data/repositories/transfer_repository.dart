@@ -4,15 +4,21 @@ import 'package:drift/drift.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
 
 class TransferRepository {
-  TransferRepository(this._db, {required this.userId});
+  TransferRepository(
+    this._db, {
+    required this.userId,
+    required BudgetPeriodRepository budgetPeriods,
+  }) : _budgetPeriods = budgetPeriods;
 
   final AppDatabase _db;
   final String userId;
+  final BudgetPeriodRepository _budgetPeriods;
 
   static const _feesChargesName = 'Fees/Charges';
 
@@ -51,6 +57,7 @@ class TransferRepository {
         : jsonDecode(row.metadataJson!) as Map<String, Object?>,
     receiptPath: row.receiptPath,
     payeeId: row.payeeId,
+    periodId: row.periodId,
   );
 
   Stream<List<Transfer>> watchAll() {
@@ -440,6 +447,9 @@ class TransferRepository {
 
     final existing = await _feeRowForTransfer(transferId);
     final categoryId = await _feesChargesCategoryId();
+    final periodId = (await _budgetPeriods.ensurePeriodContaining(
+      transactedAt,
+    )).id;
     final metadata = jsonEncode({
       'family': 'fee',
       'transferId': transferId,
@@ -486,6 +496,7 @@ class TransferRepository {
             status: TxStatus.confirmed.dbName,
             idempotencyKey: feeIdempotencyKey(transferId),
             metadataJson: Value(metadata),
+            periodId: Value(periodId),
           ),
         );
   }

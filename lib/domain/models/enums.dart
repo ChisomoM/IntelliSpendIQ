@@ -106,6 +106,46 @@ enum CategoryType {
       _names.entries.firstWhere((e) => e.value == name).key;
 }
 
+/// Whether an income category envelope for a period has actually been
+/// received yet.
+enum IncomeStatus {
+  paid,
+  unpaid;
+
+  static const Map<IncomeStatus, String> _names = {
+    paid: 'paid',
+    unpaid: 'unpaid',
+  };
+
+  String get dbName => _names[this]!;
+
+  static IncomeStatus fromDbName(String name) =>
+      _names.entries.firstWhere((e) => e.value == name).key;
+}
+
+/// Where a period's overall spending plan comes from.
+enum BudgetSource {
+  /// Set by hand via [BudgetPeriod.overallAmountMinor].
+  manual,
+
+  /// Sum of this period's paid income envelopes only.
+  incomeActual,
+
+  /// Sum of this period's paid + unpaid income envelopes.
+  incomeProvisional;
+
+  static const Map<BudgetSource, String> _names = {
+    manual: 'manual',
+    incomeActual: 'income_actual',
+    incomeProvisional: 'income_provisional',
+  };
+
+  String get dbName => _names[this]!;
+
+  static BudgetSource fromDbName(String name) =>
+      _names.entries.firstWhere((e) => e.value == name).key;
+}
+
 /// How successive budget periods are generated for a user.
 enum BudgetCadence {
   /// 1st of the month → 1st of next month (default).

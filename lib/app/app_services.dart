@@ -143,10 +143,18 @@ class AppServices {
     final accounts = AccountRepository(db, userId: userId);
     final categories = CategoryRepository(db, userId: userId);
     final transactions = TransactionRepository(db, userId: userId);
-    final transfers = TransferRepository(db, userId: userId);
     final rawCaptures = RawCaptureRepository(db, userId: userId);
     final overallBudgets = OverallBudgetRepository(db, userId: userId);
-    final budgetPeriods = BudgetPeriodRepository(db, userId: userId);
+    final budgetPeriods = BudgetPeriodRepository(
+      db,
+      userId: userId,
+      transactions: transactions,
+    );
+    final transfers = TransferRepository(
+      db,
+      userId: userId,
+      budgetPeriods: budgetPeriods,
+    );
     final payees = PayeeRepository(db, userId: userId);
     final labels = LabelRepository(db, userId: userId);
     final settings = SettingsRepository(db);
@@ -183,6 +191,7 @@ class AppServices {
       transactions: transactions,
       accounts: accounts,
       categories: categories,
+      budgetPeriods: budgetPeriods,
       dedupe: DedupeService(transactions),
       categorizer: merchantCategorizer,
       fees: feeRepo,
@@ -254,6 +263,7 @@ class AppServices {
         transactions: transactions,
         accounts: accounts,
         categories: categories,
+        budgetPeriods: budgetPeriods,
       ),
       aiProvider: ai,
       chatProvider: chat,

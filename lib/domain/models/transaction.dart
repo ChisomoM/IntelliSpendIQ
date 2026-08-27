@@ -30,6 +30,7 @@ class Transaction extends Equatable {
     this.metadata = const {},
     this.receiptPath,
     this.payeeId,
+    this.periodId,
   });
 
   final String id;
@@ -73,6 +74,11 @@ class Transaction extends Equatable {
   /// text in [merchant]/[description].
   final String? payeeId;
 
+  /// The [BudgetPeriods] cycle this transaction belongs to, resolved at
+  /// creation time. Null for rows created before this existed and not
+  /// yet backfilled.
+  final String? periodId;
+
   @override
   List<Object?> get props => [
     id,
@@ -95,5 +101,6 @@ class Transaction extends Equatable {
     metadata,
     receiptPath,
     payeeId,
+    periodId,
   ];
 }

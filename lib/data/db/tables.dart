@@ -110,6 +110,14 @@ class Transactions extends SyncedTable {
   /// pairing, so the same two legs stop being re-suggested. Never
   /// cleared back to null.
   TextColumn get transferDismissedAt => text().nullable()();
+
+  /// The [BudgetPeriods] row this transaction belongs to, resolved once
+  /// at creation time. Explicit rather than inferred from [transactedAt]
+  /// falling inside a period's date range, so editing a transaction's
+  /// date never silently reassigns it to a different cycle. Nullable
+  /// only because rows created before this column existed may not have
+  /// been backfilled yet.
+  TextColumn get periodId => text().nullable()();
 }
 
 /// A structured payee, selectable on the expense form as an
@@ -190,10 +198,18 @@ class BudgetPeriods extends SyncedTable {
   /// Display label `DD/MM/YYYY – DD/MM/YYYY`.
   TextColumn get label => text()();
 
-  /// Overall spending plan for this period, in ngwee.
+  /// Overall spending plan for this period, in ngwee. Manually set unless
+  /// [budgetSource] says otherwise, in which case it holds the last
+  /// computed value for display/export convenience.
   IntColumn get overallAmountMinor => integer().nullable()();
 
   BoolColumn get carryOver => boolean().withDefault(const Constant(true))();
+
+  /// `manual` | `income_actual` | `income_provisional`. When not
+  /// `manual`, [overallAmountMinor] is derived from this period's income
+  /// categories (paid-only, or paid+unpaid) instead of being set by hand.
+  TextColumn get budgetSource =>
+      text().withDefault(const Constant('manual'))();
 
   @override
   List<Set<Column<Object>>> get uniqueKeys => [
@@ -207,6 +223,17 @@ class CategoryBudgets extends SyncedTable {
   TextColumn get periodId => text()();
   TextColumn get categoryId => text()();
   IntColumn get amountMinor => integer()();
+
+  /// `paid` | `unpaid`. Only meaningful for income-type categories — an
+  /// income envelope for this period hasn't (or has) actually been
+  /// received yet. Null for expense envelopes.
+  TextColumn get status => text().nullable()();
+
+  /// The [Transactions] row backing a `paid` income envelope, created
+  /// when the user marks it paid. Cleared (not deleted) when the user
+  /// marks it unpaid again — the transaction stays in the ledger as
+  /// history, just no longer linked to this envelope.
+  TextColumn get transactionId => text().nullable()();
 
   @override
   List<Set<Column<Object>>> get uniqueKeys => [
