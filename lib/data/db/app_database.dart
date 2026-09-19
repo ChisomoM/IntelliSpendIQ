@@ -25,13 +25,15 @@ part 'app_database.g.dart';
     Settings,
     CustomSenderIds,
     MerchantCategoryRules,
+    SavingsGoals,
+    SavingsGoalEntries,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -111,6 +113,10 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
             budgetPeriods.budgetSource,
           );
           await _backfillTransactionPeriods(this);
+        }
+        if (from < 11) {
+          await _createTableIfMissing(m, savingsGoals);
+          await _createTableIfMissing(m, savingsGoalEntries);
         }
       });
     },

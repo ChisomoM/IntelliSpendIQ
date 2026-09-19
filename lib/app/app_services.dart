@@ -14,6 +14,7 @@ import 'package:intellispendiq/data/repositories/merchant_category_rule_reposito
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
+import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
@@ -55,6 +56,7 @@ class AppServices {
     required this.settings,
     required this.customSenders,
     required this.merchantCategoryRules,
+    required this.savingsGoals,
     required this.appLock,
     required this.identity,
     required this.license,
@@ -163,6 +165,12 @@ class AppServices {
       db,
       userId: userId,
     );
+    final savingsGoals = SavingsGoalRepository(
+      db,
+      userId: userId,
+      transactions: transactions,
+      budgetPeriods: budgetPeriods,
+    );
 
     // Day-one seeds (plan §6.2): categories and the default Airtel Money
     // account. Both are no-ops after the first launch.
@@ -240,6 +248,7 @@ class AppServices {
       settings: settings,
       customSenders: customSenders,
       merchantCategoryRules: merchantCategoryRules,
+      savingsGoals: savingsGoals,
       appLock: AppLockRepository(
         secureStore: store,
         settings: settings,
@@ -291,6 +300,7 @@ class AppServices {
   final SettingsRepository settings;
   final CustomSenderRepository customSenders;
   final MerchantCategoryRuleRepository merchantCategoryRules;
+  final SavingsGoalRepository savingsGoals;
   final AppLockRepository appLock;
   final IdentityRepository identity;
   final LicenseRepository license;

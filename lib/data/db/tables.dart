@@ -262,6 +262,48 @@ class Transfers extends SyncedTable {
   TextColumn get toTransactionId => text().nullable()();
 }
 
+/// A named savings target (D-goals). Never holds real money itself —
+/// see [SavingsGoalEntries] — so it needs no `balanceMinor`/`currency`
+/// of its own the way [Accounts] does.
+@DataClassName('SavingsGoalRow')
+class SavingsGoals extends SyncedTable {
+  TextColumn get name => text()();
+
+  /// The amount being saved toward, in ngwee.
+  IntColumn get targetMinor => integer()();
+  TextColumn get targetDate => text().nullable()();
+
+  /// Account a contribution sheet defaults to picking from.
+  TextColumn get defaultAccountId => text().nullable()();
+
+  /// `active` | `completed` | `abandoned`.
+  TextColumn get status => text().withDefault(const Constant('active'))();
+}
+
+/// A contribution into or withdrawal out of a [SavingsGoals] row's
+/// earmark. Kept separate from [Transactions] for the same reason
+/// [Transfers] is: contributing to a goal is not spend, and a plain
+/// withdrawal back out is not income — see [SavingsGoal] doc comment.
+@DataClassName('SavingsGoalEntryRow')
+@TableIndex(name: 'idx_goal_entry_goal', columns: {#goalId})
+class SavingsGoalEntries extends SyncedTable {
+  TextColumn get goalId => text()();
+  TextColumn get accountId => text()();
+
+  /// Absolute amount in ngwee; [kind] carries the direction.
+  IntColumn get amountMinor => integer()();
+
+  /// `contribution` | `withdrawal`.
+  TextColumn get kind => text()();
+  TextColumn get transactedAt => text()();
+  TextColumn get note => text().nullable()();
+
+  /// The [Transactions] row this withdrawal funded, when it's the
+  /// goal-funded portion of a real purchase rather than a plain
+  /// take-back.
+  TextColumn get linkedTransactionId => text().nullable()();
+}
+
 /// A user-added SMS sender ID routed to an existing provider parser —
 /// e.g. a bank that sends alerts from a shortcode the built-in parser
 /// doesn't already recognize.

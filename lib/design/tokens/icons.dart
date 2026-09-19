@@ -62,6 +62,11 @@ abstract final class AppIcons {
   static const senders = HugeIcons.strokeRoundedSmartPhone01;
   static const share = HugeIcons.strokeRoundedShare08;
 
+  // Savings goals. Reuses the income glyph rather than a new HugeIcons
+  // name — one already proven to exist in this package (see
+  // `CategoryIcons`) beats guessing at an unverified icon constant.
+  static const savingsGoal = HugeIcons.strokeRoundedMoneyBag01;
+
   // Account types.
   static const accountCash = HugeIcons.strokeRoundedCash01;
   static const accountBank = HugeIcons.strokeRoundedBank;

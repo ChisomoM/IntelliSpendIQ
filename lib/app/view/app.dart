@@ -15,6 +15,7 @@ import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
+import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
@@ -64,6 +65,9 @@ class App extends StatelessWidget {
         ),
         RepositoryProvider<PayeeRepository>.value(value: services.payees),
         RepositoryProvider<LabelRepository>.value(value: services.labels),
+        RepositoryProvider<SavingsGoalRepository>.value(
+          value: services.savingsGoals,
+        ),
         RepositoryProvider<CustomSenderRepository>.value(
           value: services.customSenders,
         ),

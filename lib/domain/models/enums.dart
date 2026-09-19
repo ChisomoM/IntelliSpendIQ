@@ -146,6 +146,46 @@ enum BudgetSource {
       _names.entries.firstWhere((e) => e.value == name).key;
 }
 
+/// Lifecycle of a [SavingsGoal]. A goal stays `active` through every
+/// contribution, withdrawal, and partial spend; `completed` and
+/// `abandoned` are terminal states the user chooses explicitly — the
+/// goal is never flipped into either automatically.
+enum GoalStatus {
+  active,
+  completed,
+  abandoned;
+
+  static const Map<GoalStatus, String> _names = {
+    active: 'active',
+    completed: 'completed',
+    abandoned: 'abandoned',
+  };
+
+  String get dbName => _names[this]!;
+
+  static GoalStatus fromDbName(String name) =>
+      _names.entries.firstWhere((e) => e.value == name).key;
+}
+
+/// Which way money moved on a [SavingsGoalEntry]: `contribution` earmarks
+/// money from a real account toward a goal; `withdrawal` releases it
+/// again, either back to the account (a plain take-back) or against a
+/// linked purchase (see [SavingsGoalEntry.linkedTransactionId]).
+enum GoalEntryKind {
+  contribution,
+  withdrawal;
+
+  static const Map<GoalEntryKind, String> _names = {
+    contribution: 'contribution',
+    withdrawal: 'withdrawal',
+  };
+
+  String get dbName => _names[this]!;
+
+  static GoalEntryKind fromDbName(String name) =>
+      _names.entries.firstWhere((e) => e.value == name).key;
+}
+
 /// How successive budget periods are generated for a user.
 enum BudgetCadence {
   /// 1st of the month → 1st of next month (default).
