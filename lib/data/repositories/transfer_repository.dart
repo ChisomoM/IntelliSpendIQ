@@ -314,7 +314,9 @@ class TransferRepository {
         ),
       );
 
-      if (!clearFee && feeMinor == null && fromAccountId == null &&
+      if (!clearFee &&
+          feeMinor == null &&
+          fromAccountId == null &&
           transactedAt == null) {
         return;
       }
@@ -467,6 +469,7 @@ class TransferRepository {
               : Value(categoryId),
           amountMinor: Value(feeMinor),
           direction: Value(TxDirection.debit.name),
+          merchant: const Value('Transaction Charge'),
           description: const Value('Transfer fee'),
           transactedAt: Value(Iso.fromDateTime(transactedAt)),
           status: Value(TxStatus.confirmed.dbName),
@@ -490,6 +493,7 @@ class TransferRepository {
             categoryId: Value(categoryId),
             amountMinor: feeMinor,
             direction: TxDirection.debit.name,
+            merchant: const Value('Transaction Charge'),
             description: const Value('Transfer fee'),
             transactedAt: Iso.fromDateTime(transactedAt),
             source: TxSource.manual.name,
@@ -514,13 +518,14 @@ class TransferRepository {
   /// cannot leave two Fees/Charges rows for the same move.
   Future<void> _retireCaptureFees(String? rawCaptureId, String now) async {
     if (rawCaptureId == null || rawCaptureId.isEmpty) return;
-    final rows = await (_db.select(_db.transactions)..where(
-          (t) =>
-              t.userId.equals(userId) &
-              t.rawCaptureId.equals(rawCaptureId) &
-              t.deletedAt.isNull(),
-        ))
-        .get();
+    final rows =
+        await (_db.select(_db.transactions)..where(
+              (t) =>
+                  t.userId.equals(userId) &
+                  t.rawCaptureId.equals(rawCaptureId) &
+                  t.deletedAt.isNull(),
+            ))
+            .get();
     for (final row in rows) {
       if (!_isCaptureFee(row)) continue;
       await _softDeleteFeeRow(row, now);

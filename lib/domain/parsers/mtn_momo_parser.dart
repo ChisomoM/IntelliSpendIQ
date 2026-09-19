@@ -81,6 +81,7 @@ class MtnMoMoParser extends ParserProvider {
       merchant: match.group(2)!.trim(),
       description: _meaningfulNote(note),
       transactedAt: _dateTimeFrom(match, 3),
+      feeMinor: ParsingUtils.feeMinorFrom(body),
     );
   }
 
@@ -95,6 +96,7 @@ class MtnMoMoParser extends ParserProvider {
       typeHint: 'send',
       merchant: match.group(2)!.trim(),
       transactedAt: _dateTimeFrom(match, 5),
+      feeMinor: ParsingUtils.feeMinorFrom(body),
       metadata: {
         'recipient_phone': match.group(3),
         'wallet_account': match.group(4),
@@ -109,6 +111,7 @@ class MtnMoMoParser extends ParserProvider {
     required String merchant,
     String? description,
     DateTime? transactedAt,
+    int? feeMinor,
     Map<String, Object?> metadata = const {},
   }) {
     return TransactionDraft(
@@ -125,6 +128,7 @@ class MtnMoMoParser extends ParserProvider {
       confidence: 1,
       balanceMinor: ParsingUtils.balanceMinor(capture.body),
       typeHint: typeHint,
+      feeMinor: feeMinor,
       metadata: {'family': typeHint, ...metadata},
     );
   }

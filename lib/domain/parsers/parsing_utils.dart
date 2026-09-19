@@ -91,4 +91,24 @@ abstract final class ParsingUtils {
   /// Strips trailing marketing URLs from a body before matching.
   static String stripTrailingLinks(String body) =>
       body.replaceAll(RegExp(r'https?://\S+\s*$'), '').trimRight();
+
+  /// Best-effort in-body charge detection for providers whose fee
+  /// wording isn't captured by a dedicated rule family: matches
+  /// "Fee"/"Charge"/"Levy" (optionally "Transaction Fee") followed by
+  /// an amount, e.g. `Fee: K1.50`, `Transaction Fee was K2.00`,
+  /// `Charge K1.00`. Unverified against real samples from every
+  /// provider — a source of false negatives (unmatched wording) rather
+  /// than false positives, since it only fires when the keyword and an
+  /// amount both appear.
+  static final RegExp _fee = RegExp(
+    r'\b(?:Transaction\s+)?(?:Fee|Charge|Levy)\b\s*(?:was\s*|of\s*)?:?\s*' +
+        currencyAmount,
+    caseSensitive: false,
+  );
+
+  static int? feeMinorFrom(String body) {
+    final match = _fee.firstMatch(body);
+    if (match == null) return null;
+    return amountMinorFrom(match, 1);
+  }
 }

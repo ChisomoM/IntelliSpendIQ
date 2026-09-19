@@ -274,8 +274,14 @@ class CaptureService {
         direction: TxDirection.debit,
         source: draft.source,
         transactedAt: draft.transactedAt,
-        merchant: draft.merchant,
-        description: 'Charge for ${draft.merchant ?? 'transaction'}',
+        // The parent's merchant is often blank (e.g. a withdrawal or
+        // ATM debit has no counterparty), which would otherwise fall
+        // back to a bare "Unknown" in the ledger. A fixed label plus a
+        // description naming the parent keeps every charge row legible
+        // on its own and still traceable via parentTransactionId below.
+        merchant: 'Transaction Charge',
+        description:
+            'Charge for ${draft.merchant ?? _typeHintLabel(draft.typeHint)}',
         categoryId: feeCategory?.id,
         paymentMethod: draft.paymentMethod,
         confidence: draft.confidence,
@@ -293,5 +299,28 @@ class CaptureService {
       rawCaptureId: rawCaptureId,
       periodId: periodId,
     );
+  }
+
+  /// Human-readable fallback for a charge's description when the parent
+  /// transaction has no merchant, e.g. "withdrawal" for typeHint
+  /// `withdrawal`. Falls back to the raw typeHint, or "transaction" when
+  /// even that is missing.
+  static String _typeHintLabel(String? typeHint) {
+    switch (typeHint) {
+      case 'withdrawal':
+        return 'withdrawal';
+      case 'send':
+        return 'money transfer';
+      case 'receive':
+        return 'received money';
+      case 'payment_till':
+      case 'paid_to':
+      case 'payment':
+        return 'payment';
+      case null:
+        return 'transaction';
+      default:
+        return typeHint;
+    }
   }
 }

@@ -57,6 +57,7 @@ class StanChartParser extends ParserProvider {
         externalRef: match.group(3),
         confidence: 1,
         typeHint: 'txn_to',
+        feeMinor: ParsingUtils.feeMinorFrom(body),
         metadata: const {'family': 'txn_to'},
       ),
     );
