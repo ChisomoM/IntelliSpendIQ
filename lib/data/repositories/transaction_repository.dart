@@ -117,6 +117,7 @@ class TransactionRepository {
         : jsonDecode(row.metadataJson!) as Map<String, Object?>,
     receiptPath: row.receiptPath,
     payeeId: row.payeeId,
+    periodId: row.periodId,
   );
 
   Future<Transaction?> byId(String id) async {
@@ -166,6 +167,7 @@ class TransactionRepository {
     required TxStatus status,
     String? rawCaptureId,
     String? duplicateOfId,
+    String? periodId,
   }) async {
     final now = Iso.nowUtc();
     final id = Ids.newId();
@@ -198,6 +200,7 @@ class TransactionRepository {
             ),
             receiptPath: Value(draft.receiptPath),
             payeeId: Value(draft.payeeId),
+            periodId: Value(periodId),
           ),
         );
     final row = await (_db.select(
@@ -266,6 +269,7 @@ class TransactionRepository {
               ),
               receiptPath: Value(tx.receiptPath),
               payeeId: Value(tx.payeeId),
+              periodId: Value(tx.periodId),
             ),
           );
       return true;
@@ -558,6 +562,39 @@ class TransactionRepository {
     return watchSpendByCategoryInRange(from: from, to: to);
   }
 
+  /// Confirmed debit spend per category for one cycle, keyed by the
+  /// transaction's own [Transaction.periodId] rather than a date range —
+  /// so this reflects exactly what a transaction was assigned to, even
+  /// if its date was later edited.
+  Stream<List<CategorySpend>> watchSpendByCategoryForPeriod(String periodId) {
+    final t = _db.transactions;
+    final c = _db.categories;
+    final total = t.amountMinor.sum();
+    final query = _db.selectOnly(t)
+      ..addColumns([t.categoryId, c.name, total])
+      ..join([leftOuterJoin(c, c.id.equalsExp(t.categoryId))])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.periodId.equals(periodId) &
+            t.direction.equals(TxDirection.debit.name) &
+            t.status.equals(TxStatus.confirmed.dbName),
+      )
+      ..groupBy([t.categoryId])
+      ..orderBy([OrderingTerm.desc(total)]);
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => CategorySpend(
+              categoryId: row.read(t.categoryId),
+              categoryName: row.read(c.name) ?? 'Uncategorized',
+              spentMinor: row.read(total) ?? 0,
+            ),
+          )
+          .toList(),
+    );
+  }
+
   /// Confirmed debit spend per category in a half-open UTC range.
   Stream<List<CategorySpend>> watchSpendByCategoryInRange({
     required String from,
@@ -695,6 +732,23 @@ class TransactionRepository {
     return row.read(total) ?? 0;
   }
 
+  /// Confirmed debit total for one cycle, keyed by [Transaction.periodId].
+  Future<int> totalSpentForPeriod(String periodId) async {
+    final t = _db.transactions;
+    final total = t.amountMinor.sum();
+    final query = _db.selectOnly(t)
+      ..addColumns([total])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.periodId.equals(periodId) &
+            t.direction.equals(TxDirection.debit.name) &
+            t.status.equals(TxStatus.confirmed.dbName),
+      );
+    final row = await query.getSingle();
+    return row.read(total) ?? 0;
+  }
+
   /// Confirmed debit spend per local calendar day within a month, for
   /// the Reports calendar heatmap. Bucketing happens in Dart rather
   /// than SQL because `transactedAt` is stored in UTC — grouping by a
@@ -711,6 +765,32 @@ class TransactionRepository {
             t.status.equals(TxStatus.confirmed.dbName) &
             t.transactedAt.isBiggerOrEqualValue(from) &
             t.transactedAt.isSmallerThanValue(to),
+      );
+    return query.watch().map((rows) {
+      final byDay = <DateTime, int>{};
+      for (final row in rows) {
+        final local = Iso.toDateTime(row.transactedAt).toLocal();
+        final day = DateTime(local.year, local.month, local.day);
+        byDay[day] = (byDay[day] ?? 0) + row.amountMinor;
+      }
+      return byDay.entries
+          .map((entry) => DailySpend(date: entry.key, spentMinor: entry.value))
+          .toList()
+        ..sort((a, b) => a.date.compareTo(b.date));
+    });
+  }
+
+  /// [watchDailySpend], keyed by [Transaction.periodId] instead of a
+  /// calendar month.
+  Stream<List<DailySpend>> watchDailySpendForPeriod(String periodId) {
+    final query = _db.select(_db.transactions)
+      ..where(
+        (t) =>
+            t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.periodId.equals(periodId) &
+            t.direction.equals(TxDirection.debit.name) &
+            t.status.equals(TxStatus.confirmed.dbName),
       );
     return query.watch().map((rows) {
       final byDay = <DateTime, int>{};
@@ -793,6 +873,37 @@ class TransactionRepository {
             t.status.equals(TxStatus.confirmed.dbName) &
             t.transactedAt.isBiggerOrEqualValue(from) &
             t.transactedAt.isSmallerThanValue(to),
+      )
+      ..groupBy([t.accountId])
+      ..orderBy([OrderingTerm.desc(total)]);
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => AccountSpend(
+              accountId: row.read(t.accountId)!,
+              accountName: row.read(a.name) ?? 'Unknown',
+              spentMinor: row.read(total) ?? 0,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  /// [watchSpendByAccount], keyed by [Transaction.periodId] instead of a
+  /// calendar month.
+  Stream<List<AccountSpend>> watchSpendByAccountForPeriod(String periodId) {
+    final t = _db.transactions;
+    final a = _db.accounts;
+    final total = t.amountMinor.sum();
+    final query = _db.selectOnly(t)
+      ..addColumns([t.accountId, a.name, total])
+      ..join([innerJoin(a, a.id.equalsExp(t.accountId))])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.periodId.equals(periodId) &
+            t.direction.equals(TxDirection.debit.name) &
+            t.status.equals(TxStatus.confirmed.dbName),
       )
       ..groupBy([t.accountId])
       ..orderBy([OrderingTerm.desc(total)]);

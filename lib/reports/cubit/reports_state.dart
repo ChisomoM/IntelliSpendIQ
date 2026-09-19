@@ -5,10 +5,20 @@ enum ReportsStatus { initial, loading, loaded }
 /// Which dimension the donut chart and legend break spend down by.
 enum ReportsBreakdown { category, account }
 
+/// Whether Insights is windowed by calendar month or by budget cycle.
+/// Cycle mode reuses the same category/account breakdown queries but
+/// keyed on [ReportsState.cyclePeriod] instead of [ReportsState.period]
+/// — the day-by-day heatmap and trailing trend stay calendar-month
+/// concepts (a payday/weekly cycle doesn't grid onto a month), so they
+/// only populate in month mode.
+enum ReportsMode { month, cycle }
+
 class ReportsState extends Equatable {
   const ReportsState({
     required this.period,
     this.status = ReportsStatus.initial,
+    this.mode = ReportsMode.month,
+    this.cyclePeriod,
     this.rows = const [],
     this.accountRows = const [],
     this.dailySpend = const [],
@@ -17,18 +27,23 @@ class ReportsState extends Equatable {
   });
 
   final ReportsStatus status;
+  final ReportsMode mode;
 
-  /// Month key, `YYYY-MM`.
+  /// Month key, `YYYY-MM`. Only meaningful in [ReportsMode.month].
   final String period;
+
+  /// Active budget cycle. Only meaningful in [ReportsMode.cycle].
+  final BudgetPeriod? cyclePeriod;
+
   final List<CategorySpend> rows;
   final List<AccountSpend> accountRows;
 
   /// Confirmed debit spend per local day within [period], for the
-  /// calendar heatmap.
+  /// calendar heatmap. Month mode only.
   final List<DailySpend> dailySpend;
 
   /// Confirmed debit total for each of the trailing 6 months ending
-  /// with [period], oldest first.
+  /// with [period], oldest first. Month mode only.
   final List<MonthSpend> monthTrend;
   final ReportsBreakdown breakdown;
 
@@ -37,6 +52,7 @@ class ReportsState extends Equatable {
   /// [period] in prose. The raw value is a `YYYY-MM` key and was being
   /// printed to the screen as the month label.
   String get periodLabel {
+    if (mode == ReportsMode.cycle) return cyclePeriod?.label ?? '';
     final parts = period.split('-');
     if (parts.length != 2) return period;
     final year = int.tryParse(parts[0]);
@@ -48,7 +64,7 @@ class ReportsState extends Equatable {
         : DateFormat('MMMM yyyy').format(date);
   }
 
-  /// Total confirmed spend for the month, in ngwee.
+  /// Total confirmed spend for the window, in ngwee.
   int get totalMinor => rows.fold(0, (sum, row) => sum + row.spentMinor);
 
   /// Largest single category, used to scale the bars.
@@ -89,7 +105,9 @@ class ReportsState extends Equatable {
 
   ReportsState copyWith({
     ReportsStatus? status,
+    ReportsMode? mode,
     String? period,
+    BudgetPeriod? cyclePeriod,
     List<CategorySpend>? rows,
     List<AccountSpend>? accountRows,
     List<DailySpend>? dailySpend,
@@ -98,7 +116,9 @@ class ReportsState extends Equatable {
   }) {
     return ReportsState(
       status: status ?? this.status,
+      mode: mode ?? this.mode,
       period: period ?? this.period,
+      cyclePeriod: cyclePeriod ?? this.cyclePeriod,
       rows: rows ?? this.rows,
       accountRows: accountRows ?? this.accountRows,
       dailySpend: dailySpend ?? this.dailySpend,
@@ -110,7 +130,9 @@ class ReportsState extends Equatable {
   @override
   List<Object?> get props => [
     status,
+    mode,
     period,
+    cyclePeriod,
     rows,
     accountRows,
     dailySpend,

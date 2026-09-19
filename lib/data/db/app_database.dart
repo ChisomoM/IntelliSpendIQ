@@ -31,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -96,6 +96,21 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
         }
         if (from < 9) {
           await _createTableIfMissing(m, merchantCategoryRules);
+        }
+        if (from < 10) {
+          await _addColumnIfMissing(m, transactions, transactions.periodId);
+          await _addColumnIfMissing(m, categoryBudgets, categoryBudgets.status);
+          await _addColumnIfMissing(
+            m,
+            categoryBudgets,
+            categoryBudgets.transactionId,
+          );
+          await _addColumnIfMissing(
+            m,
+            budgetPeriods,
+            budgetPeriods.budgetSource,
+          );
+          await _backfillTransactionPeriods(this);
         }
       });
     },
@@ -205,6 +220,34 @@ Future<void> _foldBudgetsAndIncomeIntoCategories(AppDatabase db) async {
             sortOrder: const Value(1000),
           ),
         );
+  }
+}
+
+/// v10: assigns existing transactions to whichever [BudgetPeriods] row's
+/// `[startAt, endAt)` window their `transactedAt` falls into, now that
+/// cycle membership is an explicit column rather than inferred by date
+/// range. Transactions outside every existing period are left null —
+/// they're resolved lazily (as "unassigned") rather than forced into a
+/// newly-created period here.
+Future<void> _backfillTransactionPeriods(AppDatabase db) async {
+  final periods = await db
+      .customSelect(
+        'SELECT id, user_id, start_at, end_at FROM budget_periods '
+        'WHERE deleted_at IS NULL',
+      )
+      .get();
+  for (final period in periods) {
+    await db.customStatement(
+      'UPDATE transactions SET period_id = ? '
+      'WHERE user_id = ? AND period_id IS NULL '
+      'AND transacted_at >= ? AND transacted_at < ?',
+      [
+        period.read<String>('id'),
+        period.read<String>('user_id'),
+        period.read<String>('start_at'),
+        period.read<String>('end_at'),
+      ],
+    );
   }
 }
 

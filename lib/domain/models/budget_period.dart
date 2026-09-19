@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:intellispendiq/domain/models/enums.dart';
 
 /// One concrete budget window — half-open `[startAt, endAt)` in UTC ISO.
 /// Overall plan amount and carry-forward live here; category envelopes
@@ -12,6 +13,7 @@ class BudgetPeriod extends Equatable {
     required this.label,
     this.overallAmountMinor,
     this.carryOver = true,
+    this.budgetSource = BudgetSource.manual,
   });
 
   final String id;
@@ -26,14 +28,21 @@ class BudgetPeriod extends Equatable {
   /// Display label using `DD/MM/YYYY – DD/MM/YYYY`.
   final String label;
 
-  /// Total spending plan for this period, in ngwee. Null = not set.
+  /// Total spending plan for this period, in ngwee. Null = not set. When
+  /// [budgetSource] isn't manual, this holds the last computed figure.
   final int? overallAmountMinor;
 
   /// Whether the next period should default from this one's plan.
   final bool carryOver;
 
+  /// Whether [overallAmountMinor] is set by hand or derived from this
+  /// period's income.
+  final BudgetSource budgetSource;
+
   bool get hasOverallBudget =>
       overallAmountMinor != null && overallAmountMinor! > 0;
+
+  bool get isIncomeDerived => budgetSource != BudgetSource.manual;
 
   @override
   List<Object?> get props => [
@@ -44,5 +53,6 @@ class BudgetPeriod extends Equatable {
     label,
     overallAmountMinor,
     carryOver,
+    budgetSource,
   ];
 }

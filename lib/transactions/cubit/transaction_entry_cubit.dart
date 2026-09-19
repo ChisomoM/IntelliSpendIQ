@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
@@ -36,6 +37,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     required LabelRepository labels,
     required RawCaptureRepository rawCaptures,
     required TransferRepository transfers,
+    required BudgetPeriodRepository budgetPeriods,
     MerchantCategorizer? categorizer,
     Transaction? existing,
     String? rawCaptureId,
@@ -48,6 +50,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
        _labels = labels,
        _rawCaptures = rawCaptures,
        _transfers = transfers,
+       _budgetPeriods = budgetPeriods,
        _categorizer = categorizer,
        _existing = existing,
        _rawCaptureId = rawCaptureId,
@@ -80,6 +83,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   final LabelRepository _labels;
   final RawCaptureRepository _rawCaptures;
   final TransferRepository _transfers;
+  final BudgetPeriodRepository _budgetPeriods;
   final MerchantCategorizer? _categorizer;
   final Transaction? _existing;
   final String? _rawCaptureId;
@@ -285,6 +289,9 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
         }
       } else {
         final accountId = state.accountId ?? (await _accounts.getDefault()).id;
+        final periodId = (await _budgetPeriods.ensurePeriodContaining(
+          state.transactedAt,
+        )).id;
         final transaction = await _transactions.insertDraft(
           TransactionDraft(
             amountMinor: amountMinor,
@@ -302,6 +309,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
           idempotencyKey: 'manual:${Ids.newId()}',
           status: status,
           rawCaptureId: _rawCaptureId,
+          periodId: periodId,
         );
         transactionId = transaction.id;
         if (_rawCaptureId != null) {

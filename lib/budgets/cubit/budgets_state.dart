@@ -9,6 +9,9 @@ class BudgetsState extends Equatable {
     this.overallBudget,
     this.categories = const [],
     this.categoryBudgets = const {},
+    this.incomeStatusByCategory = const {},
+    this.actualIncomeMinor = 0,
+    this.provisionalIncomeMinor = 0,
     this.spentByCategory = const {},
     this.totalSpent = 0,
     this.errorMessage,
@@ -27,6 +30,18 @@ class BudgetsState extends Equatable {
 
   /// Raw per-period category envelopes keyed by category id.
   final Map<String, int> categoryBudgets;
+
+  /// Paid/unpaid status per income category for [budgetPeriod]. Absent
+  /// (rather than [IncomeStatus.unpaid]) for an income category with no
+  /// envelope yet.
+  final Map<String, IncomeStatus> incomeStatusByCategory;
+
+  /// Sum of paid income envelopes for [budgetPeriod] — the figure used
+  /// everywhere else money-in for this cycle is shown.
+  final int actualIncomeMinor;
+
+  /// [actualIncomeMinor] plus unpaid ("expected") envelopes.
+  final int provisionalIncomeMinor;
 
   /// Confirmed debit spend per expense category for [budgetPeriod].
   final Map<String, int> spentByCategory;
@@ -115,12 +130,13 @@ class BudgetsState extends Equatable {
 
   bool get hasOverallBudget => overallBudget != null;
 
-  int get totalIncomeMinor => budgetedIncomeCategories.fold(
-    0,
-    (sum, category) => sum + category.budgetedAmountMinor!,
-  );
+  /// The main income figure — actual (paid-only) income for this cycle.
+  int get totalIncomeMinor => actualIncomeMinor;
 
   int get remainingMinor => totalIncomeMinor - totalSpent;
+
+  IncomeStatus? statusFor(String categoryId) =>
+      incomeStatusByCategory[categoryId];
 
   int get totalPlannedMinor => overallBudget?.amountMinor ?? 0;
 
@@ -173,6 +189,9 @@ class BudgetsState extends Equatable {
     bool clearOverallBudget = false,
     List<Category>? categories,
     Map<String, int>? categoryBudgets,
+    Map<String, IncomeStatus>? incomeStatusByCategory,
+    int? actualIncomeMinor,
+    int? provisionalIncomeMinor,
     Map<String, int>? spentByCategory,
     int? totalSpent,
     String? errorMessage,
@@ -185,6 +204,11 @@ class BudgetsState extends Equatable {
           : (overallBudget ?? this.overallBudget),
       categories: categories ?? this.categories,
       categoryBudgets: categoryBudgets ?? this.categoryBudgets,
+      incomeStatusByCategory:
+          incomeStatusByCategory ?? this.incomeStatusByCategory,
+      actualIncomeMinor: actualIncomeMinor ?? this.actualIncomeMinor,
+      provisionalIncomeMinor:
+          provisionalIncomeMinor ?? this.provisionalIncomeMinor,
       spentByCategory: spentByCategory ?? this.spentByCategory,
       totalSpent: totalSpent ?? this.totalSpent,
       errorMessage: errorMessage,
@@ -198,6 +222,9 @@ class BudgetsState extends Equatable {
     overallBudget,
     categories,
     categoryBudgets,
+    incomeStatusByCategory,
+    actualIncomeMinor,
+    provisionalIncomeMinor,
     spentByCategory,
     totalSpent,
     errorMessage,

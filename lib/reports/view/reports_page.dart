@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/reports/cubit/cubit.dart';
@@ -11,8 +12,10 @@ class ReportsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          ReportsCubit(context.read<TransactionRepository>())..load(),
+      create: (context) => ReportsCubit(
+        context.read<TransactionRepository>(),
+        budgetPeriods: context.read<BudgetPeriodRepository>(),
+      )..load(),
       child: const ReportsView(),
     );
   }
@@ -33,19 +36,49 @@ class ReportsView extends StatelessWidget {
       appBar: AppBar(title: const Text('Insights')),
       body: BlocBuilder<ReportsCubit, ReportsState>(
         builder: (context, state) {
+          final isCycleMode = state.mode == ReportsMode.cycle;
           return Column(
             children: [
+              if (cubit.supportsCycleMode)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    Space.gutter,
+                    Space.x1,
+                    Space.gutter,
+                    Space.x1,
+                  ),
+                  child: SegmentedButton<ReportsMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: ReportsMode.month,
+                        label: Text('Month'),
+                      ),
+                      ButtonSegment(
+                        value: ReportsMode.cycle,
+                        label: Text('Cycle'),
+                      ),
+                    ],
+                    selected: {state.mode},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (values) =>
+                        cubit.setMode(values.first),
+                  ),
+                ),
               PeriodSelector(
                 // Was printing the raw `YYYY-MM` key to the screen.
                 label: state.periodLabel,
-                onPrevious: () => cubit.shiftMonth(-1),
-                onNext: () => cubit.shiftMonth(1),
+                onPrevious: () => isCycleMode
+                    ? cubit.shiftCycle(-1)
+                    : cubit.shiftMonth(-1),
+                onNext: () =>
+                    isCycleMode ? cubit.shiftCycle(1) : cubit.shiftMonth(1),
               ),
               Expanded(
                 child: state.isEmpty
-                    ? const EmptyState(
+                    ? EmptyState(
                         icon: AppIcons.insights,
-                        title: 'Nothing to show for this month',
+                        title:
+                            'Nothing to show for this ${isCycleMode ? 'cycle' : 'month'}',
                         message: 'Once spending is captured, the breakdown '
                             'and trends appear here.',
                       )
@@ -58,28 +91,30 @@ class ReportsView extends StatelessWidget {
                         ),
                         children: [
                           _BreakdownSection(state: state, cubit: cubit),
-                          const SizedBox(height: Space.sectionGap),
-                          const SectionHeader(title: 'Last 6 months'),
-                          AppCard(
-                            child: MonthTrendChart(trend: state.monthTrend),
-                          ),
-                          const SizedBox(height: Space.sectionGap),
-                          SectionHeader(
-                            title: 'Day by day',
-                            subtitle: 'Tap a day to see what was captured',
-                          ),
-                          AppCard(
-                            child: SpendCalendarHeatmap(
-                              period: state.period,
-                              dailySpend: state.dailySpend,
-                              maxDailyMinor: state.maxDailyMinor,
-                              onDayTap: (day) => showDaySpendSheet(
-                                context,
-                                transactions,
-                                day,
+                          if (!isCycleMode) ...[
+                            const SizedBox(height: Space.sectionGap),
+                            const SectionHeader(title: 'Last 6 months'),
+                            AppCard(
+                              child: MonthTrendChart(trend: state.monthTrend),
+                            ),
+                            const SizedBox(height: Space.sectionGap),
+                            SectionHeader(
+                              title: 'Day by day',
+                              subtitle: 'Tap a day to see what was captured',
+                            ),
+                            AppCard(
+                              child: SpendCalendarHeatmap(
+                                period: state.period,
+                                dailySpend: state.dailySpend,
+                                maxDailyMinor: state.maxDailyMinor,
+                                onDayTap: (day) => showDaySpendSheet(
+                                  context,
+                                  transactions,
+                                  day,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
               ),

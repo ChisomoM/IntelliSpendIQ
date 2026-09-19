@@ -1,5 +1,6 @@
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -57,6 +58,7 @@ class CaptureService {
     required TransactionRepository transactions,
     required AccountRepository accounts,
     required CategoryRepository categories,
+    required BudgetPeriodRepository budgetPeriods,
     required DedupeService dedupe,
     required MerchantCategorizer categorizer,
     FeeScheduleRepository? fees,
@@ -65,6 +67,7 @@ class CaptureService {
        _transactions = transactions,
        _accounts = accounts,
        _categories = categories,
+       _budgetPeriods = budgetPeriods,
        _dedupe = dedupe,
        _categorizer = categorizer,
        _fees = fees;
@@ -74,6 +77,7 @@ class CaptureService {
   final TransactionRepository _transactions;
   final AccountRepository _accounts;
   final CategoryRepository _categories;
+  final BudgetPeriodRepository _budgetPeriods;
   final DedupeService _dedupe;
   final MerchantCategorizer _categorizer;
   final FeeScheduleRepository? _fees;
@@ -156,6 +160,9 @@ class CaptureService {
       externalRef: draft.externalRef,
       contentHash: contentHash,
     );
+    final periodId = (await _budgetPeriods.ensurePeriodContaining(
+      draft.transactedAt,
+    )).id;
 
     // 4. Dedupe: hard (skip + link) then fuzzy (flag, never drop).
     final outcome = await _dedupe.check(draft, idempotencyKey: idempotencyKey);
@@ -180,6 +187,7 @@ class CaptureService {
           status: TxStatus.duplicateSuspect,
           rawCaptureId: raw.id,
           duplicateOfId: existing.id,
+          periodId: periodId,
         );
         await _rawCaptures.markParsed(
           raw.id,
@@ -202,6 +210,7 @@ class CaptureService {
           idempotencyKey: idempotencyKey,
           status: TxStatus.confirmed,
           rawCaptureId: raw.id,
+          periodId: periodId,
         );
         await _rawCaptures.markParsed(
           raw.id,
@@ -215,6 +224,7 @@ class CaptureService {
           parentTransactionId: transaction.id,
           idempotencyKey: idempotencyKey,
           rawCaptureId: raw.id,
+          periodId: periodId,
         );
         // draft.balanceMinor (the provider's stated balance, if the
         // message included one) is deliberately not applied here — SMS
@@ -238,6 +248,7 @@ class CaptureService {
     required String parentTransactionId,
     required String idempotencyKey,
     required String rawCaptureId,
+    required String periodId,
   }) async {
     var fee = draft.feeMinor;
     var source = 'sms';
@@ -280,6 +291,7 @@ class CaptureService {
       idempotencyKey: '$idempotencyKey:fee',
       status: TxStatus.confirmed,
       rawCaptureId: rawCaptureId,
+      periodId: periodId,
     );
   }
 }

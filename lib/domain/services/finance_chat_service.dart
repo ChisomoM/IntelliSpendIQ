@@ -281,11 +281,15 @@ class FinanceChatService {
       categoryId: action.categoryId,
       confidence: 1,
     );
+    final periodId = (await _budgetPeriods.ensurePeriodContaining(
+      draft.transactedAt,
+    )).id;
     await _transactions.insertDraft(
       draft,
       accountId: action.accountId,
       idempotencyKey: 'chat:${Ids.newId()}',
       status: TxStatus.confirmed,
+      periodId: periodId,
     );
     return 'Saved ${Money.display(action.amountMinor)}.';
   }

@@ -6,14 +6,21 @@ import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/category_budget.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 
 part 'categories_state.dart';
 
 /// Lets the user add, rename, and remove spending categories beyond
-/// the ten seeded on first launch. Planned/budget amounts are written
-/// to both the standing template and the active (or [periodId]) budget
-/// period when [budgetPeriods] is provided.
+/// the ten seeded on first launch.
+///
+/// Expense budgets are written to a standing template (shared by every
+/// period) plus that period's envelope. Income amounts belong to one
+/// cycle only — they're written to the period envelope alone, and, when
+/// [budgetPeriods] is provided, the categories this cubit exposes are
+/// overlaid with that period's income amounts so the editor and
+/// subcategory validation see this cycle's figures rather than a stale
+/// or absent template.
 class CategoriesCubit extends Cubit<CategoriesState> {
   CategoriesCubit(
     this._categories, {
@@ -27,17 +34,59 @@ class CategoriesCubit extends Cubit<CategoriesState> {
   final BudgetPeriodRepository? _budgetPeriods;
   final String? _periodId;
   StreamSubscription<List<Category>>? _subscription;
+  StreamSubscription<List<CategoryBudget>>? _periodBudgetsSubscription;
+  List<Category> _rawCategories = const [];
+  Map<String, int> _periodIncomeAmounts = const {};
 
   void loadUnawaited() => unawaited(load());
 
   Future<void> load() async {
     emit(state.copyWith(status: CategoriesStatus.loading));
     await _subscription?.cancel();
-    _subscription = _categories.watchAll().listen(
-      (rows) => emit(
-        state.copyWith(status: CategoriesStatus.loaded, categories: rows),
-      ),
-    );
+    await _periodBudgetsSubscription?.cancel();
+
+    final periods = _budgetPeriods;
+    if (periods != null) {
+      final periodId =
+          _periodId ?? (await periods.ensurePeriodContaining(DateTime.now())).id;
+      _periodBudgetsSubscription = periods.watchCategoryBudgets(periodId).listen(
+        (budgets) {
+          _periodIncomeAmounts = {
+            for (final b in budgets) b.categoryId: b.amountMinor,
+          };
+          _emitCategories();
+        },
+      );
+    }
+
+    _subscription = _categories.watchAll().listen((rows) {
+      _rawCategories = rows;
+      _emitCategories();
+    });
+  }
+
+  /// Income categories show this cycle's amount (or nothing, outside a
+  /// period context); expense categories keep showing their standing
+  /// template, unaffected by which cycle is being viewed.
+  void _emitCategories() {
+    final overlaid = [
+      for (final category in _rawCategories)
+        if (category.isIncome)
+          Category(
+            id: category.id,
+            name: category.name,
+            icon: category.icon,
+            color: category.color,
+            parentId: category.parentId,
+            isSystem: category.isSystem,
+            sortOrder: category.sortOrder,
+            type: category.type,
+            budgetedAmountMinor: _periodIncomeAmounts[category.id],
+          )
+        else
+          category,
+    ];
+    emit(state.copyWith(status: CategoriesStatus.loaded, categories: overlaid));
   }
 
   /// Returns the created category, or null if validation failed
@@ -231,6 +280,7 @@ class CategoriesCubit extends Cubit<CategoriesState> {
   @override
   Future<void> close() async {
     await _subscription?.cancel();
+    await _periodBudgetsSubscription?.cancel();
     return super.close();
   }
 }

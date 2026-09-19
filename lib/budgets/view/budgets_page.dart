@@ -4,10 +4,12 @@ import 'package:intellispendiq/budgets/cubit/cubit.dart';
 import 'package:intellispendiq/budgets/widgets/widgets.dart';
 import 'package:intellispendiq/categories/widgets/widgets.dart';
 import 'package:intellispendiq/chat/chat.dart';
+import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/settings/view/budget_cycle_page.dart';
 
@@ -78,7 +80,12 @@ class BudgetsView extends StatelessWidget {
                   const SizedBox(height: Space.sectionGap),
                   IncomeSummaryCard(
                     incomeCategories: state.topLevelIncomeCategories,
+                    statusByCategory: state.incomeStatusByCategory,
+                    actualMinor: state.actualIncomeMinor,
+                    provisionalMinor: state.provisionalIncomeMinor,
                     periodId: period.id,
+                    onTapRow: (category, current) =>
+                        _toggleIncomePaid(context, category, current),
                   ),
                   const SizedBox(height: Space.sectionGap),
                   if (state.isEmpty)
@@ -129,6 +136,28 @@ class BudgetsView extends StatelessWidget {
         initialType: CategoryType.expense,
         periodId: periodId,
       ),
+    );
+  }
+
+  Future<void> _toggleIncomePaid(
+    BuildContext context,
+    Category category,
+    IncomeStatus? current,
+  ) async {
+    final cubit = context.read<BudgetsCubit>();
+    if (current == IncomeStatus.paid) {
+      await cubit.markIncomeUnpaid(category.id);
+      return;
+    }
+    final result = await showMarkIncomePaidSheet(context, category: category);
+    if (result == null) return;
+    if (!context.mounted) return;
+    final account = await context.read<AccountRepository>().getDefault();
+    await cubit.markIncomePaid(
+      categoryId: category.id,
+      accountId: account.id,
+      amountMinor: result.amountMinor,
+      transactedAt: result.transactedAt,
     );
   }
 }

@@ -335,7 +335,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
   final bool isDefault;
 
   /// Parser provider key this account captures from,
-  /// e.g. `airtel_money` | `stan_chart`.
+  /// e.g. `airtel_money` | `mtn_momo` | `stan_chart`.
   final String? providerKey;
 
   /// A manually-set balance checkpoint, in ngwee. SMS delivery isn't
@@ -1774,6 +1774,17 @@ class $TransactionsTable extends Transactions
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _periodIdMeta = const VerificationMeta(
+    'periodId',
+  );
+  @override
+  late final GeneratedColumn<String> periodId = GeneratedColumn<String>(
+    'period_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1801,6 +1812,7 @@ class $TransactionsTable extends Transactions
     receiptPath,
     payeeId,
     transferDismissedAt,
+    periodId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2016,6 +2028,12 @@ class $TransactionsTable extends Transactions
         ),
       );
     }
+    if (data.containsKey('period_id')) {
+      context.handle(
+        _periodIdMeta,
+        periodId.isAcceptableOrUnknown(data['period_id']!, _periodIdMeta),
+      );
+    }
     return context;
   }
 
@@ -2125,6 +2143,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.string,
         data['${effectivePrefix}transfer_dismissed_at'],
       ),
+      periodId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}period_id'],
+      ),
     );
   }
 
@@ -2181,6 +2203,14 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   /// pairing, so the same two legs stop being re-suggested. Never
   /// cleared back to null.
   final String? transferDismissedAt;
+
+  /// The [BudgetPeriods] row this transaction belongs to, resolved once
+  /// at creation time. Explicit rather than inferred from [transactedAt]
+  /// falling inside a period's date range, so editing a transaction's
+  /// date never silently reassigns it to a different cycle. Nullable
+  /// only because rows created before this column existed may not have
+  /// been backfilled yet.
+  final String? periodId;
   const TransactionRow({
     required this.id,
     required this.userId,
@@ -2207,6 +2237,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     this.receiptPath,
     this.payeeId,
     this.transferDismissedAt,
+    this.periodId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2261,6 +2292,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     }
     if (!nullToAbsent || transferDismissedAt != null) {
       map['transfer_dismissed_at'] = Variable<String>(transferDismissedAt);
+    }
+    if (!nullToAbsent || periodId != null) {
+      map['period_id'] = Variable<String>(periodId);
     }
     return map;
   }
@@ -2318,6 +2352,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       transferDismissedAt: transferDismissedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(transferDismissedAt),
+      periodId: periodId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(periodId),
     );
   }
 
@@ -2354,6 +2391,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       transferDismissedAt: serializer.fromJson<String?>(
         json['transferDismissedAt'],
       ),
+      periodId: serializer.fromJson<String?>(json['periodId']),
     );
   }
   @override
@@ -2385,6 +2423,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       'receiptPath': serializer.toJson<String?>(receiptPath),
       'payeeId': serializer.toJson<String?>(payeeId),
       'transferDismissedAt': serializer.toJson<String?>(transferDismissedAt),
+      'periodId': serializer.toJson<String?>(periodId),
     };
   }
 
@@ -2414,6 +2453,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     Value<String?> receiptPath = const Value.absent(),
     Value<String?> payeeId = const Value.absent(),
     Value<String?> transferDismissedAt = const Value.absent(),
+    Value<String?> periodId = const Value.absent(),
   }) => TransactionRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -2446,6 +2486,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     transferDismissedAt: transferDismissedAt.present
         ? transferDismissedAt.value
         : this.transferDismissedAt,
+    periodId: periodId.present ? periodId.value : this.periodId,
   );
   TransactionRow copyWithCompanion(TransactionsCompanion data) {
     return TransactionRow(
@@ -2500,6 +2541,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       transferDismissedAt: data.transferDismissedAt.present
           ? data.transferDismissedAt.value
           : this.transferDismissedAt,
+      periodId: data.periodId.present ? data.periodId.value : this.periodId,
     );
   }
 
@@ -2530,7 +2572,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           ..write('metadataJson: $metadataJson, ')
           ..write('receiptPath: $receiptPath, ')
           ..write('payeeId: $payeeId, ')
-          ..write('transferDismissedAt: $transferDismissedAt')
+          ..write('transferDismissedAt: $transferDismissedAt, ')
+          ..write('periodId: $periodId')
           ..write(')'))
         .toString();
   }
@@ -2562,6 +2605,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     receiptPath,
     payeeId,
     transferDismissedAt,
+    periodId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2591,7 +2635,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           other.metadataJson == this.metadataJson &&
           other.receiptPath == this.receiptPath &&
           other.payeeId == this.payeeId &&
-          other.transferDismissedAt == this.transferDismissedAt);
+          other.transferDismissedAt == this.transferDismissedAt &&
+          other.periodId == this.periodId);
 }
 
 class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
@@ -2620,6 +2665,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
   final Value<String?> receiptPath;
   final Value<String?> payeeId;
   final Value<String?> transferDismissedAt;
+  final Value<String?> periodId;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.id = const Value.absent(),
@@ -2647,6 +2693,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.receiptPath = const Value.absent(),
     this.payeeId = const Value.absent(),
     this.transferDismissedAt = const Value.absent(),
+    this.periodId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -2675,6 +2722,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.receiptPath = const Value.absent(),
     this.payeeId = const Value.absent(),
     this.transferDismissedAt = const Value.absent(),
+    this.periodId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -2713,6 +2761,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Expression<String>? receiptPath,
     Expression<String>? payeeId,
     Expression<String>? transferDismissedAt,
+    Expression<String>? periodId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2742,6 +2791,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       if (payeeId != null) 'payee_id': payeeId,
       if (transferDismissedAt != null)
         'transfer_dismissed_at': transferDismissedAt,
+      if (periodId != null) 'period_id': periodId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2772,6 +2822,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Value<String?>? receiptPath,
     Value<String?>? payeeId,
     Value<String?>? transferDismissedAt,
+    Value<String?>? periodId,
     Value<int>? rowid,
   }) {
     return TransactionsCompanion(
@@ -2800,6 +2851,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       receiptPath: receiptPath ?? this.receiptPath,
       payeeId: payeeId ?? this.payeeId,
       transferDismissedAt: transferDismissedAt ?? this.transferDismissedAt,
+      periodId: periodId ?? this.periodId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2884,6 +2936,9 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
         transferDismissedAt.value,
       );
     }
+    if (periodId.present) {
+      map['period_id'] = Variable<String>(periodId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2918,6 +2973,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
           ..write('receiptPath: $receiptPath, ')
           ..write('payeeId: $payeeId, ')
           ..write('transferDismissedAt: $transferDismissedAt, ')
+          ..write('periodId: $periodId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4150,6 +4206,18 @@ class $BudgetPeriodsTable extends BudgetPeriods
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _budgetSourceMeta = const VerificationMeta(
+    'budgetSource',
+  );
+  @override
+  late final GeneratedColumn<String> budgetSource = GeneratedColumn<String>(
+    'budget_source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('manual'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4163,6 +4231,7 @@ class $BudgetPeriodsTable extends BudgetPeriods
     label,
     overallAmountMinor,
     carryOver,
+    budgetSource,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4258,6 +4327,15 @@ class $BudgetPeriodsTable extends BudgetPeriods
         carryOver.isAcceptableOrUnknown(data['carry_over']!, _carryOverMeta),
       );
     }
+    if (data.containsKey('budget_source')) {
+      context.handle(
+        _budgetSourceMeta,
+        budgetSource.isAcceptableOrUnknown(
+          data['budget_source']!,
+          _budgetSourceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4315,6 +4393,10 @@ class $BudgetPeriodsTable extends BudgetPeriods
         DriftSqlType.bool,
         data['${effectivePrefix}carry_over'],
       )!,
+      budgetSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}budget_source'],
+      )!,
     );
   }
 
@@ -4337,9 +4419,16 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
   /// Display label `DD/MM/YYYY – DD/MM/YYYY`.
   final String label;
 
-  /// Overall spending plan for this period, in ngwee.
+  /// Overall spending plan for this period, in ngwee. Manually set unless
+  /// [budgetSource] says otherwise, in which case it holds the last
+  /// computed value for display/export convenience.
   final int? overallAmountMinor;
   final bool carryOver;
+
+  /// `manual` | `income_actual` | `income_provisional`. When not
+  /// `manual`, [overallAmountMinor] is derived from this period's income
+  /// categories (paid-only, or paid+unpaid) instead of being set by hand.
+  final String budgetSource;
   const BudgetPeriodRow({
     required this.id,
     required this.userId,
@@ -4352,6 +4441,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
     required this.label,
     this.overallAmountMinor,
     required this.carryOver,
+    required this.budgetSource,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4371,6 +4461,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
       map['overall_amount_minor'] = Variable<int>(overallAmountMinor);
     }
     map['carry_over'] = Variable<bool>(carryOver);
+    map['budget_source'] = Variable<String>(budgetSource);
     return map;
   }
 
@@ -4391,6 +4482,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
           ? const Value.absent()
           : Value(overallAmountMinor),
       carryOver: Value(carryOver),
+      budgetSource: Value(budgetSource),
     );
   }
 
@@ -4411,6 +4503,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
       label: serializer.fromJson<String>(json['label']),
       overallAmountMinor: serializer.fromJson<int?>(json['overallAmountMinor']),
       carryOver: serializer.fromJson<bool>(json['carryOver']),
+      budgetSource: serializer.fromJson<String>(json['budgetSource']),
     );
   }
   @override
@@ -4428,6 +4521,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
       'label': serializer.toJson<String>(label),
       'overallAmountMinor': serializer.toJson<int?>(overallAmountMinor),
       'carryOver': serializer.toJson<bool>(carryOver),
+      'budgetSource': serializer.toJson<String>(budgetSource),
     };
   }
 
@@ -4443,6 +4537,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
     String? label,
     Value<int?> overallAmountMinor = const Value.absent(),
     bool? carryOver,
+    String? budgetSource,
   }) => BudgetPeriodRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -4457,6 +4552,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
         ? overallAmountMinor.value
         : this.overallAmountMinor,
     carryOver: carryOver ?? this.carryOver,
+    budgetSource: budgetSource ?? this.budgetSource,
   );
   BudgetPeriodRow copyWithCompanion(BudgetPeriodsCompanion data) {
     return BudgetPeriodRow(
@@ -4475,6 +4571,9 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
           ? data.overallAmountMinor.value
           : this.overallAmountMinor,
       carryOver: data.carryOver.present ? data.carryOver.value : this.carryOver,
+      budgetSource: data.budgetSource.present
+          ? data.budgetSource.value
+          : this.budgetSource,
     );
   }
 
@@ -4491,7 +4590,8 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
           ..write('endAt: $endAt, ')
           ..write('label: $label, ')
           ..write('overallAmountMinor: $overallAmountMinor, ')
-          ..write('carryOver: $carryOver')
+          ..write('carryOver: $carryOver, ')
+          ..write('budgetSource: $budgetSource')
           ..write(')'))
         .toString();
   }
@@ -4509,6 +4609,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
     label,
     overallAmountMinor,
     carryOver,
+    budgetSource,
   );
   @override
   bool operator ==(Object other) =>
@@ -4524,7 +4625,8 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
           other.endAt == this.endAt &&
           other.label == this.label &&
           other.overallAmountMinor == this.overallAmountMinor &&
-          other.carryOver == this.carryOver);
+          other.carryOver == this.carryOver &&
+          other.budgetSource == this.budgetSource);
 }
 
 class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
@@ -4539,6 +4641,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
   final Value<String> label;
   final Value<int?> overallAmountMinor;
   final Value<bool> carryOver;
+  final Value<String> budgetSource;
   final Value<int> rowid;
   const BudgetPeriodsCompanion({
     this.id = const Value.absent(),
@@ -4552,6 +4655,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     this.label = const Value.absent(),
     this.overallAmountMinor = const Value.absent(),
     this.carryOver = const Value.absent(),
+    this.budgetSource = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BudgetPeriodsCompanion.insert({
@@ -4566,6 +4670,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     required String label,
     this.overallAmountMinor = const Value.absent(),
     this.carryOver = const Value.absent(),
+    this.budgetSource = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -4587,6 +4692,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     Expression<String>? label,
     Expression<int>? overallAmountMinor,
     Expression<bool>? carryOver,
+    Expression<String>? budgetSource,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4602,6 +4708,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
       if (overallAmountMinor != null)
         'overall_amount_minor': overallAmountMinor,
       if (carryOver != null) 'carry_over': carryOver,
+      if (budgetSource != null) 'budget_source': budgetSource,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4618,6 +4725,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     Value<String>? label,
     Value<int?>? overallAmountMinor,
     Value<bool>? carryOver,
+    Value<String>? budgetSource,
     Value<int>? rowid,
   }) {
     return BudgetPeriodsCompanion(
@@ -4632,6 +4740,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
       label: label ?? this.label,
       overallAmountMinor: overallAmountMinor ?? this.overallAmountMinor,
       carryOver: carryOver ?? this.carryOver,
+      budgetSource: budgetSource ?? this.budgetSource,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4672,6 +4781,9 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     if (carryOver.present) {
       map['carry_over'] = Variable<bool>(carryOver.value);
     }
+    if (budgetSource.present) {
+      map['budget_source'] = Variable<String>(budgetSource.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4692,6 +4804,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
           ..write('label: $label, ')
           ..write('overallAmountMinor: $overallAmountMinor, ')
           ..write('carryOver: $carryOver, ')
+          ..write('budgetSource: $budgetSource, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4788,6 +4901,26 @@ class $CategoryBudgetsTable extends CategoryBudgets
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _transactionIdMeta = const VerificationMeta(
+    'transactionId',
+  );
+  @override
+  late final GeneratedColumn<String> transactionId = GeneratedColumn<String>(
+    'transaction_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4798,6 +4931,8 @@ class $CategoryBudgetsTable extends CategoryBudgets
     periodId,
     categoryId,
     amountMinor,
+    status,
+    transactionId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4873,6 +5008,21 @@ class $CategoryBudgetsTable extends CategoryBudgets
     } else if (isInserting) {
       context.missing(_amountMinorMeta);
     }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+        _transactionIdMeta,
+        transactionId.isAcceptableOrUnknown(
+          data['transaction_id']!,
+          _transactionIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4918,6 +5068,14 @@ class $CategoryBudgetsTable extends CategoryBudgets
         DriftSqlType.int,
         data['${effectivePrefix}amount_minor'],
       )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      ),
+      transactionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transaction_id'],
+      ),
     );
   }
 
@@ -4937,6 +5095,17 @@ class CategoryBudgetRow extends DataClass
   final String periodId;
   final String categoryId;
   final int amountMinor;
+
+  /// `paid` | `unpaid`. Only meaningful for income-type categories — an
+  /// income envelope for this period hasn't (or has) actually been
+  /// received yet. Null for expense envelopes.
+  final String? status;
+
+  /// The [Transactions] row backing a `paid` income envelope, created
+  /// when the user marks it paid. Cleared (not deleted) when the user
+  /// marks it unpaid again — the transaction stays in the ledger as
+  /// history, just no longer linked to this envelope.
+  final String? transactionId;
   const CategoryBudgetRow({
     required this.id,
     required this.userId,
@@ -4946,6 +5115,8 @@ class CategoryBudgetRow extends DataClass
     required this.periodId,
     required this.categoryId,
     required this.amountMinor,
+    this.status,
+    this.transactionId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4960,6 +5131,12 @@ class CategoryBudgetRow extends DataClass
     map['period_id'] = Variable<String>(periodId);
     map['category_id'] = Variable<String>(categoryId);
     map['amount_minor'] = Variable<int>(amountMinor);
+    if (!nullToAbsent || status != null) {
+      map['status'] = Variable<String>(status);
+    }
+    if (!nullToAbsent || transactionId != null) {
+      map['transaction_id'] = Variable<String>(transactionId);
+    }
     return map;
   }
 
@@ -4975,6 +5152,12 @@ class CategoryBudgetRow extends DataClass
       periodId: Value(periodId),
       categoryId: Value(categoryId),
       amountMinor: Value(amountMinor),
+      status: status == null && nullToAbsent
+          ? const Value.absent()
+          : Value(status),
+      transactionId: transactionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transactionId),
     );
   }
 
@@ -4992,6 +5175,8 @@ class CategoryBudgetRow extends DataClass
       periodId: serializer.fromJson<String>(json['periodId']),
       categoryId: serializer.fromJson<String>(json['categoryId']),
       amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      status: serializer.fromJson<String?>(json['status']),
+      transactionId: serializer.fromJson<String?>(json['transactionId']),
     );
   }
   @override
@@ -5006,6 +5191,8 @@ class CategoryBudgetRow extends DataClass
       'periodId': serializer.toJson<String>(periodId),
       'categoryId': serializer.toJson<String>(categoryId),
       'amountMinor': serializer.toJson<int>(amountMinor),
+      'status': serializer.toJson<String?>(status),
+      'transactionId': serializer.toJson<String?>(transactionId),
     };
   }
 
@@ -5018,6 +5205,8 @@ class CategoryBudgetRow extends DataClass
     String? periodId,
     String? categoryId,
     int? amountMinor,
+    Value<String?> status = const Value.absent(),
+    Value<String?> transactionId = const Value.absent(),
   }) => CategoryBudgetRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -5027,6 +5216,10 @@ class CategoryBudgetRow extends DataClass
     periodId: periodId ?? this.periodId,
     categoryId: categoryId ?? this.categoryId,
     amountMinor: amountMinor ?? this.amountMinor,
+    status: status.present ? status.value : this.status,
+    transactionId: transactionId.present
+        ? transactionId.value
+        : this.transactionId,
   );
   CategoryBudgetRow copyWithCompanion(CategoryBudgetsCompanion data) {
     return CategoryBudgetRow(
@@ -5042,6 +5235,10 @@ class CategoryBudgetRow extends DataClass
       amountMinor: data.amountMinor.present
           ? data.amountMinor.value
           : this.amountMinor,
+      status: data.status.present ? data.status.value : this.status,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
     );
   }
 
@@ -5055,7 +5252,9 @@ class CategoryBudgetRow extends DataClass
           ..write('deletedAt: $deletedAt, ')
           ..write('periodId: $periodId, ')
           ..write('categoryId: $categoryId, ')
-          ..write('amountMinor: $amountMinor')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('status: $status, ')
+          ..write('transactionId: $transactionId')
           ..write(')'))
         .toString();
   }
@@ -5070,6 +5269,8 @@ class CategoryBudgetRow extends DataClass
     periodId,
     categoryId,
     amountMinor,
+    status,
+    transactionId,
   );
   @override
   bool operator ==(Object other) =>
@@ -5082,7 +5283,9 @@ class CategoryBudgetRow extends DataClass
           other.deletedAt == this.deletedAt &&
           other.periodId == this.periodId &&
           other.categoryId == this.categoryId &&
-          other.amountMinor == this.amountMinor);
+          other.amountMinor == this.amountMinor &&
+          other.status == this.status &&
+          other.transactionId == this.transactionId);
 }
 
 class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
@@ -5094,6 +5297,8 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
   final Value<String> periodId;
   final Value<String> categoryId;
   final Value<int> amountMinor;
+  final Value<String?> status;
+  final Value<String?> transactionId;
   final Value<int> rowid;
   const CategoryBudgetsCompanion({
     this.id = const Value.absent(),
@@ -5104,6 +5309,8 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
     this.periodId = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.amountMinor = const Value.absent(),
+    this.status = const Value.absent(),
+    this.transactionId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CategoryBudgetsCompanion.insert({
@@ -5115,6 +5322,8 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
     required String periodId,
     required String categoryId,
     required int amountMinor,
+    this.status = const Value.absent(),
+    this.transactionId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -5132,6 +5341,8 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
     Expression<String>? periodId,
     Expression<String>? categoryId,
     Expression<int>? amountMinor,
+    Expression<String>? status,
+    Expression<String>? transactionId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5143,6 +5354,8 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
       if (periodId != null) 'period_id': periodId,
       if (categoryId != null) 'category_id': categoryId,
       if (amountMinor != null) 'amount_minor': amountMinor,
+      if (status != null) 'status': status,
+      if (transactionId != null) 'transaction_id': transactionId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5156,6 +5369,8 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
     Value<String>? periodId,
     Value<String>? categoryId,
     Value<int>? amountMinor,
+    Value<String?>? status,
+    Value<String?>? transactionId,
     Value<int>? rowid,
   }) {
     return CategoryBudgetsCompanion(
@@ -5167,6 +5382,8 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
       periodId: periodId ?? this.periodId,
       categoryId: categoryId ?? this.categoryId,
       amountMinor: amountMinor ?? this.amountMinor,
+      status: status ?? this.status,
+      transactionId: transactionId ?? this.transactionId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5198,6 +5415,12 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
     if (amountMinor.present) {
       map['amount_minor'] = Variable<int>(amountMinor.value);
     }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<String>(transactionId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5215,6 +5438,8 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudgetRow> {
           ..write('periodId: $periodId, ')
           ..write('categoryId: $categoryId, ')
           ..write('amountMinor: $amountMinor, ')
+          ..write('status: $status, ')
+          ..write('transactionId: $transactionId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8410,7 +8635,7 @@ class CustomSenderRow extends DataClass implements Insertable<CustomSenderRow> {
   final String? deletedAt;
 
   /// Which provider parser this sender's messages should route to,
-  /// e.g. `airtel_money` | `stan_chart`.
+  /// e.g. `airtel_money` | `mtn_momo` | `stan_chart`.
   final String providerKey;
 
   /// Normalized via `Ids.normalizeSender` before storage.
@@ -9959,6 +10184,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<String?> receiptPath,
       Value<String?> payeeId,
       Value<String?> transferDismissedAt,
+      Value<String?> periodId,
       Value<int> rowid,
     });
 typedef $$TransactionsTableUpdateCompanionBuilder =
@@ -9988,6 +10214,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<String?> receiptPath,
       Value<String?> payeeId,
       Value<String?> transferDismissedAt,
+      Value<String?> periodId,
       Value<int> rowid,
     });
 
@@ -10122,6 +10349,11 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get transferDismissedAt => $composableBuilder(
     column: $table.transferDismissedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get periodId => $composableBuilder(
+    column: $table.periodId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -10259,6 +10491,11 @@ class $$TransactionsTableOrderingComposer
     column: $table.transferDismissedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get periodId => $composableBuilder(
+    column: $table.periodId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -10370,6 +10607,9 @@ class $$TransactionsTableAnnotationComposer
     column: $table.transferDismissedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get periodId =>
+      $composableBuilder(column: $table.periodId, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager
@@ -10428,6 +10668,7 @@ class $$TransactionsTableTableManager
                 Value<String?> receiptPath = const Value.absent(),
                 Value<String?> payeeId = const Value.absent(),
                 Value<String?> transferDismissedAt = const Value.absent(),
+                Value<String?> periodId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion(
                 id: id,
@@ -10455,6 +10696,7 @@ class $$TransactionsTableTableManager
                 receiptPath: receiptPath,
                 payeeId: payeeId,
                 transferDismissedAt: transferDismissedAt,
+                periodId: periodId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -10484,6 +10726,7 @@ class $$TransactionsTableTableManager
                 Value<String?> receiptPath = const Value.absent(),
                 Value<String?> payeeId = const Value.absent(),
                 Value<String?> transferDismissedAt = const Value.absent(),
+                Value<String?> periodId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion.insert(
                 id: id,
@@ -10511,6 +10754,7 @@ class $$TransactionsTableTableManager
                 receiptPath: receiptPath,
                 payeeId: payeeId,
                 transferDismissedAt: transferDismissedAt,
+                periodId: periodId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -11102,6 +11346,7 @@ typedef $$BudgetPeriodsTableCreateCompanionBuilder =
       required String label,
       Value<int?> overallAmountMinor,
       Value<bool> carryOver,
+      Value<String> budgetSource,
       Value<int> rowid,
     });
 typedef $$BudgetPeriodsTableUpdateCompanionBuilder =
@@ -11117,6 +11362,7 @@ typedef $$BudgetPeriodsTableUpdateCompanionBuilder =
       Value<String> label,
       Value<int?> overallAmountMinor,
       Value<bool> carryOver,
+      Value<String> budgetSource,
       Value<int> rowid,
     });
 
@@ -11181,6 +11427,11 @@ class $$BudgetPeriodsTableFilterComposer
 
   ColumnFilters<bool> get carryOver => $composableBuilder(
     column: $table.carryOver,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get budgetSource => $composableBuilder(
+    column: $table.budgetSource,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -11248,6 +11499,11 @@ class $$BudgetPeriodsTableOrderingComposer
     column: $table.carryOver,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get budgetSource => $composableBuilder(
+    column: $table.budgetSource,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BudgetPeriodsTableAnnotationComposer
@@ -11295,6 +11551,11 @@ class $$BudgetPeriodsTableAnnotationComposer
 
   GeneratedColumn<bool> get carryOver =>
       $composableBuilder(column: $table.carryOver, builder: (column) => column);
+
+  GeneratedColumn<String> get budgetSource => $composableBuilder(
+    column: $table.budgetSource,
+    builder: (column) => column,
+  );
 }
 
 class $$BudgetPeriodsTableTableManager
@@ -11339,6 +11600,7 @@ class $$BudgetPeriodsTableTableManager
                 Value<String> label = const Value.absent(),
                 Value<int?> overallAmountMinor = const Value.absent(),
                 Value<bool> carryOver = const Value.absent(),
+                Value<String> budgetSource = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetPeriodsCompanion(
                 id: id,
@@ -11352,6 +11614,7 @@ class $$BudgetPeriodsTableTableManager
                 label: label,
                 overallAmountMinor: overallAmountMinor,
                 carryOver: carryOver,
+                budgetSource: budgetSource,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -11367,6 +11630,7 @@ class $$BudgetPeriodsTableTableManager
                 required String label,
                 Value<int?> overallAmountMinor = const Value.absent(),
                 Value<bool> carryOver = const Value.absent(),
+                Value<String> budgetSource = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetPeriodsCompanion.insert(
                 id: id,
@@ -11380,6 +11644,7 @@ class $$BudgetPeriodsTableTableManager
                 label: label,
                 overallAmountMinor: overallAmountMinor,
                 carryOver: carryOver,
+                budgetSource: budgetSource,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -11417,6 +11682,8 @@ typedef $$CategoryBudgetsTableCreateCompanionBuilder =
       required String periodId,
       required String categoryId,
       required int amountMinor,
+      Value<String?> status,
+      Value<String?> transactionId,
       Value<int> rowid,
     });
 typedef $$CategoryBudgetsTableUpdateCompanionBuilder =
@@ -11429,6 +11696,8 @@ typedef $$CategoryBudgetsTableUpdateCompanionBuilder =
       Value<String> periodId,
       Value<String> categoryId,
       Value<int> amountMinor,
+      Value<String?> status,
+      Value<String?> transactionId,
       Value<int> rowid,
     });
 
@@ -11478,6 +11747,16 @@ class $$CategoryBudgetsTableFilterComposer
 
   ColumnFilters<int> get amountMinor => $composableBuilder(
     column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transactionId => $composableBuilder(
+    column: $table.transactionId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -11530,6 +11809,16 @@ class $$CategoryBudgetsTableOrderingComposer
     column: $table.amountMinor,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transactionId => $composableBuilder(
+    column: $table.transactionId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CategoryBudgetsTableAnnotationComposer
@@ -11566,6 +11855,14 @@ class $$CategoryBudgetsTableAnnotationComposer
 
   GeneratedColumn<int> get amountMinor => $composableBuilder(
     column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get transactionId => $composableBuilder(
+    column: $table.transactionId,
     builder: (column) => column,
   );
 }
@@ -11615,6 +11912,8 @@ class $$CategoryBudgetsTableTableManager
                 Value<String> periodId = const Value.absent(),
                 Value<String> categoryId = const Value.absent(),
                 Value<int> amountMinor = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<String?> transactionId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoryBudgetsCompanion(
                 id: id,
@@ -11625,6 +11924,8 @@ class $$CategoryBudgetsTableTableManager
                 periodId: periodId,
                 categoryId: categoryId,
                 amountMinor: amountMinor,
+                status: status,
+                transactionId: transactionId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -11637,6 +11938,8 @@ class $$CategoryBudgetsTableTableManager
                 required String periodId,
                 required String categoryId,
                 required int amountMinor,
+                Value<String?> status = const Value.absent(),
+                Value<String?> transactionId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoryBudgetsCompanion.insert(
                 id: id,
@@ -11647,6 +11950,8 @@ class $$CategoryBudgetsTableTableManager
                 periodId: periodId,
                 categoryId: categoryId,
                 amountMinor: amountMinor,
+                status: status,
+                transactionId: transactionId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

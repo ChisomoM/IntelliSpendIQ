@@ -390,6 +390,9 @@ class _OverallBudgetEditorSheetState extends State<OverallBudgetEditorSheet> {
         : (widget.existing!.amountMinor / 100).toStringAsFixed(2),
   );
   String? _error;
+  late BudgetSource _source =
+      context.read<BudgetsCubit>().state.budgetPeriod?.budgetSource ??
+      BudgetSource.manual;
 
   @override
   void dispose() {
@@ -407,6 +410,12 @@ class _OverallBudgetEditorSheetState extends State<OverallBudgetEditorSheet> {
       return;
     }
     navigator.pop();
+  }
+
+  Future<void> _useIncomeDerived(BudgetSource source) async {
+    await context.read<BudgetsCubit>().setBudgetSource(source);
+    if (!mounted) return;
+    Navigator.of(context).pop();
   }
 
   Future<void> _delete() async {
@@ -429,26 +438,55 @@ class _OverallBudgetEditorSheetState extends State<OverallBudgetEditorSheet> {
         ),
         const SizedBox(height: Space.x1),
         Text(
-          'How much you plan to spend in total this period.',
+          'Set it by hand, or derive it from this cycle\'s income.',
           style: AppTypography.metadata(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: Space.x2),
-        AmountField(
-          controller: _amountController,
-          autofocus: true,
-          errorText: _error,
-        ),
-        const SizedBox(height: Space.x3),
-        Row(
-          children: [
-            if (isEditing)
-              TextButton(onPressed: _delete, child: const Text('Remove')),
-            const Spacer(),
-            FilledButton(onPressed: _save, child: const Text('Save')),
+        SegmentedButton<BudgetSource>(
+          segments: const [
+            ButtonSegment(value: BudgetSource.manual, label: Text('Manual')),
+            ButtonSegment(
+              value: BudgetSource.incomeActual,
+              label: Text('From income (actual)'),
+            ),
+            ButtonSegment(
+              value: BudgetSource.incomeProvisional,
+              label: Text('From income (expected)'),
+            ),
           ],
+          selected: {_source},
+          showSelectedIcon: false,
+          onSelectionChanged: (values) =>
+              setState(() => _source = values.first),
         ),
+        const SizedBox(height: Space.x2),
+        if (_source == BudgetSource.manual) ...[
+          AmountField(
+            controller: _amountController,
+            autofocus: true,
+            errorText: _error,
+          ),
+          const SizedBox(height: Space.x3),
+          Row(
+            children: [
+              if (isEditing)
+                TextButton(onPressed: _delete, child: const Text('Remove')),
+              const Spacer(),
+              FilledButton(onPressed: _save, child: const Text('Save')),
+            ],
+          ),
+        ] else
+          Row(
+            children: [
+              const Spacer(),
+              FilledButton(
+                onPressed: () => _useIncomeDerived(_source),
+                child: const Text('Use this'),
+              ),
+            ],
+          ),
       ],
     );
   }

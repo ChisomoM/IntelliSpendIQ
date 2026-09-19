@@ -2,19 +2,36 @@ import 'package:drift/drift.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/budget_period.dart';
 import 'package:intellispendiq/domain/models/budget_schedule.dart';
 import 'package:intellispendiq/domain/models/category_budget.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/models/transaction_draft.dart';
 import 'package:intellispendiq/domain/services/budget_period_generator.dart';
+
+/// A cycle's income totals: [actualMinor] counts only paid envelopes,
+/// [provisionalMinor] adds unpaid ones on top. [actualMinor] is the
+/// figure used everywhere else — [provisionalMinor] is expectation-only.
+class IncomeTotals {
+  const IncomeTotals({required this.actualMinor, required this.provisionalMinor});
+
+  final int actualMinor;
+  final int provisionalMinor;
+}
 
 /// Persists budget schedules, period instances, overall plans, and
 /// per-period category envelopes.
 class BudgetPeriodRepository {
-  BudgetPeriodRepository(this._db, {required this.userId});
+  BudgetPeriodRepository(
+    this._db, {
+    required this.userId,
+    required TransactionRepository transactions,
+  }) : _transactions = transactions;
 
   final AppDatabase _db;
   final String userId;
+  final TransactionRepository _transactions;
 
   static BudgetSchedule _scheduleFromRow(BudgetScheduleRow row) =>
       BudgetSchedule(
@@ -33,6 +50,7 @@ class BudgetPeriodRepository {
     label: row.label,
     overallAmountMinor: row.overallAmountMinor,
     carryOver: row.carryOver,
+    budgetSource: BudgetSource.fromDbName(row.budgetSource),
   );
 
   static CategoryBudget _categoryBudgetFromRow(CategoryBudgetRow row) =>
@@ -41,7 +59,18 @@ class BudgetPeriodRepository {
         periodId: row.periodId,
         categoryId: row.categoryId,
         amountMinor: row.amountMinor,
+        status: row.status == null
+            ? null
+            : IncomeStatus.fromDbName(row.status!),
+        transactionId: row.transactionId,
       );
+
+  Future<CategoryType> _categoryTypeOf(String categoryId) async {
+    final row = await (_db.select(
+      _db.categories,
+    )..where((c) => c.id.equals(categoryId))).getSingle();
+    return CategoryType.fromDbName(row.categoryType);
+  }
 
   /// Active schedule, creating a calendar-month default if missing.
   Future<BudgetSchedule> ensureSchedule() async {
@@ -202,6 +231,9 @@ class BudgetPeriodRepository {
   /// explicitly for each period.
   Future<void> carryForwardInto(BudgetPeriod period) async {}
 
+  /// Sets a manual overall amount. Switches [budgetSource] back to
+  /// manual — call [setIncomeDerivedBudget] instead to derive it from
+  /// income.
   Future<void> setOverallAmount({
     required String periodId,
     required int amountMinor,
@@ -213,6 +245,7 @@ class BudgetPeriodRepository {
       BudgetPeriodsCompanion(
         overallAmountMinor: Value(amountMinor),
         carryOver: Value(carryOver),
+        budgetSource: Value(BudgetSource.manual.dbName),
         updatedAt: Value(Iso.nowUtc()),
       ),
     );
@@ -224,6 +257,32 @@ class BudgetPeriodRepository {
     )..where((p) => p.id.equals(periodId))).write(
       BudgetPeriodsCompanion(
         overallAmountMinor: const Value(null),
+        budgetSource: Value(BudgetSource.manual.dbName),
+        updatedAt: Value(Iso.nowUtc()),
+      ),
+    );
+  }
+
+  /// Switches this period to deriving its overall amount from income
+  /// ([BudgetSource.incomeActual] or [BudgetSource.incomeProvisional])
+  /// and stores the currently computed figure. Callers should also call
+  /// this again whenever income for the period changes, so the stored
+  /// figure stays current.
+  Future<void> setIncomeDerivedBudget({
+    required String periodId,
+    required BudgetSource source,
+  }) async {
+    assert(source != BudgetSource.manual);
+    final totals = await incomeTotalsForPeriod(periodId);
+    final amount = source == BudgetSource.incomeActual
+        ? totals.actualMinor
+        : totals.provisionalMinor;
+    await (_db.update(
+      _db.budgetPeriods,
+    )..where((p) => p.id.equals(periodId))).write(
+      BudgetPeriodsCompanion(
+        overallAmountMinor: Value(amount),
+        budgetSource: Value(source.dbName),
         updatedAt: Value(Iso.nowUtc()),
       ),
     );
@@ -292,19 +351,24 @@ class BudgetPeriodRepository {
       );
     }
 
-    // Keep standing template in sync so Categories editor / new periods
-    // inherit the latest figure.
-    await (_db.update(
-      _db.categories,
-    )..where((c) => c.id.equals(categoryId))).write(
-      CategoriesCompanion(
-        budgetedAmountMinor: Value(amountMinor),
-        updatedAt: Value(now),
-      ),
-    );
+    // Expense categories keep a standing template so the Categories
+    // editor / new periods inherit the latest limit. Income categories
+    // deliberately don't: an income plan belongs to one cycle only and
+    // must never carry into the next.
+    if (await _categoryTypeOf(categoryId) == CategoryType.expense) {
+      await (_db.update(
+        _db.categories,
+      )..where((c) => c.id.equals(categoryId))).write(
+        CategoriesCompanion(
+          budgetedAmountMinor: Value(amountMinor),
+          updatedAt: Value(now),
+        ),
+      );
+    }
   }
 
-  /// Soft-deletes the period envelope and clears the standing template.
+  /// Soft-deletes the period envelope. Also clears the standing template
+  /// for expense categories — income categories never had one written.
   Future<void> clearCategoryBudget({
     required String periodId,
     required String categoryId,
@@ -329,14 +393,122 @@ class BudgetPeriodRepository {
         ),
       );
     }
-    await (_db.update(
-      _db.categories,
-    )..where((c) => c.id.equals(categoryId))).write(
-      CategoriesCompanion(
-        budgetedAmountMinor: const Value(null),
-        updatedAt: Value(now),
+    if (await _categoryTypeOf(categoryId) == CategoryType.expense) {
+      await (_db.update(
+        _db.categories,
+      )..where((c) => c.id.equals(categoryId))).write(
+        CategoriesCompanion(
+          budgetedAmountMinor: const Value(null),
+          updatedAt: Value(now),
+        ),
+      );
+    }
+  }
+
+  /// Marks an income envelope paid, backing it with a real credit
+  /// transaction (created with [amountMinor]/[transactedAt], which may
+  /// differ from the envelope's planned amount).
+  Future<void> markCategoryBudgetPaid({
+    required String periodId,
+    required String categoryId,
+    required String accountId,
+    required int amountMinor,
+    required DateTime transactedAt,
+  }) async {
+    final tx = await _transactions.insertDraft(
+      TransactionDraft(
+        amountMinor: amountMinor,
+        direction: TxDirection.credit,
+        source: TxSource.manual,
+        transactedAt: transactedAt,
+        categoryId: categoryId,
       ),
+      accountId: accountId,
+      idempotencyKey: Ids.newId(),
+      status: TxStatus.confirmed,
+      periodId: periodId,
     );
+
+    final now = Iso.nowUtc();
+    final existing =
+        await (_db.select(_db.categoryBudgets)..where(
+              (b) =>
+                  b.userId.equals(userId) &
+                  b.periodId.equals(periodId) &
+                  b.categoryId.equals(categoryId),
+            ))
+            .getSingleOrNull();
+    if (existing == null) {
+      await _db
+          .into(_db.categoryBudgets)
+          .insert(
+            CategoryBudgetsCompanion.insert(
+              id: Ids.newId(),
+              userId: userId,
+              createdAt: now,
+              updatedAt: now,
+              periodId: periodId,
+              categoryId: categoryId,
+              amountMinor: amountMinor,
+              status: Value(IncomeStatus.paid.dbName),
+              transactionId: Value(tx.id),
+            ),
+          );
+    } else {
+      await (_db.update(
+        _db.categoryBudgets,
+      )..where((b) => b.id.equals(existing.id))).write(
+        CategoryBudgetsCompanion(
+          amountMinor: Value(amountMinor),
+          status: Value(IncomeStatus.paid.dbName),
+          transactionId: Value(tx.id),
+          deletedAt: const Value(null),
+          updatedAt: Value(now),
+        ),
+      );
+    }
+  }
+
+  /// Marks an income envelope unpaid again. The transaction that had
+  /// backed it, if any, is left alone in the ledger — only the link is
+  /// cleared.
+  Future<void> markCategoryBudgetUnpaid({
+    required String periodId,
+    required String categoryId,
+  }) async {
+    final now = Iso.nowUtc();
+    await (_db.update(
+      _db.categoryBudgets,
+    )..where(
+          (b) =>
+              b.userId.equals(userId) &
+              b.periodId.equals(periodId) &
+              b.categoryId.equals(categoryId) &
+              b.deletedAt.isNull(),
+        ))
+        .write(
+          CategoryBudgetsCompanion(
+            status: Value(IncomeStatus.unpaid.dbName),
+            transactionId: const Value(null),
+            updatedAt: Value(now),
+          ),
+        );
+  }
+
+  /// Actual (paid-only) and provisional (paid + unpaid) income totals
+  /// for this period, summed across every income-type category envelope.
+  Future<IncomeTotals> incomeTotalsForPeriod(String periodId) async {
+    final budgets = await categoryBudgetsFor(periodId);
+    var actual = 0;
+    var provisional = 0;
+    for (final budget in budgets) {
+      if (await _categoryTypeOf(budget.categoryId) != CategoryType.income) {
+        continue;
+      }
+      provisional += budget.amountMinor;
+      if (budget.isPaid) actual += budget.amountMinor;
+    }
+    return IncomeTotals(actualMinor: actual, provisionalMinor: provisional);
   }
 
   Future<bool> transferCategoryBudget({

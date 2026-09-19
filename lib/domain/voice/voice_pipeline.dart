@@ -1,5 +1,6 @@
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -48,11 +49,13 @@ class VoicePipeline {
     required TransactionRepository transactions,
     required AccountRepository accounts,
     required CategoryRepository categories,
+    required BudgetPeriodRepository budgetPeriods,
   }) : _ai = aiProvider,
        _rawCaptures = rawCaptures,
        _transactions = transactions,
        _accounts = accounts,
-       _categories = categories;
+       _categories = categories,
+       _budgetPeriods = budgetPeriods;
 
   static const double autoSaveThreshold = 0.85;
 
@@ -61,6 +64,7 @@ class VoicePipeline {
   final TransactionRepository _transactions;
   final AccountRepository _accounts;
   final CategoryRepository _categories;
+  final BudgetPeriodRepository _budgetPeriods;
 
   Future<VoiceResult> processTranscript(String transcript) async {
     final now = DateTime.now();
@@ -139,12 +143,16 @@ class VoicePipeline {
     // the same thing twice usually means it happened twice, and there is
     // no provider reference to prove otherwise. Keying on the capture id
     // keeps both — the fuzzy duplicate check surfaces genuine repeats.
+    final periodId = (await _budgetPeriods.ensurePeriodContaining(
+      transactedAt,
+    )).id;
     final transaction = await _transactions.insertDraft(
       draft,
       accountId: (await _accounts.getDefault()).id,
       idempotencyKey: 'voice:${raw.id}',
       status: autoSave ? TxStatus.confirmed : TxStatus.needsReview,
       rawCaptureId: raw.id,
+      periodId: periodId,
     );
     await _rawCaptures.markParsed(
       raw.id,
