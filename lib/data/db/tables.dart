@@ -304,6 +304,57 @@ class SavingsGoalEntries extends SyncedTable {
   TextColumn get linkedTransactionId => text().nullable()();
 }
 
+/// Something the user wants but hasn't committed to — no budget, no
+/// savings goal, no money moved. See [SavingsGoals] for the same
+/// "computed, not mutable" philosophy; here it's status that's derived
+/// (from [linkedGoalId]/[purchasedAt]) rather than stored, so it can't
+/// drift from what actually happened to the item.
+@DataClassName('WishlistItemRow')
+class WishlistItems extends SyncedTable {
+  TextColumn get name => text()();
+
+  /// What the user thinks it costs, in ngwee. Nullable — capturing the
+  /// idea shouldn't require knowing the price yet.
+  IntColumn get estimatedPriceMinor => integer().nullable()();
+
+  /// What was actually paid, set once [purchasedAt] is set.
+  IntColumn get actualPriceMinor => integer().nullable()();
+
+  /// Free text: where the user saw it.
+  TextColumn get seenAt => text().nullable()();
+  TextColumn get productUrl => text().nullable()();
+  TextColumn get note => text().nullable()();
+
+  /// The [SavingsGoals] row this item was converted into, if any.
+  TextColumn get linkedGoalId => text().nullable()();
+
+  /// The [Transactions] row this item was bought as, if any.
+  TextColumn get linkedTransactionId => text().nullable()();
+
+  /// Non-null once the item has been bought.
+  TextColumn get purchasedAt => text().nullable()();
+}
+
+/// One photo attached to a [WishlistItems] row. Not a [SyncedTable] —
+/// same reasoning as [TransactionLabels]: removing a photo removes it
+/// outright, it has no lifecycle of its own beyond existing or not.
+@DataClassName('WishlistItemPhotoRow')
+@TableIndex(name: 'idx_wishlist_photo_item', columns: {#wishlistItemId})
+class WishlistItemPhotos extends Table {
+  TextColumn get id => text()();
+  TextColumn get wishlistItemId => text()();
+
+  /// App-local file path, same convention as [Transactions.receiptPath].
+  TextColumn get path => text()();
+
+  /// Display order; the lowest also serves as the item's cover thumbnail.
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get createdAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// A user-added SMS sender ID routed to an existing provider parser —
 /// e.g. a bank that sends alerts from a shortcode the built-in parser
 /// doesn't already recognize.

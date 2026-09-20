@@ -42,6 +42,12 @@ void main() {
         type: AccountType.cash,
       );
 
+      final goal = await source.savingsGoals.create(
+        name: 'New Laptop',
+        targetMinor: 100000,
+      );
+      final wishlistItem = await source.wishlist.create(name: 'New Pots');
+
       await source.dataResetService.resetAllData();
 
       expect(await source.transactions.getAllForExport(), isEmpty);
@@ -49,6 +55,13 @@ void main() {
       expect(categories.map((c) => c.id), isNot(contains(extraCategory.id)));
       final accounts = await source.accounts.getAll();
       expect(accounts.map((a) => a.id), isNot(contains(extraAccount.id)));
+      final goals = await source.savingsGoals.watchAll().first;
+      expect(goals.map((g) => g.id), isNot(contains(goal.id)));
+      final wishlistItems = await source.wishlist.watchAll().first;
+      expect(
+        wishlistItems.map((w) => w.id),
+        isNot(contains(wishlistItem.id)),
+      );
     });
 
     test('re-seeds day-one defaults', () async {

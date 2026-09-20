@@ -23,6 +23,7 @@ BackupService _testBackupService(AppServices services) => BackupService(
   labels: services.labels,
   transfers: services.transfers,
   savingsGoals: services.savingsGoals,
+  wishlist: services.wishlist,
   tempDirectory: () async => Directory.systemTemp,
 );
 
@@ -153,7 +154,7 @@ void main() {
       addTearDown(file.delete);
       final document =
           jsonDecode(await file.readAsString()) as Map<String, Object?>;
-      expect(document['version'], 4);
+      expect(document['version'], 5);
 
       // A brand-new install: its own seeded categories and default
       // account already exist before the backup is ever touched.

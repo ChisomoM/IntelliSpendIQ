@@ -9,6 +9,7 @@ import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
+import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -19,6 +20,8 @@ import 'package:intellispendiq/domain/models/savings_goal.dart';
 import 'package:intellispendiq/domain/models/savings_goal_entry.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
+import 'package:intellispendiq/domain/models/wishlist_item.dart';
+import 'package:intellispendiq/domain/models/wishlist_item_photo.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -26,10 +29,11 @@ import 'package:path_provider/path_provider.dart';
 /// future field is required for correct restore — `importBackupJson`
 /// should keep reading older versions rather than refusing them.
 ///
-/// v4 added `savingsGoals`/`savingsGoalEntries`; a v3 file simply has
-/// no such keys, and `_listOf` already treats a missing key as an
-/// empty list, so older backups keep importing everything else fine.
-const _backupSchemaVersion = 4;
+/// v4 added `savingsGoals`/`savingsGoalEntries`; v5 added
+/// `wishlistItems`/`wishlistItemPhotos`. An older file simply has no
+/// such keys, and `_listOf` already treats a missing key as an empty
+/// list, so older backups keep importing everything else fine.
+const _backupSchemaVersion = 5;
 
 /// How many rows `importBackupJson` actually wrote, versus how many
 /// it left alone because they (or something they collide with) were
@@ -45,6 +49,8 @@ class RestoreSummary {
     required this.transfersImported,
     required this.savingsGoalsImported,
     required this.savingsGoalEntriesImported,
+    required this.wishlistItemsImported,
+    required this.wishlistItemPhotosImported,
     required this.skipped,
   });
 
@@ -57,6 +63,8 @@ class RestoreSummary {
   final int transfersImported;
   final int savingsGoalsImported;
   final int savingsGoalEntriesImported;
+  final int wishlistItemsImported;
+  final int wishlistItemPhotosImported;
 
   /// Rows that already existed (by id) or collided with an existing
   /// row's unique key — not an error, just nothing new to add.
@@ -71,7 +79,9 @@ class RestoreSummary {
       transactionsImported +
       transfersImported +
       savingsGoalsImported +
-      savingsGoalEntriesImported;
+      savingsGoalEntriesImported +
+      wishlistItemsImported +
+      wishlistItemPhotosImported;
 }
 
 /// Exports the user's data for their own records and for moving it to
@@ -90,6 +100,7 @@ class BackupService {
     required LabelRepository labels,
     required TransferRepository transfers,
     required SavingsGoalRepository savingsGoals,
+    required WishlistRepository wishlist,
     Future<Directory> Function()? tempDirectory,
   }) : _transactions = transactions,
        _accounts = accounts,
@@ -99,6 +110,7 @@ class BackupService {
        _labels = labels,
        _transfers = transfers,
        _savingsGoals = savingsGoals,
+       _wishlist = wishlist,
        _tempDirectory = tempDirectory ?? getTemporaryDirectory;
 
   final TransactionRepository _transactions;
@@ -109,6 +121,7 @@ class BackupService {
   final LabelRepository _labels;
   final TransferRepository _transfers;
   final SavingsGoalRepository _savingsGoals;
+  final WishlistRepository _wishlist;
 
   /// Defaults to `path_provider`'s temp directory; overridable so
   /// tests never need a platform channel just to write a file.
@@ -182,6 +195,12 @@ class BackupService {
       'savingsGoalEntries': (await _savingsGoals.getAllEntriesForExport())
           .map(_savingsGoalEntryToJson)
           .toList(),
+      'wishlistItems': (await _wishlist.getAllForExport())
+          .map(_wishlistItemToJson)
+          .toList(),
+      'wishlistItemPhotos': (await _wishlist.getAllPhotosForExport())
+          .map(_wishlistItemPhotoToJson)
+          .toList(),
       'transactionLabels': (await _transactions.getAllLabelLinksForExport())
           .map(
             (link) => {'transactionId': link.$1, 'labelId': link.$2},
@@ -212,6 +231,8 @@ class BackupService {
     var transfersImported = 0;
     var savingsGoalsImported = 0;
     var savingsGoalEntriesImported = 0;
+    var wishlistItemsImported = 0;
+    var wishlistItemPhotosImported = 0;
     var skipped = 0;
 
     // Accounts, categories, payees and labels first — transactions
@@ -284,6 +305,22 @@ class BackupService {
         skipped++;
       }
     }
+    // After both savingsGoals and transactions — a wishlist item's
+    // linkedGoalId/linkedTransactionId should already resolve.
+    for (final entry in _listOf(document, 'wishlistItems')) {
+      if (await _wishlist.restoreItem(_wishlistItemFromJson(entry))) {
+        wishlistItemsImported++;
+      } else {
+        skipped++;
+      }
+    }
+    for (final entry in _listOf(document, 'wishlistItemPhotos')) {
+      if (await _wishlist.restorePhoto(_wishlistItemPhotoFromJson(entry))) {
+        wishlistItemPhotosImported++;
+      } else {
+        skipped++;
+      }
+    }
     for (final entry in _listOf(document, 'transactionLabels')) {
       final transactionId = entry['transactionId'] as String?;
       final labelId = entry['labelId'] as String?;
@@ -303,6 +340,8 @@ class BackupService {
       transfersImported: transfersImported,
       savingsGoalsImported: savingsGoalsImported,
       savingsGoalEntriesImported: savingsGoalEntriesImported,
+      wishlistItemsImported: wishlistItemsImported,
+      wishlistItemPhotosImported: wishlistItemPhotosImported,
       skipped: skipped,
     );
   }
@@ -488,6 +527,52 @@ class BackupService {
         transactedAt: DateTime.parse(json['transactedAt']! as String),
         note: json['note'] as String?,
         linkedTransactionId: json['linkedTransactionId'] as String?,
+      );
+
+  Map<String, Object?> _wishlistItemToJson(WishlistItem item) => {
+    'id': item.id,
+    'name': item.name,
+    'estimatedPriceMinor': item.estimatedPriceMinor,
+    'actualPriceMinor': item.actualPriceMinor,
+    'seenAt': item.seenAt,
+    'productUrl': item.productUrl,
+    'note': item.note,
+    'linkedGoalId': item.linkedGoalId,
+    'linkedTransactionId': item.linkedTransactionId,
+    'purchasedAt': item.purchasedAt?.toIso8601String(),
+  };
+
+  WishlistItem _wishlistItemFromJson(Map<String, Object?> json) => WishlistItem(
+    id: json['id']! as String,
+    name: json['name']! as String,
+    estimatedPriceMinor: json['estimatedPriceMinor'] as int?,
+    actualPriceMinor: json['actualPriceMinor'] as int?,
+    seenAt: json['seenAt'] as String?,
+    productUrl: json['productUrl'] as String?,
+    note: json['note'] as String?,
+    linkedGoalId: json['linkedGoalId'] as String?,
+    linkedTransactionId: json['linkedTransactionId'] as String?,
+    purchasedAt: json['purchasedAt'] == null
+        ? null
+        : DateTime.parse(json['purchasedAt']! as String),
+  );
+
+  /// Only the row is exported — the photo *file* itself is not part of
+  /// the backup JSON, the same known limitation `Transaction.receiptPath`
+  /// already has.
+  Map<String, Object?> _wishlistItemPhotoToJson(WishlistItemPhoto photo) => {
+    'id': photo.id,
+    'wishlistItemId': photo.wishlistItemId,
+    'path': photo.path,
+    'sortOrder': photo.sortOrder,
+  };
+
+  WishlistItemPhoto _wishlistItemPhotoFromJson(Map<String, Object?> json) =>
+      WishlistItemPhoto(
+        id: json['id']! as String,
+        wishlistItemId: json['wishlistItemId']! as String,
+        path: json['path']! as String,
+        sortOrder: json['sortOrder'] as int? ?? 0,
       );
 
   Map<String, Object?> _transactionToJson(Transaction tx) => {

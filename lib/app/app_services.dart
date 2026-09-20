@@ -18,6 +18,7 @@ import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
+import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/ai/ai_provider.dart';
 import 'package:intellispendiq/domain/ai/anthropic_chat_provider.dart';
@@ -57,6 +58,7 @@ class AppServices {
     required this.customSenders,
     required this.merchantCategoryRules,
     required this.savingsGoals,
+    required this.wishlist,
     required this.appLock,
     required this.identity,
     required this.license,
@@ -171,6 +173,13 @@ class AppServices {
       transactions: transactions,
       budgetPeriods: budgetPeriods,
     );
+    final wishlist = WishlistRepository(
+      db,
+      userId: userId,
+      transactions: transactions,
+      savingsGoals: savingsGoals,
+      budgetPeriods: budgetPeriods,
+    );
 
     // Day-one seeds (plan §6.2): categories and the default Airtel Money
     // account. Both are no-ops after the first launch.
@@ -223,6 +232,7 @@ class AppServices {
       labels: labels,
       transfers: transfers,
       savingsGoals: savingsGoals,
+      wishlist: wishlist,
     );
     final dataResetService = DataResetService(
       db: db,
@@ -250,6 +260,7 @@ class AppServices {
       customSenders: customSenders,
       merchantCategoryRules: merchantCategoryRules,
       savingsGoals: savingsGoals,
+      wishlist: wishlist,
       appLock: AppLockRepository(
         secureStore: store,
         settings: settings,
@@ -302,6 +313,7 @@ class AppServices {
   final CustomSenderRepository customSenders;
   final MerchantCategoryRuleRepository merchantCategoryRules;
   final SavingsGoalRepository savingsGoals;
+  final WishlistRepository wishlist;
   final AppLockRepository appLock;
   final IdentityRepository identity;
   final LicenseRepository license;

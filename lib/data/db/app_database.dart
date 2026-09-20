@@ -27,13 +27,15 @@ part 'app_database.g.dart';
     MerchantCategoryRules,
     SavingsGoals,
     SavingsGoalEntries,
+    WishlistItems,
+    WishlistItemPhotos,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -117,6 +119,10 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
         if (from < 11) {
           await _createTableIfMissing(m, savingsGoals);
           await _createTableIfMissing(m, savingsGoalEntries);
+        }
+        if (from < 12) {
+          await _createTableIfMissing(m, wishlistItems);
+          await _createTableIfMissing(m, wishlistItemPhotos);
         }
       });
     },

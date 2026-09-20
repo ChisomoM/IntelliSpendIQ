@@ -40,6 +40,8 @@ class DataResetService {
       await _db.delete(_db.transfers).go();
       await _db.delete(_db.savingsGoalEntries).go();
       await _db.delete(_db.savingsGoals).go();
+      await _db.delete(_db.wishlistItemPhotos).go();
+      await _db.delete(_db.wishlistItems).go();
       await _db.delete(_db.rawCaptures).go();
       await _db.delete(_db.categoryBudgets).go();
       await _db.delete(_db.budgetPeriods).go();

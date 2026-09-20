@@ -19,6 +19,7 @@ import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
+import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/design/theme/app_theme.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
@@ -67,6 +68,9 @@ class App extends StatelessWidget {
         RepositoryProvider<LabelRepository>.value(value: services.labels),
         RepositoryProvider<SavingsGoalRepository>.value(
           value: services.savingsGoals,
+        ),
+        RepositoryProvider<WishlistRepository>.value(
+          value: services.wishlist,
         ),
         RepositoryProvider<CustomSenderRepository>.value(
           value: services.customSenders,

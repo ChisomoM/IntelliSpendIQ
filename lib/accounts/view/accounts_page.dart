@@ -7,6 +7,7 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/savings_goals/view/savings_goals_page.dart';
+import 'package:intellispendiq/wishlist/view/wishlist_page.dart';
 
 class AccountsPage extends StatelessWidget {
   const AccountsPage({super.key});
@@ -36,6 +37,12 @@ class AccountsView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Accounts'),
         actions: [
+          IconButton(
+            icon: AppIcon(AppIcons.wishlist, size: 22),
+            tooltip: 'Wishlist',
+            onPressed: () =>
+                Navigator.of(context).push<void>(WishlistPage.route()),
+          ),
           IconButton(
             icon: AppIcon(AppIcons.savingsGoal, size: 22),
             tooltip: 'Savings goals',

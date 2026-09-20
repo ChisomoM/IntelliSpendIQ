@@ -67,6 +67,11 @@ abstract final class AppIcons {
   // `CategoryIcons`) beats guessing at an unverified icon constant.
   static const savingsGoal = HugeIcons.strokeRoundedMoneyBag01;
 
+  // Wishlist. Reuses the shopping-bag glyph already proven to exist in
+  // this package (see `CategoryIcons.shopping`), same reasoning as
+  // [savingsGoal] above.
+  static const wishlist = HugeIcons.strokeRoundedShoppingBag01;
+
   // Account types.
   static const accountCash = HugeIcons.strokeRoundedCash01;
   static const accountBank = HugeIcons.strokeRoundedBank;

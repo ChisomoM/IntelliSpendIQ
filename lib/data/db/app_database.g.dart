@@ -10743,6 +10743,1219 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
   }
 }
 
+class $WishlistItemsTable extends WishlistItems
+    with TableInfo<$WishlistItemsTable, WishlistItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WishlistItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _estimatedPriceMinorMeta =
+      const VerificationMeta('estimatedPriceMinor');
+  @override
+  late final GeneratedColumn<int> estimatedPriceMinor = GeneratedColumn<int>(
+    'estimated_price_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _actualPriceMinorMeta = const VerificationMeta(
+    'actualPriceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> actualPriceMinor = GeneratedColumn<int>(
+    'actual_price_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _seenAtMeta = const VerificationMeta(
+    'seenAt',
+  );
+  @override
+  late final GeneratedColumn<String> seenAt = GeneratedColumn<String>(
+    'seen_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _productUrlMeta = const VerificationMeta(
+    'productUrl',
+  );
+  @override
+  late final GeneratedColumn<String> productUrl = GeneratedColumn<String>(
+    'product_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _linkedGoalIdMeta = const VerificationMeta(
+    'linkedGoalId',
+  );
+  @override
+  late final GeneratedColumn<String> linkedGoalId = GeneratedColumn<String>(
+    'linked_goal_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _linkedTransactionIdMeta =
+      const VerificationMeta('linkedTransactionId');
+  @override
+  late final GeneratedColumn<String> linkedTransactionId =
+      GeneratedColumn<String>(
+        'linked_transaction_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _purchasedAtMeta = const VerificationMeta(
+    'purchasedAt',
+  );
+  @override
+  late final GeneratedColumn<String> purchasedAt = GeneratedColumn<String>(
+    'purchased_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    name,
+    estimatedPriceMinor,
+    actualPriceMinor,
+    seenAt,
+    productUrl,
+    note,
+    linkedGoalId,
+    linkedTransactionId,
+    purchasedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'wishlist_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WishlistItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('estimated_price_minor')) {
+      context.handle(
+        _estimatedPriceMinorMeta,
+        estimatedPriceMinor.isAcceptableOrUnknown(
+          data['estimated_price_minor']!,
+          _estimatedPriceMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('actual_price_minor')) {
+      context.handle(
+        _actualPriceMinorMeta,
+        actualPriceMinor.isAcceptableOrUnknown(
+          data['actual_price_minor']!,
+          _actualPriceMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('seen_at')) {
+      context.handle(
+        _seenAtMeta,
+        seenAt.isAcceptableOrUnknown(data['seen_at']!, _seenAtMeta),
+      );
+    }
+    if (data.containsKey('product_url')) {
+      context.handle(
+        _productUrlMeta,
+        productUrl.isAcceptableOrUnknown(
+          data['product_url']!,
+          _productUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('linked_goal_id')) {
+      context.handle(
+        _linkedGoalIdMeta,
+        linkedGoalId.isAcceptableOrUnknown(
+          data['linked_goal_id']!,
+          _linkedGoalIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('linked_transaction_id')) {
+      context.handle(
+        _linkedTransactionIdMeta,
+        linkedTransactionId.isAcceptableOrUnknown(
+          data['linked_transaction_id']!,
+          _linkedTransactionIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('purchased_at')) {
+      context.handle(
+        _purchasedAtMeta,
+        purchasedAt.isAcceptableOrUnknown(
+          data['purchased_at']!,
+          _purchasedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WishlistItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WishlistItemRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      estimatedPriceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}estimated_price_minor'],
+      ),
+      actualPriceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}actual_price_minor'],
+      ),
+      seenAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}seen_at'],
+      ),
+      productUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_url'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      linkedGoalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linked_goal_id'],
+      ),
+      linkedTransactionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linked_transaction_id'],
+      ),
+      purchasedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}purchased_at'],
+      ),
+    );
+  }
+
+  @override
+  $WishlistItemsTable createAlias(String alias) {
+    return $WishlistItemsTable(attachedDatabase, alias);
+  }
+}
+
+class WishlistItemRow extends DataClass implements Insertable<WishlistItemRow> {
+  final String id;
+  final String userId;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+  final String name;
+  final int? estimatedPriceMinor;
+  final int? actualPriceMinor;
+  final String? seenAt;
+  final String? productUrl;
+  final String? note;
+  final String? linkedGoalId;
+  final String? linkedTransactionId;
+  final String? purchasedAt;
+  const WishlistItemRow({
+    required this.id,
+    required this.userId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.name,
+    this.estimatedPriceMinor,
+    this.actualPriceMinor,
+    this.seenAt,
+    this.productUrl,
+    this.note,
+    this.linkedGoalId,
+    this.linkedTransactionId,
+    this.purchasedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<String>(deletedAt);
+    }
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || estimatedPriceMinor != null) {
+      map['estimated_price_minor'] = Variable<int>(estimatedPriceMinor);
+    }
+    if (!nullToAbsent || actualPriceMinor != null) {
+      map['actual_price_minor'] = Variable<int>(actualPriceMinor);
+    }
+    if (!nullToAbsent || seenAt != null) {
+      map['seen_at'] = Variable<String>(seenAt);
+    }
+    if (!nullToAbsent || productUrl != null) {
+      map['product_url'] = Variable<String>(productUrl);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || linkedGoalId != null) {
+      map['linked_goal_id'] = Variable<String>(linkedGoalId);
+    }
+    if (!nullToAbsent || linkedTransactionId != null) {
+      map['linked_transaction_id'] = Variable<String>(linkedTransactionId);
+    }
+    if (!nullToAbsent || purchasedAt != null) {
+      map['purchased_at'] = Variable<String>(purchasedAt);
+    }
+    return map;
+  }
+
+  WishlistItemsCompanion toCompanion(bool nullToAbsent) {
+    return WishlistItemsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      name: Value(name),
+      estimatedPriceMinor: estimatedPriceMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(estimatedPriceMinor),
+      actualPriceMinor: actualPriceMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actualPriceMinor),
+      seenAt: seenAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(seenAt),
+      productUrl: productUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productUrl),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      linkedGoalId: linkedGoalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedGoalId),
+      linkedTransactionId: linkedTransactionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedTransactionId),
+      purchasedAt: purchasedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchasedAt),
+    );
+  }
+
+  factory WishlistItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WishlistItemRow(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      deletedAt: serializer.fromJson<String?>(json['deletedAt']),
+      name: serializer.fromJson<String>(json['name']),
+      estimatedPriceMinor: serializer.fromJson<int?>(
+        json['estimatedPriceMinor'],
+      ),
+      actualPriceMinor: serializer.fromJson<int?>(json['actualPriceMinor']),
+      seenAt: serializer.fromJson<String?>(json['seenAt']),
+      productUrl: serializer.fromJson<String?>(json['productUrl']),
+      note: serializer.fromJson<String?>(json['note']),
+      linkedGoalId: serializer.fromJson<String?>(json['linkedGoalId']),
+      linkedTransactionId: serializer.fromJson<String?>(
+        json['linkedTransactionId'],
+      ),
+      purchasedAt: serializer.fromJson<String?>(json['purchasedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'deletedAt': serializer.toJson<String?>(deletedAt),
+      'name': serializer.toJson<String>(name),
+      'estimatedPriceMinor': serializer.toJson<int?>(estimatedPriceMinor),
+      'actualPriceMinor': serializer.toJson<int?>(actualPriceMinor),
+      'seenAt': serializer.toJson<String?>(seenAt),
+      'productUrl': serializer.toJson<String?>(productUrl),
+      'note': serializer.toJson<String?>(note),
+      'linkedGoalId': serializer.toJson<String?>(linkedGoalId),
+      'linkedTransactionId': serializer.toJson<String?>(linkedTransactionId),
+      'purchasedAt': serializer.toJson<String?>(purchasedAt),
+    };
+  }
+
+  WishlistItemRow copyWith({
+    String? id,
+    String? userId,
+    String? createdAt,
+    String? updatedAt,
+    Value<String?> deletedAt = const Value.absent(),
+    String? name,
+    Value<int?> estimatedPriceMinor = const Value.absent(),
+    Value<int?> actualPriceMinor = const Value.absent(),
+    Value<String?> seenAt = const Value.absent(),
+    Value<String?> productUrl = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    Value<String?> linkedGoalId = const Value.absent(),
+    Value<String?> linkedTransactionId = const Value.absent(),
+    Value<String?> purchasedAt = const Value.absent(),
+  }) => WishlistItemRow(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    name: name ?? this.name,
+    estimatedPriceMinor: estimatedPriceMinor.present
+        ? estimatedPriceMinor.value
+        : this.estimatedPriceMinor,
+    actualPriceMinor: actualPriceMinor.present
+        ? actualPriceMinor.value
+        : this.actualPriceMinor,
+    seenAt: seenAt.present ? seenAt.value : this.seenAt,
+    productUrl: productUrl.present ? productUrl.value : this.productUrl,
+    note: note.present ? note.value : this.note,
+    linkedGoalId: linkedGoalId.present ? linkedGoalId.value : this.linkedGoalId,
+    linkedTransactionId: linkedTransactionId.present
+        ? linkedTransactionId.value
+        : this.linkedTransactionId,
+    purchasedAt: purchasedAt.present ? purchasedAt.value : this.purchasedAt,
+  );
+  WishlistItemRow copyWithCompanion(WishlistItemsCompanion data) {
+    return WishlistItemRow(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      name: data.name.present ? data.name.value : this.name,
+      estimatedPriceMinor: data.estimatedPriceMinor.present
+          ? data.estimatedPriceMinor.value
+          : this.estimatedPriceMinor,
+      actualPriceMinor: data.actualPriceMinor.present
+          ? data.actualPriceMinor.value
+          : this.actualPriceMinor,
+      seenAt: data.seenAt.present ? data.seenAt.value : this.seenAt,
+      productUrl: data.productUrl.present
+          ? data.productUrl.value
+          : this.productUrl,
+      note: data.note.present ? data.note.value : this.note,
+      linkedGoalId: data.linkedGoalId.present
+          ? data.linkedGoalId.value
+          : this.linkedGoalId,
+      linkedTransactionId: data.linkedTransactionId.present
+          ? data.linkedTransactionId.value
+          : this.linkedTransactionId,
+      purchasedAt: data.purchasedAt.present
+          ? data.purchasedAt.value
+          : this.purchasedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WishlistItemRow(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('name: $name, ')
+          ..write('estimatedPriceMinor: $estimatedPriceMinor, ')
+          ..write('actualPriceMinor: $actualPriceMinor, ')
+          ..write('seenAt: $seenAt, ')
+          ..write('productUrl: $productUrl, ')
+          ..write('note: $note, ')
+          ..write('linkedGoalId: $linkedGoalId, ')
+          ..write('linkedTransactionId: $linkedTransactionId, ')
+          ..write('purchasedAt: $purchasedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    name,
+    estimatedPriceMinor,
+    actualPriceMinor,
+    seenAt,
+    productUrl,
+    note,
+    linkedGoalId,
+    linkedTransactionId,
+    purchasedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WishlistItemRow &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.name == this.name &&
+          other.estimatedPriceMinor == this.estimatedPriceMinor &&
+          other.actualPriceMinor == this.actualPriceMinor &&
+          other.seenAt == this.seenAt &&
+          other.productUrl == this.productUrl &&
+          other.note == this.note &&
+          other.linkedGoalId == this.linkedGoalId &&
+          other.linkedTransactionId == this.linkedTransactionId &&
+          other.purchasedAt == this.purchasedAt);
+}
+
+class WishlistItemsCompanion extends UpdateCompanion<WishlistItemRow> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<String?> deletedAt;
+  final Value<String> name;
+  final Value<int?> estimatedPriceMinor;
+  final Value<int?> actualPriceMinor;
+  final Value<String?> seenAt;
+  final Value<String?> productUrl;
+  final Value<String?> note;
+  final Value<String?> linkedGoalId;
+  final Value<String?> linkedTransactionId;
+  final Value<String?> purchasedAt;
+  final Value<int> rowid;
+  const WishlistItemsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.name = const Value.absent(),
+    this.estimatedPriceMinor = const Value.absent(),
+    this.actualPriceMinor = const Value.absent(),
+    this.seenAt = const Value.absent(),
+    this.productUrl = const Value.absent(),
+    this.note = const Value.absent(),
+    this.linkedGoalId = const Value.absent(),
+    this.linkedTransactionId = const Value.absent(),
+    this.purchasedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WishlistItemsCompanion.insert({
+    required String id,
+    required String userId,
+    required String createdAt,
+    required String updatedAt,
+    this.deletedAt = const Value.absent(),
+    required String name,
+    this.estimatedPriceMinor = const Value.absent(),
+    this.actualPriceMinor = const Value.absent(),
+    this.seenAt = const Value.absent(),
+    this.productUrl = const Value.absent(),
+    this.note = const Value.absent(),
+    this.linkedGoalId = const Value.absent(),
+    this.linkedTransactionId = const Value.absent(),
+    this.purchasedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       name = Value(name);
+  static Insertable<WishlistItemRow> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
+    Expression<String>? name,
+    Expression<int>? estimatedPriceMinor,
+    Expression<int>? actualPriceMinor,
+    Expression<String>? seenAt,
+    Expression<String>? productUrl,
+    Expression<String>? note,
+    Expression<String>? linkedGoalId,
+    Expression<String>? linkedTransactionId,
+    Expression<String>? purchasedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (name != null) 'name': name,
+      if (estimatedPriceMinor != null)
+        'estimated_price_minor': estimatedPriceMinor,
+      if (actualPriceMinor != null) 'actual_price_minor': actualPriceMinor,
+      if (seenAt != null) 'seen_at': seenAt,
+      if (productUrl != null) 'product_url': productUrl,
+      if (note != null) 'note': note,
+      if (linkedGoalId != null) 'linked_goal_id': linkedGoalId,
+      if (linkedTransactionId != null)
+        'linked_transaction_id': linkedTransactionId,
+      if (purchasedAt != null) 'purchased_at': purchasedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WishlistItemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<String?>? deletedAt,
+    Value<String>? name,
+    Value<int?>? estimatedPriceMinor,
+    Value<int?>? actualPriceMinor,
+    Value<String?>? seenAt,
+    Value<String?>? productUrl,
+    Value<String?>? note,
+    Value<String?>? linkedGoalId,
+    Value<String?>? linkedTransactionId,
+    Value<String?>? purchasedAt,
+    Value<int>? rowid,
+  }) {
+    return WishlistItemsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      name: name ?? this.name,
+      estimatedPriceMinor: estimatedPriceMinor ?? this.estimatedPriceMinor,
+      actualPriceMinor: actualPriceMinor ?? this.actualPriceMinor,
+      seenAt: seenAt ?? this.seenAt,
+      productUrl: productUrl ?? this.productUrl,
+      note: note ?? this.note,
+      linkedGoalId: linkedGoalId ?? this.linkedGoalId,
+      linkedTransactionId: linkedTransactionId ?? this.linkedTransactionId,
+      purchasedAt: purchasedAt ?? this.purchasedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (estimatedPriceMinor.present) {
+      map['estimated_price_minor'] = Variable<int>(estimatedPriceMinor.value);
+    }
+    if (actualPriceMinor.present) {
+      map['actual_price_minor'] = Variable<int>(actualPriceMinor.value);
+    }
+    if (seenAt.present) {
+      map['seen_at'] = Variable<String>(seenAt.value);
+    }
+    if (productUrl.present) {
+      map['product_url'] = Variable<String>(productUrl.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (linkedGoalId.present) {
+      map['linked_goal_id'] = Variable<String>(linkedGoalId.value);
+    }
+    if (linkedTransactionId.present) {
+      map['linked_transaction_id'] = Variable<String>(
+        linkedTransactionId.value,
+      );
+    }
+    if (purchasedAt.present) {
+      map['purchased_at'] = Variable<String>(purchasedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WishlistItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('name: $name, ')
+          ..write('estimatedPriceMinor: $estimatedPriceMinor, ')
+          ..write('actualPriceMinor: $actualPriceMinor, ')
+          ..write('seenAt: $seenAt, ')
+          ..write('productUrl: $productUrl, ')
+          ..write('note: $note, ')
+          ..write('linkedGoalId: $linkedGoalId, ')
+          ..write('linkedTransactionId: $linkedTransactionId, ')
+          ..write('purchasedAt: $purchasedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WishlistItemPhotosTable extends WishlistItemPhotos
+    with TableInfo<$WishlistItemPhotosTable, WishlistItemPhotoRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WishlistItemPhotosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _wishlistItemIdMeta = const VerificationMeta(
+    'wishlistItemId',
+  );
+  @override
+  late final GeneratedColumn<String> wishlistItemId = GeneratedColumn<String>(
+    'wishlist_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    wishlistItemId,
+    path,
+    sortOrder,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'wishlist_item_photos';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WishlistItemPhotoRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('wishlist_item_id')) {
+      context.handle(
+        _wishlistItemIdMeta,
+        wishlistItemId.isAcceptableOrUnknown(
+          data['wishlist_item_id']!,
+          _wishlistItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_wishlistItemIdMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WishlistItemPhotoRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WishlistItemPhotoRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      wishlistItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wishlist_item_id'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WishlistItemPhotosTable createAlias(String alias) {
+    return $WishlistItemPhotosTable(attachedDatabase, alias);
+  }
+}
+
+class WishlistItemPhotoRow extends DataClass
+    implements Insertable<WishlistItemPhotoRow> {
+  final String id;
+  final String wishlistItemId;
+
+  /// App-local file path, same convention as [Transactions.receiptPath].
+  final String path;
+
+  /// Display order; the lowest also serves as the item's cover thumbnail.
+  final int sortOrder;
+  final String createdAt;
+  const WishlistItemPhotoRow({
+    required this.id,
+    required this.wishlistItemId,
+    required this.path,
+    required this.sortOrder,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['wishlist_item_id'] = Variable<String>(wishlistItemId);
+    map['path'] = Variable<String>(path);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  WishlistItemPhotosCompanion toCompanion(bool nullToAbsent) {
+    return WishlistItemPhotosCompanion(
+      id: Value(id),
+      wishlistItemId: Value(wishlistItemId),
+      path: Value(path),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory WishlistItemPhotoRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WishlistItemPhotoRow(
+      id: serializer.fromJson<String>(json['id']),
+      wishlistItemId: serializer.fromJson<String>(json['wishlistItemId']),
+      path: serializer.fromJson<String>(json['path']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'wishlistItemId': serializer.toJson<String>(wishlistItemId),
+      'path': serializer.toJson<String>(path),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  WishlistItemPhotoRow copyWith({
+    String? id,
+    String? wishlistItemId,
+    String? path,
+    int? sortOrder,
+    String? createdAt,
+  }) => WishlistItemPhotoRow(
+    id: id ?? this.id,
+    wishlistItemId: wishlistItemId ?? this.wishlistItemId,
+    path: path ?? this.path,
+    sortOrder: sortOrder ?? this.sortOrder,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  WishlistItemPhotoRow copyWithCompanion(WishlistItemPhotosCompanion data) {
+    return WishlistItemPhotoRow(
+      id: data.id.present ? data.id.value : this.id,
+      wishlistItemId: data.wishlistItemId.present
+          ? data.wishlistItemId.value
+          : this.wishlistItemId,
+      path: data.path.present ? data.path.value : this.path,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WishlistItemPhotoRow(')
+          ..write('id: $id, ')
+          ..write('wishlistItemId: $wishlistItemId, ')
+          ..write('path: $path, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, wishlistItemId, path, sortOrder, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WishlistItemPhotoRow &&
+          other.id == this.id &&
+          other.wishlistItemId == this.wishlistItemId &&
+          other.path == this.path &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt);
+}
+
+class WishlistItemPhotosCompanion extends UpdateCompanion<WishlistItemPhotoRow> {
+  final Value<String> id;
+  final Value<String> wishlistItemId;
+  final Value<String> path;
+  final Value<int> sortOrder;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const WishlistItemPhotosCompanion({
+    this.id = const Value.absent(),
+    this.wishlistItemId = const Value.absent(),
+    this.path = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WishlistItemPhotosCompanion.insert({
+    required String id,
+    required String wishlistItemId,
+    required String path,
+    this.sortOrder = const Value.absent(),
+    required String createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       wishlistItemId = Value(wishlistItemId),
+       path = Value(path),
+       createdAt = Value(createdAt);
+  static Insertable<WishlistItemPhotoRow> custom({
+    Expression<String>? id,
+    Expression<String>? wishlistItemId,
+    Expression<String>? path,
+    Expression<int>? sortOrder,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (wishlistItemId != null) 'wishlist_item_id': wishlistItemId,
+      if (path != null) 'path': path,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WishlistItemPhotosCompanion copyWith({
+    Value<String>? id,
+    Value<String>? wishlistItemId,
+    Value<String>? path,
+    Value<int>? sortOrder,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return WishlistItemPhotosCompanion(
+      id: id ?? this.id,
+      wishlistItemId: wishlistItemId ?? this.wishlistItemId,
+      path: path ?? this.path,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (wishlistItemId.present) {
+      map['wishlist_item_id'] = Variable<String>(wishlistItemId.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WishlistItemPhotosCompanion(')
+          ..write('id: $id, ')
+          ..write('wishlistItemId: $wishlistItemId, ')
+          ..write('path: $path, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -10772,6 +11985,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SavingsGoalsTable savingsGoals = $SavingsGoalsTable(this);
   late final $SavingsGoalEntriesTable savingsGoalEntries =
       $SavingsGoalEntriesTable(this);
+  late final $WishlistItemsTable wishlistItems = $WishlistItemsTable(this);
+  late final $WishlistItemPhotosTable wishlistItemPhotos =
+      $WishlistItemPhotosTable(this);
   late final Index idxTxUserDate = Index(
     'idx_tx_user_date',
     'CREATE INDEX idx_tx_user_date ON transactions (user_id, transacted_at)',
@@ -10800,6 +12016,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_goal_entry_goal',
     'CREATE INDEX idx_goal_entry_goal ON savings_goal_entries (goal_id)',
   );
+  late final Index idxWishlistPhotoItem = Index(
+    'idx_wishlist_photo_item',
+    'CREATE INDEX idx_wishlist_photo_item ON wishlist_item_photos (wishlist_item_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10822,6 +12042,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     merchantCategoryRules,
     savingsGoals,
     savingsGoalEntries,
+    wishlistItems,
+    wishlistItemPhotos,
     idxTxUserDate,
     idxTxUserStatus,
     idxTxFuzzy,
@@ -10829,6 +12051,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxRawHash,
     idxRawStatus,
     idxGoalEntryGoal,
+    idxWishlistPhotoItem,
   ];
 }
 
