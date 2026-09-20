@@ -357,6 +357,87 @@ GROUP BY account_id
     return byAccount;
   }
 
+  /// Every entry for every goal, unbounded — for backups. Includes
+  /// entries whose goal has since been deleted (e.g. the return-money
+  /// entries [delete] writes), so a restore reproduces the source's
+  /// saved totals exactly rather than only its still-active goals.
+  Future<List<SavingsGoalEntry>> getAllEntriesForExport() async {
+    final query = _db.select(_db.savingsGoalEntries)
+      ..where((e) => e.userId.equals(userId) & e.deletedAt.isNull())
+      ..orderBy([(e) => OrderingTerm.asc(e.transactedAt)]);
+    return (await query.get()).map(_entryFromRow).toList();
+  }
+
+  /// Every goal, unbounded and including deleted ones — for backups, so
+  /// a restore can still resolve the `goalId` on an entry whose goal
+  /// was since removed on the source.
+  Future<List<SavingsGoal>> getAllForExport() async {
+    final query = _db.select(_db.savingsGoals)
+      ..where((g) => g.userId.equals(userId))
+      ..orderBy([(g) => OrderingTerm.asc(g.createdAt)]);
+    return (await query.get()).map(_fromRow).toList();
+  }
+
+  /// Re-inserts a goal from a backup, preserving its original id so
+  /// importing the same backup twice does not duplicate anything.
+  Future<bool> restoreGoal(SavingsGoal goal) async {
+    final existing = await (_db.select(
+      _db.savingsGoals,
+    )..where((g) => g.id.equals(goal.id))).getSingleOrNull();
+    if (existing != null) return false;
+
+    final now = Iso.nowUtc();
+    await _db
+        .into(_db.savingsGoals)
+        .insert(
+          SavingsGoalsCompanion.insert(
+            id: goal.id,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+            name: goal.name,
+            targetMinor: goal.targetMinor,
+            targetDate: Value(
+              goal.targetDate == null ? null : Iso.fromDateTime(goal.targetDate!),
+            ),
+            defaultAccountId: Value(goal.defaultAccountId),
+            status: Value(goal.status.dbName),
+          ),
+        );
+    return true;
+  }
+
+  /// Re-inserts a contribution/withdrawal entry from a backup,
+  /// preserving its original id. Restore always writes goals before
+  /// entries (see `BackupService`), so the entry's `goalId` already
+  /// resolves by the time this runs.
+  Future<bool> restoreEntry(SavingsGoalEntry entry) async {
+    final existing = await (_db.select(
+      _db.savingsGoalEntries,
+    )..where((e) => e.id.equals(entry.id))).getSingleOrNull();
+    if (existing != null) return false;
+
+    final now = Iso.nowUtc();
+    await _db
+        .into(_db.savingsGoalEntries)
+        .insert(
+          SavingsGoalEntriesCompanion.insert(
+            id: entry.id,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+            goalId: entry.goalId,
+            accountId: entry.accountId,
+            amountMinor: entry.amountMinor,
+            kind: entry.kind.dbName,
+            transactedAt: Iso.fromDateTime(entry.transactedAt),
+            note: Value(entry.note),
+            linkedTransactionId: Value(entry.linkedTransactionId),
+          ),
+        );
+    return true;
+  }
+
   Future<void> _insertEntry({
     required String goalId,
     required String accountId,

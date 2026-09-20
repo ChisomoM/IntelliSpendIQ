@@ -6,6 +6,7 @@ import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
+import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
@@ -14,6 +15,8 @@ import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/label.dart';
 import 'package:intellispendiq/domain/models/overall_budget.dart';
 import 'package:intellispendiq/domain/models/payee.dart';
+import 'package:intellispendiq/domain/models/savings_goal.dart';
+import 'package:intellispendiq/domain/models/savings_goal_entry.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
 import 'package:path/path.dart' as p;
@@ -22,7 +25,11 @@ import 'package:path_provider/path_provider.dart';
 /// The current backup file's schema version. Bump this only if a
 /// future field is required for correct restore — `importBackupJson`
 /// should keep reading older versions rather than refusing them.
-const _backupSchemaVersion = 3;
+///
+/// v4 added `savingsGoals`/`savingsGoalEntries`; a v3 file simply has
+/// no such keys, and `_listOf` already treats a missing key as an
+/// empty list, so older backups keep importing everything else fine.
+const _backupSchemaVersion = 4;
 
 /// How many rows `importBackupJson` actually wrote, versus how many
 /// it left alone because they (or something they collide with) were
@@ -36,6 +43,8 @@ class RestoreSummary {
     required this.labelsImported,
     required this.transactionsImported,
     required this.transfersImported,
+    required this.savingsGoalsImported,
+    required this.savingsGoalEntriesImported,
     required this.skipped,
   });
 
@@ -46,6 +55,8 @@ class RestoreSummary {
   final int labelsImported;
   final int transactionsImported;
   final int transfersImported;
+  final int savingsGoalsImported;
+  final int savingsGoalEntriesImported;
 
   /// Rows that already existed (by id) or collided with an existing
   /// row's unique key — not an error, just nothing new to add.
@@ -58,7 +69,9 @@ class RestoreSummary {
       payeesImported +
       labelsImported +
       transactionsImported +
-      transfersImported;
+      transfersImported +
+      savingsGoalsImported +
+      savingsGoalEntriesImported;
 }
 
 /// Exports the user's data for their own records and for moving it to
@@ -76,6 +89,7 @@ class BackupService {
     required PayeeRepository payees,
     required LabelRepository labels,
     required TransferRepository transfers,
+    required SavingsGoalRepository savingsGoals,
     Future<Directory> Function()? tempDirectory,
   }) : _transactions = transactions,
        _accounts = accounts,
@@ -84,6 +98,7 @@ class BackupService {
        _payees = payees,
        _labels = labels,
        _transfers = transfers,
+       _savingsGoals = savingsGoals,
        _tempDirectory = tempDirectory ?? getTemporaryDirectory;
 
   final TransactionRepository _transactions;
@@ -93,6 +108,7 @@ class BackupService {
   final PayeeRepository _payees;
   final LabelRepository _labels;
   final TransferRepository _transfers;
+  final SavingsGoalRepository _savingsGoals;
 
   /// Defaults to `path_provider`'s temp directory; overridable so
   /// tests never need a platform channel just to write a file.
@@ -160,6 +176,12 @@ class BackupService {
       'transfers': (await _transfers.getAllForExport())
           .map(_transferToJson)
           .toList(),
+      'savingsGoals': (await _savingsGoals.getAllForExport())
+          .map(_savingsGoalToJson)
+          .toList(),
+      'savingsGoalEntries': (await _savingsGoals.getAllEntriesForExport())
+          .map(_savingsGoalEntryToJson)
+          .toList(),
       'transactionLabels': (await _transactions.getAllLabelLinksForExport())
           .map(
             (link) => {'transactionId': link.$1, 'labelId': link.$2},
@@ -188,6 +210,8 @@ class BackupService {
     var labelsImported = 0;
     var transactionsImported = 0;
     var transfersImported = 0;
+    var savingsGoalsImported = 0;
+    var savingsGoalEntriesImported = 0;
     var skipped = 0;
 
     // Accounts, categories, payees and labels first — transactions
@@ -243,6 +267,23 @@ class BackupService {
         skipped++;
       }
     }
+    // Goals before entries — an entry's `goalId` should resolve to an
+    // already-restored goal, the same reason accounts/categories go
+    // before transactions above.
+    for (final entry in _listOf(document, 'savingsGoals')) {
+      if (await _savingsGoals.restoreGoal(_savingsGoalFromJson(entry))) {
+        savingsGoalsImported++;
+      } else {
+        skipped++;
+      }
+    }
+    for (final entry in _listOf(document, 'savingsGoalEntries')) {
+      if (await _savingsGoals.restoreEntry(_savingsGoalEntryFromJson(entry))) {
+        savingsGoalEntriesImported++;
+      } else {
+        skipped++;
+      }
+    }
     for (final entry in _listOf(document, 'transactionLabels')) {
       final transactionId = entry['transactionId'] as String?;
       final labelId = entry['labelId'] as String?;
@@ -260,6 +301,8 @@ class BackupService {
       labelsImported: labelsImported,
       transactionsImported: transactionsImported,
       transfersImported: transfersImported,
+      savingsGoalsImported: savingsGoalsImported,
+      savingsGoalEntriesImported: savingsGoalEntriesImported,
       skipped: skipped,
     );
   }
@@ -401,6 +444,51 @@ class BackupService {
     transactedAt: DateTime.parse(json['transactedAt']! as String),
     note: json['note'] as String?,
   );
+
+  Map<String, Object?> _savingsGoalToJson(SavingsGoal goal) => {
+    'id': goal.id,
+    'name': goal.name,
+    'targetMinor': goal.targetMinor,
+    'targetDate': goal.targetDate?.toIso8601String(),
+    'defaultAccountId': goal.defaultAccountId,
+    'status': goal.status.dbName,
+  };
+
+  SavingsGoal _savingsGoalFromJson(Map<String, Object?> json) => SavingsGoal(
+    id: json['id']! as String,
+    name: json['name']! as String,
+    targetMinor: json['targetMinor']! as int,
+    targetDate: json['targetDate'] == null
+        ? null
+        : DateTime.parse(json['targetDate']! as String),
+    defaultAccountId: json['defaultAccountId'] as String?,
+    status: json['status'] == null
+        ? GoalStatus.active
+        : GoalStatus.fromDbName(json['status']! as String),
+  );
+
+  Map<String, Object?> _savingsGoalEntryToJson(SavingsGoalEntry entry) => {
+    'id': entry.id,
+    'goalId': entry.goalId,
+    'accountId': entry.accountId,
+    'amountMinor': entry.amountMinor,
+    'kind': entry.kind.dbName,
+    'transactedAt': entry.transactedAt.toIso8601String(),
+    'note': entry.note,
+    'linkedTransactionId': entry.linkedTransactionId,
+  };
+
+  SavingsGoalEntry _savingsGoalEntryFromJson(Map<String, Object?> json) =>
+      SavingsGoalEntry(
+        id: json['id']! as String,
+        goalId: json['goalId']! as String,
+        accountId: json['accountId']! as String,
+        amountMinor: json['amountMinor']! as int,
+        kind: GoalEntryKind.fromDbName(json['kind']! as String),
+        transactedAt: DateTime.parse(json['transactedAt']! as String),
+        note: json['note'] as String?,
+        linkedTransactionId: json['linkedTransactionId'] as String?,
+      );
 
   Map<String, Object?> _transactionToJson(Transaction tx) => {
     'id': tx.id,

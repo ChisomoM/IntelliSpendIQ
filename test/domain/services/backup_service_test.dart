@@ -22,6 +22,7 @@ BackupService _testBackupService(AppServices services) => BackupService(
   payees: services.payees,
   labels: services.labels,
   transfers: services.transfers,
+  savingsGoals: services.savingsGoals,
   tempDirectory: () async => Directory.systemTemp,
 );
 
@@ -130,11 +131,29 @@ void main() {
         toTransaction: creditLeg,
       );
 
+      final goal = await source.savingsGoals.create(
+        name: 'New Laptop',
+        targetMinor: 1500000,
+      );
+      await source.savingsGoals.contribute(
+        goalId: goal.id,
+        accountId: bank.id,
+        amountMinor: 200000,
+        transactedAt: DateTime(2026, 7, 16),
+      );
+      await source.savingsGoals.spend(
+        goalId: goal.id,
+        accountId: bank.id,
+        amountMinor: 150000,
+        transactedAt: DateTime(2026, 7, 17),
+        merchant: 'Laptop Shop',
+      );
+
       final file = await _testBackupService(source).exportBackupJson();
       addTearDown(file.delete);
       final document =
           jsonDecode(await file.readAsString()) as Map<String, Object?>;
-      expect(document['version'], 3);
+      expect(document['version'], 4);
 
       // A brand-new install: its own seeded categories and default
       // account already exist before the backup is ever touched.
@@ -145,13 +164,20 @@ void main() {
 
       expect(
         summary.transactionsImported,
-        2,
+        3,
         reason:
-            'Shoprite and Vet only — the transfer legs were soft-deleted '
-            'on the source once linked, so they were never exported',
+            'Shoprite, Vet, and the goal-funded Laptop Shop purchase — the '
+            'transfer legs were soft-deleted on the source once linked, so '
+            'they were never exported',
       );
       expect(summary.transfersImported, 1);
       expect(summary.overallBudgetsImported, 1);
+      expect(summary.savingsGoalsImported, 1);
+      expect(
+        summary.savingsGoalEntriesImported,
+        2,
+        reason: 'the contribution and the goal-funded portion of the spend',
+      );
       expect(
         summary.accountsImported,
         2,
@@ -207,6 +233,20 @@ void main() {
       expect(targetTransfers.single.amountMinor, 15000);
       expect(targetTransfers.single.fromAccountId, bank.id);
       expect(targetTransfers.single.toAccountId, cash.id);
+
+      final targetGoals = await target.savingsGoals.watchAll().first;
+      expect(targetGoals, hasLength(1));
+      expect(targetGoals.single.id, goal.id);
+      expect(targetGoals.single.targetMinor, 1500000);
+
+      final targetSaved = await target.savingsGoals.watchSaved().first;
+      expect(
+        targetSaved[goal.id],
+        50000,
+        reason:
+            'contributed 2000, 1500 of it was released by the spend, '
+            '500 remains saved',
+      );
     });
 
     test(

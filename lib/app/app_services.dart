@@ -222,6 +222,7 @@ class AppServices {
       payees: payees,
       labels: labels,
       transfers: transfers,
+      savingsGoals: savingsGoals,
     );
     final dataResetService = DataResetService(
       db: db,
