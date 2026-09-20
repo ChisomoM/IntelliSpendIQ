@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:intellispendiq/bootstrap.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/db/connection.dart';
@@ -14,6 +16,7 @@ import 'package:intellispendiq/data/repositories/merchant_category_rule_reposito
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
+import 'package:intellispendiq/data/repositories/reminder_settings_repository.dart';
 import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -31,6 +34,7 @@ import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
+import 'package:intellispendiq/domain/services/reminder_scheduler.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/platform/biometric_authenticator.dart';
@@ -55,6 +59,8 @@ class AppServices {
     required this.payees,
     required this.labels,
     required this.settings,
+    required this.reminderSettings,
+    required this.reminderScheduler,
     required this.customSenders,
     required this.merchantCategoryRules,
     required this.savingsGoals,
@@ -114,6 +120,7 @@ class AppServices {
     IdentityRepository? identity,
     LicenseRepository? license,
     FeeScheduleRepository? fees,
+    ReminderService? reminderScheduler,
     AppFlavor flavor = AppFlavor.development,
   }) => _wire(
     db: db,
@@ -127,6 +134,7 @@ class AppServices {
     identity: identity,
     license: license,
     fees: fees,
+    reminderScheduler: reminderScheduler,
     flavor: flavor,
   );
 
@@ -143,6 +151,7 @@ class AppServices {
     IdentityRepository? identity,
     LicenseRepository? license,
     FeeScheduleRepository? fees,
+    ReminderService? reminderScheduler,
   }) async {
     final accounts = AccountRepository(db, userId: userId);
     final categories = CategoryRepository(db, userId: userId);
@@ -162,6 +171,18 @@ class AppServices {
     final payees = PayeeRepository(db, userId: userId);
     final labels = LabelRepository(db, userId: userId);
     final settings = SettingsRepository(db);
+    final reminderSettings = ReminderSettingsRepository(settings);
+    final reminders =
+        reminderScheduler ??
+        ReminderScheduler(
+          settingsRepository: reminderSettings,
+          hasLoggedToday: transactions.hasLoggedToday,
+        );
+    await reminders.init();
+    transactions.onTransactionLogged = () {
+      unawaited(reminders.onActivityLogged());
+    };
+    unawaited(reminders.reschedule(await reminderSettings.load()));
     final customSenders = CustomSenderRepository(db, userId: userId);
     final merchantCategoryRules = MerchantCategoryRuleRepository(
       db,
@@ -257,6 +278,8 @@ class AppServices {
       payees: payees,
       labels: labels,
       settings: settings,
+      reminderSettings: reminderSettings,
+      reminderScheduler: reminders,
       customSenders: customSenders,
       merchantCategoryRules: merchantCategoryRules,
       savingsGoals: savingsGoals,
@@ -292,7 +315,10 @@ class AppServices {
       backupService: backupService,
       dataResetService: dataResetService,
       captureBridge: bridge,
-      deepLinkSource: deepLinkSource ?? AppLinksSource(),
+      deepLinkSource: CompositeDeepLinkSource([
+        deepLinkSource ?? AppLinksSource(),
+        reminders,
+      ]),
     );
   }
 
@@ -310,6 +336,8 @@ class AppServices {
   final PayeeRepository payees;
   final LabelRepository labels;
   final SettingsRepository settings;
+  final ReminderSettingsRepository reminderSettings;
+  final ReminderService reminderScheduler;
   final CustomSenderRepository customSenders;
   final MerchantCategoryRuleRepository merchantCategoryRules;
   final SavingsGoalRepository savingsGoals;
@@ -335,6 +363,7 @@ class AppServices {
     await smsSync.dispose();
     await appLock.dispose();
     await identity.dispose();
+    await reminderScheduler.dispose();
     await db.close();
   }
 }

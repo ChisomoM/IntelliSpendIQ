@@ -12,6 +12,8 @@ import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/ai/transaction_extraction.dart';
 import 'package:intellispendiq/domain/models/capture_input.dart';
 import 'package:intellispendiq/domain/models/fee_schedule.dart';
+import 'package:intellispendiq/domain/models/reminder_settings.dart';
+import 'package:intellispendiq/domain/services/reminder_scheduler.dart';
 import 'package:intellispendiq/licensing/entitlement.dart';
 import 'package:intellispendiq/platform/biometric_authenticator.dart';
 import 'package:intellispendiq/platform/capture_bridge.dart';
@@ -30,6 +32,7 @@ Future<AppServices> createTestServices({
   IdentityRepository? identity,
   LicenseRepository? license,
   FeeScheduleRepository? fees,
+  ReminderService? reminderScheduler,
 }) async {
   final store = secureStore ?? FakeSecureStore();
   final db = AppDatabase(NativeDatabase.memory());
@@ -47,7 +50,41 @@ Future<AppServices> createTestServices({
     identity: identity ?? FakeIdentityRepository(),
     license: license ?? FakeLicenseRepository(store: store),
     fees: fees,
+    reminderScheduler: reminderScheduler ?? NoopReminderService(),
   );
+}
+
+/// Stands in for `ReminderScheduler` off-device: no plugin, no
+/// timezone lookup, nothing scheduled. `emit` lets a test simulate a
+/// notification tap.
+class NoopReminderService implements ReminderService {
+  final _controller = StreamController<Uri>.broadcast();
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<bool> requestPermission() async => true;
+
+  @override
+  Future<void> reschedule(ReminderSettings settings) async {}
+
+  @override
+  Future<void> onActivityLogged() async {}
+
+  @override
+  Future<void> cancelAll() async {}
+
+  @override
+  Future<void> dispose() => _controller.close();
+
+  @override
+  Future<Uri?> initialLink() async => null;
+
+  @override
+  Stream<Uri> links() => _controller.stream;
+
+  void emit(Uri uri) => _controller.add(uri);
 }
 
 /// In-memory stand-in for the Keystore. Public so auth tests can hold a

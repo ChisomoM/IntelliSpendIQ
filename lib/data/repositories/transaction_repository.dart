@@ -90,6 +90,17 @@ class TransactionRepository {
   final AppDatabase _db;
   final String userId;
 
+  /// Fired after [insertDraft] actually adds a new transaction — not on
+  /// [restoreTransaction], which replays old dated records rather than
+  /// reflecting something the user just did.
+  ///
+  /// Set once, after construction, by the composition root
+  /// (`AppServices`): `ReminderScheduler` needs to react to inserts, but
+  /// also feeds this repository's data back into its own scheduling, so
+  /// a constructor-injected callback would be circular. A mutable field
+  /// is the simplest way to break that cycle.
+  void Function()? onTransactionLogged;
+
   /// Decodes a stored row into the model the rest of the app uses —
   /// ISO strings become [DateTime], status/direction/source codes
   /// become enums, and the metadata blob is parsed once here instead of
@@ -206,8 +217,31 @@ class TransactionRepository {
     final row = await (_db.select(
       _db.transactions,
     )..where((t) => t.id.equals(id))).getSingle();
+    onTransactionLogged?.call();
     return _fromRow(row);
   }
+
+  /// Whether any transaction was logged for the local calendar day
+  /// [when] falls on (today, by default) — the signal the expense
+  /// reminder uses to skip a day the user has already tracked.
+  Future<bool> hasLoggedOn(DateTime when) async {
+    final dayStart = DateTime(when.year, when.month, when.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    final query = _db.select(_db.transactions)
+      ..where(
+        (t) =>
+            t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.transactedAt.isBetweenValues(
+              Iso.fromDateTime(dayStart),
+              Iso.fromDateTime(dayEnd),
+            ),
+      )
+      ..limit(1);
+    return (await query.get()).isNotEmpty;
+  }
+
+  Future<bool> hasLoggedToday() => hasLoggedOn(DateTime.now());
 
   Stream<List<Transaction>> watchRecent({int limit = 100}) {
     final query = _db.select(_db.transactions)

@@ -20,6 +20,7 @@ import 'package:intellispendiq/senders/senders.dart';
 import 'package:intellispendiq/settings/budget_cadence_labels.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
 import 'package:intellispendiq/settings/view/budget_cycle_page.dart';
+import 'package:intellispendiq/settings/view/reminder_settings_page.dart';
 import 'package:share_plus/share_plus.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -62,6 +63,9 @@ class SettingsView extends StatelessWidget {
           SizedBox(height: Space.sectionGap),
           _SectionLabel('Money'),
           _MoneySection(),
+          SizedBox(height: Space.sectionGap),
+          _SectionLabel('Notifications'),
+          _NotificationsSection(),
           SizedBox(height: Space.sectionGap),
           _SectionLabel('Data'),
           _DataSection(),
@@ -311,6 +315,26 @@ class _MoneySection extends StatelessWidget {
           trailing: _Chevron(),
           onTap: () =>
               Navigator.of(context).push<void>(CustomSendersPage.route()),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotificationsSection extends StatelessWidget {
+  const _NotificationsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingsGroup(
+      rows: [
+        AppListRow(
+          leading: _RowIcon(icon: AppIcons.calendar),
+          title: const Text('Reminders'),
+          subtitle: const Text('Nudges to log expenses on days you forget'),
+          trailing: _Chevron(),
+          onTap: () =>
+              Navigator.of(context).push<void>(ReminderSettingsPage.route()),
         ),
       ],
     );
