@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/app/app_services.dart';
@@ -15,6 +17,7 @@ import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
+import 'package:intellispendiq/data/repositories/reminder_settings_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
@@ -26,6 +29,7 @@ import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
+import 'package:intellispendiq/domain/services/reminder_scheduler.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/home/home.dart';
@@ -69,6 +73,12 @@ class App extends StatelessWidget {
         ),
         RepositoryProvider<ParserRegistry>.value(value: services.registry),
         RepositoryProvider<SettingsRepository>.value(value: services.settings),
+        RepositoryProvider<ReminderSettingsRepository>.value(
+          value: services.reminderSettings,
+        ),
+        RepositoryProvider<ReminderService>.value(
+          value: services.reminderScheduler,
+        ),
         RepositoryProvider<CaptureService>.value(
           value: services.captureService,
         ),
@@ -117,24 +127,67 @@ class App extends StatelessWidget {
                 DeepLinkCubit(services.deepLinkSource)..startUnawaited(),
           ),
         ],
-        child: BlocBuilder<ThemeCubit, ThemeMode>(
-          builder: (context, themeMode) {
-            return MaterialApp(
-              title: services.flavor.displayName,
-              theme: AppTheme.light,
-              darkTheme: AppTheme.dark,
-              themeMode: themeMode,
-              home: const IdentityGate(
-                child: EntitlementGate(
-                  child: AuthGate(child: HomePage()),
+        child: _ReminderRescheduler(
+          child: BlocBuilder<ThemeCubit, ThemeMode>(
+            builder: (context, themeMode) {
+              return MaterialApp(
+                title: services.flavor.displayName,
+                theme: AppTheme.light,
+                darkTheme: AppTheme.dark,
+                themeMode: themeMode,
+                home: const IdentityGate(
+                  child: EntitlementGate(
+                    child: AuthGate(child: HomePage()),
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
   }
+}
+
+/// Reapplies the reminder schedule whenever the app returns to the
+/// foreground, so a device timezone or clock change is picked up
+/// promptly rather than only the next time settings are edited.
+class _ReminderRescheduler extends StatefulWidget {
+  const _ReminderRescheduler({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ReminderRescheduler> createState() => _ReminderReschedulerState();
+}
+
+class _ReminderReschedulerState extends State<_ReminderRescheduler>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_reschedule());
+  }
+
+  Future<void> _reschedule() async {
+    final settings = await context.read<ReminderSettingsRepository>().load();
+    if (!mounted) return;
+    await context.read<ReminderService>().reschedule(settings);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Shown when the encrypted database cannot be opened. Failing loudly
