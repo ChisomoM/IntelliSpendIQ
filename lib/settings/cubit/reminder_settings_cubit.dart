@@ -60,10 +60,19 @@ class ReminderSettingsCubit extends Cubit<ReminderSettingsState> {
     return _apply(state.settings.withDay(weekday, day.copyWith(time: time)));
   }
 
+  /// Persists first, then reschedules the OS notifications. The screen
+  /// reflects the saved choice even if rescheduling itself throws —
+  /// what's stored is the source of truth, and a plugin failure here
+  /// must never leave the settings screen stuck showing the old value.
   Future<void> _apply(ReminderSettings settings) async {
     emit(state.copyWith(status: ReminderSettingsStatus.saving));
     await _repository.save(settings);
-    await _scheduler.reschedule(settings);
+    try {
+      await _scheduler.reschedule(settings);
+    } on Exception {
+      // Swallowed deliberately: the setting is already saved, and the
+      // next reschedule (next edit, or app resume) will retry it.
+    }
     if (isClosed) return;
     emit(
       ReminderSettingsState(
