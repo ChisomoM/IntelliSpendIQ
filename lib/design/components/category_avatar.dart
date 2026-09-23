@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intellispendiq/design/components/app_icon.dart';
 import 'package:intellispendiq/design/tokens/category_palette.dart';
 import 'package:intellispendiq/design/tokens/icons.dart';
-import 'package:intellispendiq/design/tokens/radii.dart';
 
 /// A category's glyph on its own tinted chip.
 ///

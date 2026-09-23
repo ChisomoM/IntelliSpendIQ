@@ -102,7 +102,7 @@ class AccountDetailView extends StatelessWidget {
             ),
             actions: [
               IconButton(
-                icon: AppIcon(AppIcons.add, size: 22),
+                icon: const AppIcon(AppIcons.add, size: 22),
                 tooltip: 'Add an entry',
                 onPressed: () => _addEntry(context, account.id),
               ),

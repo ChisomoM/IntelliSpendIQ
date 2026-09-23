@@ -330,7 +330,7 @@ GROUP BY account_id
 
   Future<int> _savedFor(String goalId) async {
     final byAccount = await _netByAccount(goalId);
-    return byAccount.values.fold(0, (sum, v) => sum + v);
+    return byAccount.values.fold<int>(0, (sum, v) => sum + v);
   }
 
   /// Net (contributions − withdrawals) per source account for [goalId].

@@ -9485,9 +9485,7 @@ class $SavingsGoalsTable extends SavingsGoals
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _statusMeta = const VerificationMeta(
-    'status',
-  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
     'status',
@@ -9741,9 +9739,7 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
       name: serializer.fromJson<String>(json['name']),
       targetMinor: serializer.fromJson<int>(json['targetMinor']),
       targetDate: serializer.fromJson<String?>(json['targetDate']),
-      defaultAccountId: serializer.fromJson<String?>(
-        json['defaultAccountId'],
-      ),
+      defaultAccountId: serializer.fromJson<String?>(json['defaultAccountId']),
       status: serializer.fromJson<String>(json['status']),
     );
   }
@@ -10070,9 +10066,7 @@ class $SavingsGoalEntriesTable extends SavingsGoalEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _goalIdMeta = const VerificationMeta(
-    'goalId',
-  );
+  static const VerificationMeta _goalIdMeta = const VerificationMeta('goalId');
   @override
   late final GeneratedColumn<String> goalId = GeneratedColumn<String>(
     'goal_id',
@@ -10830,9 +10824,7 @@ class $WishlistItemsTable extends WishlistItems
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _seenAtMeta = const VerificationMeta(
-    'seenAt',
-  );
+  static const VerificationMeta _seenAtMeta = const VerificationMeta('seenAt');
   @override
   late final GeneratedColumn<String> seenAt = GeneratedColumn<String>(
     'seen_at',
@@ -10993,10 +10985,7 @@ class $WishlistItemsTable extends WishlistItems
     if (data.containsKey('product_url')) {
       context.handle(
         _productUrlMeta,
-        productUrl.isAcceptableOrUnknown(
-          data['product_url']!,
-          _productUrlMeta,
-        ),
+        productUrl.isAcceptableOrUnknown(data['product_url']!, _productUrlMeta),
       );
     }
     if (data.containsKey('note')) {
@@ -11113,13 +11102,26 @@ class WishlistItemRow extends DataClass implements Insertable<WishlistItemRow> {
   final String updatedAt;
   final String? deletedAt;
   final String name;
+
+  /// What the user thinks it costs, in ngwee. Nullable — capturing the
+  /// idea shouldn't require knowing the price yet.
   final int? estimatedPriceMinor;
+
+  /// What was actually paid, set once [purchasedAt] is set.
   final int? actualPriceMinor;
+
+  /// Free text: where the user saw it.
   final String? seenAt;
   final String? productUrl;
   final String? note;
+
+  /// The [SavingsGoals] row this item was converted into, if any.
   final String? linkedGoalId;
+
+  /// The [Transactions] row this item was bought as, if any.
   final String? linkedTransactionId;
+
+  /// Non-null once the item has been bought.
   final String? purchasedAt;
   const WishlistItemRow({
     required this.id,
@@ -11856,7 +11858,8 @@ class WishlistItemPhotoRow extends DataClass
           other.createdAt == this.createdAt);
 }
 
-class WishlistItemPhotosCompanion extends UpdateCompanion<WishlistItemPhotoRow> {
+class WishlistItemPhotosCompanion
+    extends UpdateCompanion<WishlistItemPhotoRow> {
   final Value<String> id;
   final Value<String> wishlistItemId;
   final Value<String> path;
@@ -16583,6 +16586,1257 @@ typedef $$MerchantCategoryRulesTableProcessedTableManager =
       MerchantCategoryRuleRow,
       PrefetchHooks Function()
     >;
+typedef $$SavingsGoalsTableCreateCompanionBuilder =
+    SavingsGoalsCompanion Function({
+      required String id,
+      required String userId,
+      required String createdAt,
+      required String updatedAt,
+      Value<String?> deletedAt,
+      required String name,
+      required int targetMinor,
+      Value<String?> targetDate,
+      Value<String?> defaultAccountId,
+      Value<String> status,
+      Value<int> rowid,
+    });
+typedef $$SavingsGoalsTableUpdateCompanionBuilder =
+    SavingsGoalsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<String> name,
+      Value<int> targetMinor,
+      Value<String?> targetDate,
+      Value<String?> defaultAccountId,
+      Value<String> status,
+      Value<int> rowid,
+    });
+
+class $$SavingsGoalsTableFilterComposer
+    extends Composer<_$AppDatabase, $SavingsGoalsTable> {
+  $$SavingsGoalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetMinor => $composableBuilder(
+    column: $table.targetMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetDate => $composableBuilder(
+    column: $table.targetDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get defaultAccountId => $composableBuilder(
+    column: $table.defaultAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SavingsGoalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SavingsGoalsTable> {
+  $$SavingsGoalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetMinor => $composableBuilder(
+    column: $table.targetMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetDate => $composableBuilder(
+    column: $table.targetDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get defaultAccountId => $composableBuilder(
+    column: $table.defaultAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SavingsGoalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SavingsGoalsTable> {
+  $$SavingsGoalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get targetMinor => $composableBuilder(
+    column: $table.targetMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get targetDate => $composableBuilder(
+    column: $table.targetDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get defaultAccountId => $composableBuilder(
+    column: $table.defaultAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+}
+
+class $$SavingsGoalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SavingsGoalsTable,
+          SavingsGoalRow,
+          $$SavingsGoalsTableFilterComposer,
+          $$SavingsGoalsTableOrderingComposer,
+          $$SavingsGoalsTableAnnotationComposer,
+          $$SavingsGoalsTableCreateCompanionBuilder,
+          $$SavingsGoalsTableUpdateCompanionBuilder,
+          (
+            SavingsGoalRow,
+            BaseReferences<_$AppDatabase, $SavingsGoalsTable, SavingsGoalRow>,
+          ),
+          SavingsGoalRow,
+          PrefetchHooks Function()
+        > {
+  $$SavingsGoalsTableTableManager(_$AppDatabase db, $SavingsGoalsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SavingsGoalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SavingsGoalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SavingsGoalsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> targetMinor = const Value.absent(),
+                Value<String?> targetDate = const Value.absent(),
+                Value<String?> defaultAccountId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavingsGoalsCompanion(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                name: name,
+                targetMinor: targetMinor,
+                targetDate: targetDate,
+                defaultAccountId: defaultAccountId,
+                status: status,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String createdAt,
+                required String updatedAt,
+                Value<String?> deletedAt = const Value.absent(),
+                required String name,
+                required int targetMinor,
+                Value<String?> targetDate = const Value.absent(),
+                Value<String?> defaultAccountId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavingsGoalsCompanion.insert(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                name: name,
+                targetMinor: targetMinor,
+                targetDate: targetDate,
+                defaultAccountId: defaultAccountId,
+                status: status,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SavingsGoalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SavingsGoalsTable,
+      SavingsGoalRow,
+      $$SavingsGoalsTableFilterComposer,
+      $$SavingsGoalsTableOrderingComposer,
+      $$SavingsGoalsTableAnnotationComposer,
+      $$SavingsGoalsTableCreateCompanionBuilder,
+      $$SavingsGoalsTableUpdateCompanionBuilder,
+      (
+        SavingsGoalRow,
+        BaseReferences<_$AppDatabase, $SavingsGoalsTable, SavingsGoalRow>,
+      ),
+      SavingsGoalRow,
+      PrefetchHooks Function()
+    >;
+typedef $$SavingsGoalEntriesTableCreateCompanionBuilder =
+    SavingsGoalEntriesCompanion Function({
+      required String id,
+      required String userId,
+      required String createdAt,
+      required String updatedAt,
+      Value<String?> deletedAt,
+      required String goalId,
+      required String accountId,
+      required int amountMinor,
+      required String kind,
+      required String transactedAt,
+      Value<String?> note,
+      Value<String?> linkedTransactionId,
+      Value<int> rowid,
+    });
+typedef $$SavingsGoalEntriesTableUpdateCompanionBuilder =
+    SavingsGoalEntriesCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<String> goalId,
+      Value<String> accountId,
+      Value<int> amountMinor,
+      Value<String> kind,
+      Value<String> transactedAt,
+      Value<String?> note,
+      Value<String?> linkedTransactionId,
+      Value<int> rowid,
+    });
+
+class $$SavingsGoalEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $SavingsGoalEntriesTable> {
+  $$SavingsGoalEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get goalId => $composableBuilder(
+    column: $table.goalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transactedAt => $composableBuilder(
+    column: $table.transactedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedTransactionId => $composableBuilder(
+    column: $table.linkedTransactionId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SavingsGoalEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SavingsGoalEntriesTable> {
+  $$SavingsGoalEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get goalId => $composableBuilder(
+    column: $table.goalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transactedAt => $composableBuilder(
+    column: $table.transactedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get linkedTransactionId => $composableBuilder(
+    column: $table.linkedTransactionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SavingsGoalEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SavingsGoalEntriesTable> {
+  $$SavingsGoalEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get goalId =>
+      $composableBuilder(column: $table.goalId, builder: (column) => column);
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get transactedAt => $composableBuilder(
+    column: $table.transactedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get linkedTransactionId => $composableBuilder(
+    column: $table.linkedTransactionId,
+    builder: (column) => column,
+  );
+}
+
+class $$SavingsGoalEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SavingsGoalEntriesTable,
+          SavingsGoalEntryRow,
+          $$SavingsGoalEntriesTableFilterComposer,
+          $$SavingsGoalEntriesTableOrderingComposer,
+          $$SavingsGoalEntriesTableAnnotationComposer,
+          $$SavingsGoalEntriesTableCreateCompanionBuilder,
+          $$SavingsGoalEntriesTableUpdateCompanionBuilder,
+          (
+            SavingsGoalEntryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $SavingsGoalEntriesTable,
+              SavingsGoalEntryRow
+            >,
+          ),
+          SavingsGoalEntryRow,
+          PrefetchHooks Function()
+        > {
+  $$SavingsGoalEntriesTableTableManager(
+    _$AppDatabase db,
+    $SavingsGoalEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SavingsGoalEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SavingsGoalEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SavingsGoalEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<String> goalId = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> transactedAt = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> linkedTransactionId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavingsGoalEntriesCompanion(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                goalId: goalId,
+                accountId: accountId,
+                amountMinor: amountMinor,
+                kind: kind,
+                transactedAt: transactedAt,
+                note: note,
+                linkedTransactionId: linkedTransactionId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String createdAt,
+                required String updatedAt,
+                Value<String?> deletedAt = const Value.absent(),
+                required String goalId,
+                required String accountId,
+                required int amountMinor,
+                required String kind,
+                required String transactedAt,
+                Value<String?> note = const Value.absent(),
+                Value<String?> linkedTransactionId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavingsGoalEntriesCompanion.insert(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                goalId: goalId,
+                accountId: accountId,
+                amountMinor: amountMinor,
+                kind: kind,
+                transactedAt: transactedAt,
+                note: note,
+                linkedTransactionId: linkedTransactionId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SavingsGoalEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SavingsGoalEntriesTable,
+      SavingsGoalEntryRow,
+      $$SavingsGoalEntriesTableFilterComposer,
+      $$SavingsGoalEntriesTableOrderingComposer,
+      $$SavingsGoalEntriesTableAnnotationComposer,
+      $$SavingsGoalEntriesTableCreateCompanionBuilder,
+      $$SavingsGoalEntriesTableUpdateCompanionBuilder,
+      (
+        SavingsGoalEntryRow,
+        BaseReferences<
+          _$AppDatabase,
+          $SavingsGoalEntriesTable,
+          SavingsGoalEntryRow
+        >,
+      ),
+      SavingsGoalEntryRow,
+      PrefetchHooks Function()
+    >;
+typedef $$WishlistItemsTableCreateCompanionBuilder =
+    WishlistItemsCompanion Function({
+      required String id,
+      required String userId,
+      required String createdAt,
+      required String updatedAt,
+      Value<String?> deletedAt,
+      required String name,
+      Value<int?> estimatedPriceMinor,
+      Value<int?> actualPriceMinor,
+      Value<String?> seenAt,
+      Value<String?> productUrl,
+      Value<String?> note,
+      Value<String?> linkedGoalId,
+      Value<String?> linkedTransactionId,
+      Value<String?> purchasedAt,
+      Value<int> rowid,
+    });
+typedef $$WishlistItemsTableUpdateCompanionBuilder =
+    WishlistItemsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<String> name,
+      Value<int?> estimatedPriceMinor,
+      Value<int?> actualPriceMinor,
+      Value<String?> seenAt,
+      Value<String?> productUrl,
+      Value<String?> note,
+      Value<String?> linkedGoalId,
+      Value<String?> linkedTransactionId,
+      Value<String?> purchasedAt,
+      Value<int> rowid,
+    });
+
+class $$WishlistItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $WishlistItemsTable> {
+  $$WishlistItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get estimatedPriceMinor => $composableBuilder(
+    column: $table.estimatedPriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get actualPriceMinor => $composableBuilder(
+    column: $table.actualPriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get seenAt => $composableBuilder(
+    column: $table.seenAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productUrl => $composableBuilder(
+    column: $table.productUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedGoalId => $composableBuilder(
+    column: $table.linkedGoalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedTransactionId => $composableBuilder(
+    column: $table.linkedTransactionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get purchasedAt => $composableBuilder(
+    column: $table.purchasedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WishlistItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $WishlistItemsTable> {
+  $$WishlistItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get estimatedPriceMinor => $composableBuilder(
+    column: $table.estimatedPriceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get actualPriceMinor => $composableBuilder(
+    column: $table.actualPriceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get seenAt => $composableBuilder(
+    column: $table.seenAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productUrl => $composableBuilder(
+    column: $table.productUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get linkedGoalId => $composableBuilder(
+    column: $table.linkedGoalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get linkedTransactionId => $composableBuilder(
+    column: $table.linkedTransactionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get purchasedAt => $composableBuilder(
+    column: $table.purchasedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WishlistItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WishlistItemsTable> {
+  $$WishlistItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get estimatedPriceMinor => $composableBuilder(
+    column: $table.estimatedPriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get actualPriceMinor => $composableBuilder(
+    column: $table.actualPriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get seenAt =>
+      $composableBuilder(column: $table.seenAt, builder: (column) => column);
+
+  GeneratedColumn<String> get productUrl => $composableBuilder(
+    column: $table.productUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get linkedGoalId => $composableBuilder(
+    column: $table.linkedGoalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get linkedTransactionId => $composableBuilder(
+    column: $table.linkedTransactionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get purchasedAt => $composableBuilder(
+    column: $table.purchasedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$WishlistItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WishlistItemsTable,
+          WishlistItemRow,
+          $$WishlistItemsTableFilterComposer,
+          $$WishlistItemsTableOrderingComposer,
+          $$WishlistItemsTableAnnotationComposer,
+          $$WishlistItemsTableCreateCompanionBuilder,
+          $$WishlistItemsTableUpdateCompanionBuilder,
+          (
+            WishlistItemRow,
+            BaseReferences<_$AppDatabase, $WishlistItemsTable, WishlistItemRow>,
+          ),
+          WishlistItemRow,
+          PrefetchHooks Function()
+        > {
+  $$WishlistItemsTableTableManager(_$AppDatabase db, $WishlistItemsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WishlistItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WishlistItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WishlistItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int?> estimatedPriceMinor = const Value.absent(),
+                Value<int?> actualPriceMinor = const Value.absent(),
+                Value<String?> seenAt = const Value.absent(),
+                Value<String?> productUrl = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> linkedGoalId = const Value.absent(),
+                Value<String?> linkedTransactionId = const Value.absent(),
+                Value<String?> purchasedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WishlistItemsCompanion(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                name: name,
+                estimatedPriceMinor: estimatedPriceMinor,
+                actualPriceMinor: actualPriceMinor,
+                seenAt: seenAt,
+                productUrl: productUrl,
+                note: note,
+                linkedGoalId: linkedGoalId,
+                linkedTransactionId: linkedTransactionId,
+                purchasedAt: purchasedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String createdAt,
+                required String updatedAt,
+                Value<String?> deletedAt = const Value.absent(),
+                required String name,
+                Value<int?> estimatedPriceMinor = const Value.absent(),
+                Value<int?> actualPriceMinor = const Value.absent(),
+                Value<String?> seenAt = const Value.absent(),
+                Value<String?> productUrl = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> linkedGoalId = const Value.absent(),
+                Value<String?> linkedTransactionId = const Value.absent(),
+                Value<String?> purchasedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WishlistItemsCompanion.insert(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                name: name,
+                estimatedPriceMinor: estimatedPriceMinor,
+                actualPriceMinor: actualPriceMinor,
+                seenAt: seenAt,
+                productUrl: productUrl,
+                note: note,
+                linkedGoalId: linkedGoalId,
+                linkedTransactionId: linkedTransactionId,
+                purchasedAt: purchasedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WishlistItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WishlistItemsTable,
+      WishlistItemRow,
+      $$WishlistItemsTableFilterComposer,
+      $$WishlistItemsTableOrderingComposer,
+      $$WishlistItemsTableAnnotationComposer,
+      $$WishlistItemsTableCreateCompanionBuilder,
+      $$WishlistItemsTableUpdateCompanionBuilder,
+      (
+        WishlistItemRow,
+        BaseReferences<_$AppDatabase, $WishlistItemsTable, WishlistItemRow>,
+      ),
+      WishlistItemRow,
+      PrefetchHooks Function()
+    >;
+typedef $$WishlistItemPhotosTableCreateCompanionBuilder =
+    WishlistItemPhotosCompanion Function({
+      required String id,
+      required String wishlistItemId,
+      required String path,
+      Value<int> sortOrder,
+      required String createdAt,
+      Value<int> rowid,
+    });
+typedef $$WishlistItemPhotosTableUpdateCompanionBuilder =
+    WishlistItemPhotosCompanion Function({
+      Value<String> id,
+      Value<String> wishlistItemId,
+      Value<String> path,
+      Value<int> sortOrder,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+class $$WishlistItemPhotosTableFilterComposer
+    extends Composer<_$AppDatabase, $WishlistItemPhotosTable> {
+  $$WishlistItemPhotosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get wishlistItemId => $composableBuilder(
+    column: $table.wishlistItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WishlistItemPhotosTableOrderingComposer
+    extends Composer<_$AppDatabase, $WishlistItemPhotosTable> {
+  $$WishlistItemPhotosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get wishlistItemId => $composableBuilder(
+    column: $table.wishlistItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WishlistItemPhotosTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WishlistItemPhotosTable> {
+  $$WishlistItemPhotosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get wishlistItemId => $composableBuilder(
+    column: $table.wishlistItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$WishlistItemPhotosTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WishlistItemPhotosTable,
+          WishlistItemPhotoRow,
+          $$WishlistItemPhotosTableFilterComposer,
+          $$WishlistItemPhotosTableOrderingComposer,
+          $$WishlistItemPhotosTableAnnotationComposer,
+          $$WishlistItemPhotosTableCreateCompanionBuilder,
+          $$WishlistItemPhotosTableUpdateCompanionBuilder,
+          (
+            WishlistItemPhotoRow,
+            BaseReferences<
+              _$AppDatabase,
+              $WishlistItemPhotosTable,
+              WishlistItemPhotoRow
+            >,
+          ),
+          WishlistItemPhotoRow,
+          PrefetchHooks Function()
+        > {
+  $$WishlistItemPhotosTableTableManager(
+    _$AppDatabase db,
+    $WishlistItemPhotosTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WishlistItemPhotosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WishlistItemPhotosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WishlistItemPhotosTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> wishlistItemId = const Value.absent(),
+                Value<String> path = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WishlistItemPhotosCompanion(
+                id: id,
+                wishlistItemId: wishlistItemId,
+                path: path,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String wishlistItemId,
+                required String path,
+                Value<int> sortOrder = const Value.absent(),
+                required String createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WishlistItemPhotosCompanion.insert(
+                id: id,
+                wishlistItemId: wishlistItemId,
+                path: path,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WishlistItemPhotosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WishlistItemPhotosTable,
+      WishlistItemPhotoRow,
+      $$WishlistItemPhotosTableFilterComposer,
+      $$WishlistItemPhotosTableOrderingComposer,
+      $$WishlistItemPhotosTableAnnotationComposer,
+      $$WishlistItemPhotosTableCreateCompanionBuilder,
+      $$WishlistItemPhotosTableUpdateCompanionBuilder,
+      (
+        WishlistItemPhotoRow,
+        BaseReferences<
+          _$AppDatabase,
+          $WishlistItemPhotosTable,
+          WishlistItemPhotoRow
+        >,
+      ),
+      WishlistItemPhotoRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -16617,4 +17871,12 @@ class $AppDatabaseManager {
       $$CustomSenderIdsTableTableManager(_db, _db.customSenderIds);
   $$MerchantCategoryRulesTableTableManager get merchantCategoryRules =>
       $$MerchantCategoryRulesTableTableManager(_db, _db.merchantCategoryRules);
+  $$SavingsGoalsTableTableManager get savingsGoals =>
+      $$SavingsGoalsTableTableManager(_db, _db.savingsGoals);
+  $$SavingsGoalEntriesTableTableManager get savingsGoalEntries =>
+      $$SavingsGoalEntriesTableTableManager(_db, _db.savingsGoalEntries);
+  $$WishlistItemsTableTableManager get wishlistItems =>
+      $$WishlistItemsTableTableManager(_db, _db.wishlistItems);
+  $$WishlistItemPhotosTableTableManager get wishlistItemPhotos =>
+      $$WishlistItemPhotosTableTableManager(_db, _db.wishlistItemPhotos);
 }
