@@ -43,6 +43,9 @@ class DashboardState extends Equatable {
     this.accountBalances = const {},
     this.needsReviewCount = 0,
     this.failedCaptureCount = 0,
+    this.savingsGoals = const [],
+    this.savingsGoalsSaved = const {},
+    this.wishlistItems = const [],
   });
 
   /// Active budget window for home totals.
@@ -77,6 +80,19 @@ class DashboardState extends Equatable {
 
   /// Messages stored raw because no parser understood them.
   final int failedCaptureCount;
+
+  /// Every active savings goal, for the Planning tile.
+  final List<SavingsGoal> savingsGoals;
+
+  /// Each goal's live saved total — see
+  /// `SavingsGoalRepository.watchSaved`.
+  final Map<String, int> savingsGoalsSaved;
+
+  /// Every wishlist item, for the Planning tile.
+  final List<WishlistItem> wishlistItems;
+
+  int get savingsGoalsSavedTotalMinor =>
+      savingsGoalsSaved.values.fold(0, (sum, value) => sum + value);
 
   /// Stored label, `DD/MM/YYYY – DD/MM/YYYY`.
   String get periodLabel => budgetPeriod?.label ?? '';
@@ -245,6 +261,9 @@ class DashboardState extends Equatable {
     Map<String, int>? accountBalances,
     int? needsReviewCount,
     int? failedCaptureCount,
+    List<SavingsGoal>? savingsGoals,
+    Map<String, int>? savingsGoalsSaved,
+    List<WishlistItem>? wishlistItems,
   }) {
     return DashboardState(
       budgetPeriod: budgetPeriod ?? this.budgetPeriod,
@@ -258,6 +277,9 @@ class DashboardState extends Equatable {
       accountBalances: accountBalances ?? this.accountBalances,
       needsReviewCount: needsReviewCount ?? this.needsReviewCount,
       failedCaptureCount: failedCaptureCount ?? this.failedCaptureCount,
+      savingsGoals: savingsGoals ?? this.savingsGoals,
+      savingsGoalsSaved: savingsGoalsSaved ?? this.savingsGoalsSaved,
+      wishlistItems: wishlistItems ?? this.wishlistItems,
     );
   }
 
@@ -274,5 +296,8 @@ class DashboardState extends Equatable {
     accountBalances,
     needsReviewCount,
     failedCaptureCount,
+    savingsGoals,
+    savingsGoalsSaved,
+    wishlistItems,
   ];
 }

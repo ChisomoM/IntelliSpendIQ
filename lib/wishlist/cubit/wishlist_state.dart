@@ -37,6 +37,41 @@ class WishlistState extends Equatable {
     return items.where((item) => item.status == target).toList();
   }
 
+  List<WishlistItem> _withStatus(WishlistItemStatus target) =>
+      items.where((item) => item.status == target).toList();
+
+  List<WishlistItem> get ideaItems => _withStatus(WishlistItemStatus.idea);
+  List<WishlistItem> get savingItems => _withStatus(WishlistItemStatus.saving);
+  List<WishlistItem> get purchasedItems =>
+      _withStatus(WishlistItemStatus.purchased);
+
+  /// What's still outstanding: the estimated cost of everything not yet
+  /// bought. Purchased items are excluded — once bought, their cost is
+  /// real spend recorded on a transaction elsewhere, not an aspiration.
+  int get outstandingTotalMinor => [...ideaItems, ...savingItems].fold(
+    0,
+    (sum, item) => sum + (item.estimatedPriceMinor ?? 0),
+  );
+
+  int get ideaTotalMinor => ideaItems.fold(
+    0,
+    (sum, item) => sum + (item.estimatedPriceMinor ?? 0),
+  );
+
+  int get savingTotalMinor => savingItems.fold(
+    0,
+    (sum, item) => sum + (item.estimatedPriceMinor ?? 0),
+  );
+
+  /// What was actually paid for purchased items — falls back to the
+  /// estimate only for the rare item marked purchased without ever
+  /// recording a price.
+  int get purchasedTotalMinor => purchasedItems.fold(
+    0,
+    (sum, item) =>
+        sum + (item.actualPriceMinor ?? item.estimatedPriceMinor ?? 0),
+  );
+
   WishlistState copyWith({
     WishlistStatus? status,
     List<WishlistItem>? items,

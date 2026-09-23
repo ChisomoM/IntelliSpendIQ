@@ -35,12 +35,17 @@ class WishlistCubit extends Cubit<WishlistState> {
   void filterChanged(WishlistFilter filter) =>
       emit(state.copyWith(filter: filter));
 
+  /// [photoPaths] are source paths straight from the picker — not yet
+  /// copied into app-local storage, since there is no item id to attach
+  /// them to until [WishlistRepository.create] returns one. Each is
+  /// copied in turn right after.
   Future<void> create({
     required String name,
     String estimatedPrice = '',
     String? seenAt,
     String? productUrl,
     String? note,
+    List<String> photoPaths = const [],
   }) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
@@ -68,7 +73,7 @@ class WishlistCubit extends Cubit<WishlistState> {
       }
     }
 
-    await _wishlist.create(
+    final item = await _wishlist.create(
       name: trimmed,
       estimatedPriceMinor: estimatedPriceMinor,
       seenAt: (seenAt == null || seenAt.trim().isEmpty) ? null : seenAt.trim(),
@@ -77,6 +82,9 @@ class WishlistCubit extends Cubit<WishlistState> {
           : productUrl.trim(),
       note: (note == null || note.trim().isEmpty) ? null : note.trim(),
     );
+    for (final path in photoPaths) {
+      await _wishlist.addPhoto(item.id, path);
+    }
     emit(state.copyWith(status: WishlistStatus.loaded));
   }
 

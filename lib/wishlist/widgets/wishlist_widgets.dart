@@ -11,6 +11,127 @@ import 'package:intellispendiq/domain/models/wishlist_item.dart';
 import 'package:intellispendiq/domain/models/wishlist_item_photo.dart';
 import 'package:intellispendiq/wishlist/cubit/cubit.dart';
 
+/// Totals across the whole list: one headline figure — what everything
+/// not yet bought is estimated to cost — then a breakdown by status.
+/// Purchased items drop out of the headline: once bought, that cost is
+/// real spend recorded on a transaction elsewhere, not an aspiration.
+class WishlistTotalsHeader extends StatelessWidget {
+  const WishlistTotalsHeader({
+    required this.outstandingTotalMinor,
+    required this.ideaCount,
+    required this.ideaTotalMinor,
+    required this.savingCount,
+    required this.savingTotalMinor,
+    required this.purchasedCount,
+    required this.purchasedTotalMinor,
+    super.key,
+  });
+
+  final int outstandingTotalMinor;
+  final int ideaCount;
+  final int ideaTotalMinor;
+  final int savingCount;
+  final int savingTotalMinor;
+  final int purchasedCount;
+  final int purchasedTotalMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    final itemCount = ideaCount + savingCount;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HeroCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'STILL WANT',
+                style: AppTypography.chipOverline(color: AppColors.nightText2),
+              ),
+              const SizedBox(height: Space.x1),
+              MoneyText(
+                outstandingTotalMinor,
+                size: MoneySize.display,
+                color: AppColors.nightText,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                itemCount == 0
+                    ? 'nothing outstanding'
+                    : 'across $itemCount ${itemCount == 1 ? 'item' : 'items'}',
+                style: AppTypography.metadata(color: AppColors.nightText2),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Space.x1),
+        Row(
+          children: [
+            Expanded(
+              child: _TotalTile(
+                label: 'Ideas',
+                count: ideaCount,
+                totalMinor: ideaTotalMinor,
+              ),
+            ),
+            const SizedBox(width: Space.x1),
+            Expanded(
+              child: _TotalTile(
+                label: 'Saving',
+                count: savingCount,
+                totalMinor: savingTotalMinor,
+              ),
+            ),
+            const SizedBox(width: Space.x1),
+            Expanded(
+              child: _TotalTile(
+                label: 'Purchased',
+                count: purchasedCount,
+                totalMinor: purchasedTotalMinor,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TotalTile extends StatelessWidget {
+  const _TotalTile({
+    required this.label,
+    required this.count,
+    required this.totalMinor,
+  });
+
+  final String label;
+  final int count;
+  final int totalMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    return StatTile(
+      label: label,
+      value: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MoneyText(totalMinor, size: MoneySize.meta),
+          const SizedBox(height: 2),
+          Text(
+            '$count ${count == 1 ? 'item' : 'items'}',
+            style: AppTypography.metadata(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A wishlist item's card in the list: cover photo (or a placeholder),
 /// name, estimated price, and a small status label.
 class WishlistItemCard extends StatelessWidget {
@@ -239,106 +360,125 @@ class WishlistPhotoStrip extends StatelessWidget {
   }
 }
 
-/// Captures a new wishlist item: name, optional estimated price, and the
-/// optional where-seen/URL/note fields.
-class CreateWishlistItemSheet extends StatefulWidget {
-  const CreateWishlistItemSheet({super.key});
+/// The photo strip on the *create* page, before the item exists: stages
+/// raw picker source paths rather than persisted [WishlistItemPhoto]s —
+/// there is no item id to attach them to yet. The create flow copies
+/// each into app-local storage right after the item itself is created.
+class StagedPhotoStrip extends StatelessWidget {
+  const StagedPhotoStrip({
+    required this.paths,
+    required this.onAdd,
+    required this.onRemove,
+    this.maxPhotos = 6,
+    super.key,
+  });
 
-  static Future<void> show(BuildContext context) {
-    final cubit = context.read<WishlistCubit>();
-    return AppSheet.show<void>(
-      context,
-      builder: (_) => BlocProvider.value(
-        value: cubit,
-        child: const CreateWishlistItemSheet(),
-      ),
-    );
-  }
+  final List<String> paths;
+  final ValueChanged<String> onAdd;
+  final ValueChanged<String> onRemove;
+  final int maxPhotos;
 
-  @override
-  State<CreateWishlistItemSheet> createState() =>
-      _CreateWishlistItemSheetState();
-}
-
-class _CreateWishlistItemSheetState extends State<CreateWishlistItemSheet> {
-  final _nameController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _seenAtController = TextEditingController();
-  final _urlController = TextEditingController();
-  final _noteController = TextEditingController();
-  String? _error;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _priceController.dispose();
-    _seenAtController.dispose();
-    _urlController.dispose();
-    _noteController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final navigator = Navigator.of(context);
-    await context.read<WishlistCubit>().create(
-      name: _nameController.text,
-      estimatedPrice: _priceController.text,
-      seenAt: _seenAtController.text,
-      productUrl: _urlController.text,
-      note: _noteController.text,
-    );
-    if (!mounted) return;
-    final state = context.read<WishlistCubit>().state;
-    if (state.status == WishlistStatus.invalid) {
-      setState(() => _error = state.errorMessage);
-      return;
-    }
-    navigator.pop();
-  }
+  static const _size = 88.0;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('Add to wishlist', style: AppTypography.sectionHeader()),
-        const SizedBox(height: Space.x2),
-        AppTextField(
-          controller: _nameController,
-          label: 'What do you want?',
-          hint: 'New cooking pots',
-          errorText: _error,
-          textCapitalization: TextCapitalization.sentences,
-          autofocus: true,
+    final colors = Theme.of(context).colorScheme;
+    final canAddMore = paths.length < maxPhotos;
+
+    if (paths.isEmpty) {
+      return GestureDetector(
+        onTap: () async {
+          final path = await pickImagePath(context);
+          if (path != null) onAdd(path);
+        },
+        child: Container(
+          height: _size,
+          decoration: BoxDecoration(
+            gradient: AppGradients.hero(Theme.of(context).brightness),
+            borderRadius: Radii.cardRadius,
+          ),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppIcon(AppIcons.scanReceipt, size: 26, color: AppColors.nightText),
+              const SizedBox(height: 6),
+              Text(
+                'Add a photo',
+                style: AppTypography.metadata(color: AppColors.nightText2),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: Space.x2),
-        AmountField(
-          controller: _priceController,
-          label: 'Estimated price (optional)',
-        ),
-        const SizedBox(height: Space.x2),
-        AppTextField(
-          controller: _seenAtController,
-          label: 'Where you saw it (optional)',
-          hint: 'Shoprite, an online store…',
-          textCapitalization: TextCapitalization.sentences,
-        ),
-        const SizedBox(height: Space.x2),
-        AppTextField(
-          controller: _urlController,
-          label: 'Product link (optional)',
-          keyboardType: TextInputType.url,
-        ),
-        const SizedBox(height: Space.x2),
-        AppTextField(
-          controller: _noteController,
-          label: 'Notes (optional)',
-          textCapitalization: TextCapitalization.sentences,
-        ),
-        const SizedBox(height: Space.x3),
-        AppButton.primary(label: 'Add to wishlist', onPressed: _save),
-      ],
+      );
+    }
+
+    return SizedBox(
+      height: _size,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (final path in paths)
+            Padding(
+              padding: const EdgeInsets.only(right: Space.x1),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(path),
+                      width: _size,
+                      height: _size,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        width: _size,
+                        height: _size,
+                        color: colors.surfaceContainerHigh,
+                        child: AppIcon(AppIcons.unknown, size: 20),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: GestureDetector(
+                      onTap: () => onRemove(path),
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (canAddMore)
+            GestureDetector(
+              onTap: () async {
+                final path = await pickImagePath(context);
+                if (path != null) onAdd(path);
+              },
+              child: Container(
+                width: _size,
+                height: _size,
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: colors.outlineVariant),
+                ),
+                child: AppIcon(AppIcons.add, size: 24, color: colors.onSurfaceVariant),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -577,7 +717,9 @@ class _ConvertToExpenseSheetState extends State<ConvertToExpenseSheet> {
 }
 
 class NoWishlistItemsYet extends StatelessWidget {
-  const NoWishlistItemsYet({super.key});
+  const NoWishlistItemsYet({required this.onAction, super.key});
+
+  final VoidCallback onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -588,7 +730,7 @@ class NoWishlistItemsYet extends StatelessWidget {
           'Keep track of things you want but haven\'t decided to buy or '
           'save for yet.',
       actionLabel: 'Add to wishlist',
-      onAction: () => CreateWishlistItemSheet.show(context),
+      onAction: onAction,
     );
   }
 }
