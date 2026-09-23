@@ -11,6 +11,127 @@ import 'package:intellispendiq/domain/models/wishlist_item.dart';
 import 'package:intellispendiq/domain/models/wishlist_item_photo.dart';
 import 'package:intellispendiq/wishlist/cubit/cubit.dart';
 
+/// Totals across the whole list: one headline figure — what everything
+/// not yet bought is estimated to cost — then a breakdown by status.
+/// Purchased items drop out of the headline: once bought, that cost is
+/// real spend recorded on a transaction elsewhere, not an aspiration.
+class WishlistTotalsHeader extends StatelessWidget {
+  const WishlistTotalsHeader({
+    required this.outstandingTotalMinor,
+    required this.ideaCount,
+    required this.ideaTotalMinor,
+    required this.savingCount,
+    required this.savingTotalMinor,
+    required this.purchasedCount,
+    required this.purchasedTotalMinor,
+    super.key,
+  });
+
+  final int outstandingTotalMinor;
+  final int ideaCount;
+  final int ideaTotalMinor;
+  final int savingCount;
+  final int savingTotalMinor;
+  final int purchasedCount;
+  final int purchasedTotalMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    final itemCount = ideaCount + savingCount;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HeroCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'STILL WANT',
+                style: AppTypography.chipOverline(color: AppColors.nightText2),
+              ),
+              const SizedBox(height: Space.x1),
+              MoneyText(
+                outstandingTotalMinor,
+                size: MoneySize.display,
+                color: AppColors.nightText,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                itemCount == 0
+                    ? 'nothing outstanding'
+                    : 'across $itemCount ${itemCount == 1 ? 'item' : 'items'}',
+                style: AppTypography.metadata(color: AppColors.nightText2),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Space.x1),
+        Row(
+          children: [
+            Expanded(
+              child: _TotalTile(
+                label: 'Ideas',
+                count: ideaCount,
+                totalMinor: ideaTotalMinor,
+              ),
+            ),
+            const SizedBox(width: Space.x1),
+            Expanded(
+              child: _TotalTile(
+                label: 'Saving',
+                count: savingCount,
+                totalMinor: savingTotalMinor,
+              ),
+            ),
+            const SizedBox(width: Space.x1),
+            Expanded(
+              child: _TotalTile(
+                label: 'Purchased',
+                count: purchasedCount,
+                totalMinor: purchasedTotalMinor,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TotalTile extends StatelessWidget {
+  const _TotalTile({
+    required this.label,
+    required this.count,
+    required this.totalMinor,
+  });
+
+  final String label;
+  final int count;
+  final int totalMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    return StatTile(
+      label: label,
+      value: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MoneyText(totalMinor, size: MoneySize.meta),
+          const SizedBox(height: 2),
+          Text(
+            '$count ${count == 1 ? 'item' : 'items'}',
+            style: AppTypography.metadata(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A wishlist item's card in the list: cover photo (or a placeholder),
 /// name, estimated price, and a small status label.
 class WishlistItemCard extends StatelessWidget {

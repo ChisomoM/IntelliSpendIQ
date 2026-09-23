@@ -67,6 +67,16 @@ class WishlistView extends StatelessWidget {
               Space.x4,
             ),
             children: [
+              WishlistTotalsHeader(
+                outstandingTotalMinor: state.outstandingTotalMinor,
+                ideaCount: state.ideaItems.length,
+                ideaTotalMinor: state.ideaTotalMinor,
+                savingCount: state.savingItems.length,
+                savingTotalMinor: state.savingTotalMinor,
+                purchasedCount: state.purchasedItems.length,
+                purchasedTotalMinor: state.purchasedTotalMinor,
+              ),
+              const SizedBox(height: Space.sectionGap),
               _FilterChips(
                 selected: state.filter,
                 onChanged: context.read<WishlistCubit>().filterChanged,
