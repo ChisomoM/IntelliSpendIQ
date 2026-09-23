@@ -7,11 +7,15 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
+import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/budget_period.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/savings_goal.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
+import 'package:intellispendiq/domain/models/wishlist_item.dart';
 import 'package:intl/intl.dart';
 
 part 'dashboard_state.dart';
@@ -27,12 +31,16 @@ class DashboardCubit extends Cubit<DashboardState> {
     required BudgetPeriodRepository budgetPeriods,
     required RawCaptureRepository rawCaptures,
     required AccountRepository accounts,
+    required SavingsGoalRepository savingsGoals,
+    required WishlistRepository wishlist,
     BudgetPeriod? initialPeriod,
   }) : _transactions = transactions,
        _categories = categories,
        _budgetPeriods = budgetPeriods,
        _rawCaptures = rawCaptures,
        _accounts = accounts,
+       _savingsGoals = savingsGoals,
+       _wishlist = wishlist,
        super(DashboardState(budgetPeriod: initialPeriod));
 
   final TransactionRepository _transactions;
@@ -40,6 +48,8 @@ class DashboardCubit extends Cubit<DashboardState> {
   final BudgetPeriodRepository _budgetPeriods;
   final RawCaptureRepository _rawCaptures;
   final AccountRepository _accounts;
+  final SavingsGoalRepository _savingsGoals;
+  final WishlistRepository _wishlist;
   StreamSubscription<List<Category>>? _categoriesSubscription;
   StreamSubscription<List<CategorySpend>>? _categorySpendSubscription;
   StreamSubscription<List<Transaction>>? _recentSubscription;
@@ -48,6 +58,9 @@ class DashboardCubit extends Cubit<DashboardState> {
   StreamSubscription<BudgetPeriod?>? _periodSubscription;
   StreamSubscription<List<Account>>? _accountsSubscription;
   StreamSubscription<Map<String, int>>? _balanceSubscription;
+  StreamSubscription<List<SavingsGoal>>? _savingsGoalsSubscription;
+  StreamSubscription<Map<String, int>>? _savingsGoalsSavedSubscription;
+  StreamSubscription<List<WishlistItem>>? _wishlistSubscription;
 
   /// How many categories the Top categories card shows.
   static const _topCategoryLimit = 4;
@@ -72,6 +85,21 @@ class DashboardCubit extends Cubit<DashboardState> {
     await _balanceSubscription?.cancel();
     _balanceSubscription = _accounts.watchComputedBalances().listen(
       (balances) => emit(state.copyWith(accountBalances: balances)),
+    );
+
+    await _savingsGoalsSubscription?.cancel();
+    _savingsGoalsSubscription = _savingsGoals.watchAll().listen(
+      (rows) => emit(state.copyWith(savingsGoals: rows)),
+    );
+
+    await _savingsGoalsSavedSubscription?.cancel();
+    _savingsGoalsSavedSubscription = _savingsGoals.watchSaved().listen(
+      (saved) => emit(state.copyWith(savingsGoalsSaved: saved)),
+    );
+
+    await _wishlistSubscription?.cancel();
+    _wishlistSubscription = _wishlist.watchAll().listen(
+      (rows) => emit(state.copyWith(wishlistItems: rows)),
     );
 
     await _reviewSubscription?.cancel();
@@ -229,6 +257,9 @@ class DashboardCubit extends Cubit<DashboardState> {
     await _periodSubscription?.cancel();
     await _accountsSubscription?.cancel();
     await _balanceSubscription?.cancel();
+    await _savingsGoalsSubscription?.cancel();
+    await _savingsGoalsSavedSubscription?.cancel();
+    await _wishlistSubscription?.cancel();
     return super.close();
   }
 }

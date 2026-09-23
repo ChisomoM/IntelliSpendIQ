@@ -22,6 +22,8 @@ void main() {
       budgetPeriods: services.budgetPeriods,
       rawCaptures: services.rawCaptures,
       accounts: services.accounts,
+      savingsGoals: services.savingsGoals,
+      wishlist: services.wishlist,
       initialPeriod: period,
     );
   }
@@ -58,6 +60,35 @@ void main() {
       expect(cubit.state.topCategories, isEmpty);
       expect(cubit.state.recentTransactions, isEmpty);
       expect(cubit.state.pendingReviewCount, 0);
+      expect(cubit.state.savingsGoals, isEmpty);
+      expect(cubit.state.savingsGoalsSavedTotalMinor, 0);
+      expect(cubit.state.wishlistItems, isEmpty);
+    });
+
+    test('surfaces savings goals and wishlist items for the Planning row',
+        () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      await cubit.load();
+      await Future<void>.delayed(Duration.zero);
+
+      final accountId = (await services.accounts.getDefault()).id;
+      final goal = await services.savingsGoals.create(
+        name: 'New Laptop',
+        targetMinor: 150000,
+      );
+      await services.savingsGoals.contribute(
+        goalId: goal.id,
+        accountId: accountId,
+        amountMinor: 50000,
+        transactedAt: DateTime(2026, 7, 15),
+      );
+      await services.wishlist.create(name: 'New Pots');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.savingsGoals, hasLength(1));
+      expect(cubit.state.savingsGoalsSavedTotalMinor, 50000);
+      expect(cubit.state.wishlistItems, hasLength(1));
     });
 
     test('surfaces spend, top categories, and recent activity', () async {

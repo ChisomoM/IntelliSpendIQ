@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/wishlist/cubit/cubit.dart';
+import 'package:intellispendiq/wishlist/view/create_wishlist_item_page.dart';
 import 'package:intellispendiq/wishlist/view/wishlist_item_detail_page.dart';
 import 'package:intellispendiq/wishlist/widgets/widgets.dart';
 
@@ -35,14 +36,22 @@ class WishlistView extends StatelessWidget {
           IconButton(
             icon: AppIcon(AppIcons.add, size: 22),
             tooltip: 'Add to wishlist',
-            onPressed: () => CreateWishlistItemSheet.show(context),
+            onPressed: () => Navigator.of(
+              context,
+            ).push<void>(CreateWishlistItemPage.route()),
           ),
           const SizedBox(width: Space.x1),
         ],
       ),
       body: BlocBuilder<WishlistCubit, WishlistState>(
         builder: (context, state) {
-          if (state.isEmpty) return const NoWishlistItemsYet();
+          if (state.isEmpty) {
+            return NoWishlistItemsYet(
+              onAction: () => Navigator.of(
+                context,
+              ).push<void>(CreateWishlistItemPage.route()),
+            );
+          }
           if (state.status == WishlistStatus.initial ||
               state.status == WishlistStatus.loading) {
             return const Center(child: CircularProgressIndicator());

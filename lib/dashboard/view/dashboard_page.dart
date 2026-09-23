@@ -9,12 +9,16 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
+import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/home/cubit/cubit.dart';
 import 'package:intellispendiq/review/review.dart';
+import 'package:intellispendiq/savings_goals/view/savings_goals_page.dart';
 import 'package:intellispendiq/settings/settings.dart';
 import 'package:intellispendiq/transactions/transactions.dart';
+import 'package:intellispendiq/wishlist/view/wishlist_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -28,6 +32,8 @@ class DashboardPage extends StatelessWidget {
         budgetPeriods: context.read<BudgetPeriodRepository>(),
         rawCaptures: context.read<RawCaptureRepository>(),
         accounts: context.read<AccountRepository>(),
+        savingsGoals: context.read<SavingsGoalRepository>(),
+        wishlist: context.read<WishlistRepository>(),
       )..loadUnawaited(),
       child: const DashboardView(),
     );
@@ -109,6 +115,17 @@ class DashboardView extends StatelessWidget {
                   ),
                   if (state.accounts.isNotEmpty)
                     const SizedBox(height: Space.sectionGap),
+                  PlanningRow(
+                    savingsGoalCount: state.savingsGoals.length,
+                    savingsGoalsSavedMinor: state.savingsGoalsSavedTotalMinor,
+                    wishlistItemCount: state.wishlistItems.length,
+                    onOpenSavingsGoals: () => Navigator.of(
+                      context,
+                    ).push<void>(SavingsGoalsPage.route()),
+                    onOpenWishlist: () =>
+                        Navigator.of(context).push<void>(WishlistPage.route()),
+                  ),
+                  const SizedBox(height: Space.sectionGap),
                   CategoryBreakdownCard(
                     categories: state.topCategories,
                     categoriesById: state.categoriesById,

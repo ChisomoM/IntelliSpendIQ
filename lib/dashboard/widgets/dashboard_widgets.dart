@@ -351,6 +351,125 @@ class AccountBalanceStrip extends StatelessWidget {
   }
 }
 
+/// Entry point into Savings Goals and Wishlist — both used to be
+/// reachable only via two small icons on the Accounts app bar, easy to
+/// never notice. Putting them on Home with a live count each gives them
+/// the same visibility as everything else worth checking daily.
+class PlanningRow extends StatelessWidget {
+  const PlanningRow({
+    required this.savingsGoalCount,
+    required this.savingsGoalsSavedMinor,
+    required this.wishlistItemCount,
+    required this.onOpenSavingsGoals,
+    required this.onOpenWishlist,
+    super.key,
+  });
+
+  final int savingsGoalCount;
+  final int savingsGoalsSavedMinor;
+  final int wishlistItemCount;
+  final VoidCallback onOpenSavingsGoals;
+  final VoidCallback onOpenWishlist;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final ctaStyle = AppTypography.rowTitle(color: colors.primary);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Planning'),
+        Row(
+          children: [
+            Expanded(
+              child: _PlanningTile(
+                icon: AppIcons.savingsGoal,
+                label: 'Savings Goals',
+                value: savingsGoalCount == 0
+                    ? Text('Start one', style: ctaStyle)
+                    : MoneyText(savingsGoalsSavedMinor, size: MoneySize.meta),
+                caption: savingsGoalCount == 0
+                    ? null
+                    : '$savingsGoalCount ${savingsGoalCount == 1 ? 'goal' : 'goals'}',
+                onTap: onOpenSavingsGoals,
+              ),
+            ),
+            const SizedBox(width: Space.x1),
+            Expanded(
+              child: _PlanningTile(
+                icon: AppIcons.wishlist,
+                label: 'Wishlist',
+                value: wishlistItemCount == 0
+                    ? Text('Add an idea', style: ctaStyle)
+                    : Text('$wishlistItemCount', style: ctaStyle),
+                caption: wishlistItemCount == 0
+                    ? null
+                    : (wishlistItemCount == 1 ? 'item' : 'items'),
+                onTap: onOpenWishlist,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PlanningTile extends StatelessWidget {
+  const _PlanningTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.caption,
+  });
+
+  final List<List<dynamic>> icon;
+  final String label;
+  final Widget value;
+  final String? caption;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return AppCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              AppIcon(icon, size: 18, color: colors.onSurfaceVariant),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.metadata(color: colors.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Space.x1),
+          value,
+          if (caption != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              caption!,
+              style: AppTypography.metadata(color: colors.onSurfaceVariant),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// Where the period's money went: one composition bar, then the rows.
 ///
 /// The bar is the point. Four separate progress bars, each scaled to
