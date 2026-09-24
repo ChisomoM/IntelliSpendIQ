@@ -157,6 +157,8 @@ class ReminderScheduler implements ReminderService {
         ),
         _recurringDetails(),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.wallClockTime,
         matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
       );
     }
@@ -178,6 +180,8 @@ class ReminderScheduler implements ReminderService {
       _nextInstance(weekday, settings.timeFor(weekday), skipToday: true),
       _recurringDetails(),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.wallClockTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
@@ -226,6 +230,8 @@ class ReminderScheduler implements ReminderService {
       tz.TZDateTime.now(tz.local).add(_snoozeDuration),
       _snoozeDetails(offerAnotherSnooze: !alreadySnoozedToday),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.wallClockTime,
     );
   }
 

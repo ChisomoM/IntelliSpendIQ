@@ -116,3 +116,5 @@ secrets.json
 
 # Generated l10n files
 lib/l10n/gen/
+
+.gradle-user-home

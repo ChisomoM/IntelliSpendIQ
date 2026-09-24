@@ -9,7 +9,7 @@
       "request": "launch",
       "type": "dart",
       "program": "lib/main_development.dart",
-      "toolArgs": ["--dart-define-from-file=secrets.json"],
+      // "toolArgs": ["--dart-define-from-file=secrets.json"],
       "args": [
         "--flavor",
         "development",
