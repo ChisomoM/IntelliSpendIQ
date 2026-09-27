@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -130,11 +132,16 @@ class _TransactionsViewState extends State<TransactionsView> {
 
     if (result.lineItems.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
+        SnackBar(
+          content: const Text(
             "Couldn't find separate items on this receipt — "
             'try Add entry instead',
           ),
+          action: SnackBarAction(
+            label: 'View scanned text',
+            onPressed: () => _showRawScanText(context, result.rawText),
+          ),
+          duration: const Duration(seconds: 6),
         ),
       );
       return;
@@ -150,6 +157,32 @@ class _TransactionsViewState extends State<TransactionsView> {
         ),
       );
     }
+  }
+
+  /// Diagnostic view for when the scan finds no items — shows exactly
+  /// what OCR read off the photo, selectable, so a mismatch between
+  /// this receipt's real layout and the parser's assumptions can be
+  /// reported instead of guessed at.
+  void _showRawScanText(BuildContext context, String rawText) {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Scanned text'),
+          content: SingleChildScrollView(
+            child: SelectableText(
+              rawText.isEmpty ? '(nothing was recognized)' : rawText,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -389,8 +422,7 @@ class _DirectionFilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<TransactionsCubit, TransactionsState>(
-      buildWhen: (previous, current) =>
-          previous.direction != current.direction,
+      buildWhen: (previous, current) => previous.direction != current.direction,
       builder: (context, state) {
         final cubit = context.read<TransactionsCubit>();
 
