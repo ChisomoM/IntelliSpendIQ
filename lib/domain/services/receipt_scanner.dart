@@ -8,10 +8,10 @@ import 'package:intellispendiq/core/money.dart';
 /// the caller never overwrites something the user already typed.
 class ReceiptScanResult extends Equatable {
   const ReceiptScanResult({
+    required this.rawText,
     this.merchant,
     this.amountMinor,
     this.transactedAt,
-    required this.rawText,
   });
 
   final String? merchant;

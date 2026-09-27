@@ -241,16 +241,20 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   /// category the same deterministic way the SMS capture path does.
   /// A scan that fails or finds nothing still leaves the photo attached —
   /// this only ever fills blanks, never overwrites what's already typed.
-  Future<void> scanReceipt(String sourcePath) async {
+  ///
+  /// Returns the scan result (null on failure) so the caller can tell the
+  /// user what, if anything, was found — a silent no-op here would leave
+  /// them wondering whether the scan worked at all.
+  Future<ReceiptScanResult?> scanReceipt(String sourcePath) async {
     await attachReceipt(sourcePath);
     final receiptPath = state.receiptPath;
-    if (receiptPath == null) return;
+    if (receiptPath == null) return null;
 
     ReceiptScanResult result;
     try {
       result = await _receiptScanner.scanImage(receiptPath);
     } on Object {
-      return;
+      return null;
     }
 
     final current = state.transactedAt;
@@ -279,6 +283,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
       final categoryId = await _categorizer?.categorize(merchant: merchant);
       if (categoryId != null) emit(state.copyWith(categoryId: categoryId));
     }
+    return result;
   }
 
   Future<void> removeReceipt() async {

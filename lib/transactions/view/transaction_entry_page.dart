@@ -19,6 +19,7 @@ import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
+import 'package:intellispendiq/domain/services/receipt_scanner.dart';
 import 'package:intellispendiq/review/open_review_details.dart';
 import 'package:intellispendiq/review/review_detail_target.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
@@ -287,18 +288,41 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
         final navigator = Navigator.of(context);
         if (await _confirmDiscard(context)) navigator.pop();
       },
-      child: BlocListener<TransactionEntryCubit, TransactionEntryState>(
-        listenWhen: (previous, current) => previous.status != current.status,
-        listener: (context, state) {
-          if (state.status == TransactionEntryStatus.saved) {
-            Navigator.of(context).pop();
-          } else if (state.status == TransactionEntryStatus.failure &&
-              state.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.errorMessage!)),
-            );
-          }
-        },
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<TransactionEntryCubit, TransactionEntryState>(
+            listenWhen: (previous, current) =>
+                previous.status != current.status,
+            listener: (context, state) {
+              if (state.status == TransactionEntryStatus.saved) {
+                Navigator.of(context).pop();
+              } else if (state.status == TransactionEntryStatus.failure &&
+                  state.errorMessage != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.errorMessage!)),
+                );
+              }
+            },
+          ),
+          // The amount/merchant fields keep their own controllers (so
+          // typing doesn't fight cursor position on every rebuild), which
+          // means a scanned receipt filling those fields via the cubit
+          // needs an explicit push into the controllers — otherwise the
+          // scan silently succeeds in state but the form looks untouched.
+          BlocListener<TransactionEntryCubit, TransactionEntryState>(
+            listenWhen: (previous, current) =>
+                previous.amount != current.amount ||
+                previous.merchant != current.merchant,
+            listener: (context, state) {
+              if (_amountController.text != state.amount) {
+                _amountController.text = state.amount;
+              }
+              if (_merchantController.text != state.merchant) {
+                _merchantController.text = state.merchant;
+              }
+            },
+          ),
+        ],
         child: Scaffold(
           appBar: AppBar(
             title: Text(isEditing ? 'Edit entry' : 'Add entry'),
@@ -1089,7 +1113,34 @@ class _ReceiptField extends StatelessWidget {
       final result = await FilePicker.pickFiles(type: FileType.image);
       path = result?.files.single.path;
     }
-    if (path != null) await cubit.scanReceipt(path);
+    if (path == null || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await cubit.scanReceipt(path);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(_scanFeedback(result))));
+  }
+
+  /// What to tell the user about a just-finished scan — the fields
+  /// filling in silently (or staying blank) would otherwise look like
+  /// nothing happened.
+  static String _scanFeedback(ReceiptScanResult? result) {
+    if (result == null) {
+      return "Couldn't read that receipt — enter the details below";
+    }
+    final found = <String>[
+      if (result.amountMinor != null) 'total',
+      if (result.merchant != null) 'merchant',
+      if (result.transactedAt != null) 'date',
+    ];
+    if (found.isEmpty) {
+      return "Receipt attached, but couldn't make out any details";
+    }
+    final label = found.length == 1
+        ? found.single
+        : '${found.sublist(0, found.length - 1).join(', ')} and ${found.last}';
+    return 'Receipt scanned — found the $label';
   }
 
   @override
