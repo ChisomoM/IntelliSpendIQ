@@ -2,16 +2,17 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intellispendiq/app/app_services.dart';
+import 'package:intellispendiq/domain/ai/claude_receipt_scanner.dart';
 import 'package:intellispendiq/domain/services/receipt_scanner.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
 
 import '../../support/test_harness.dart';
 
-/// Stands in for [ReceiptScanner] so tests never touch the real ML Kit
-/// platform channel — mirrors the fakes in test_harness.dart for other
-/// plugin-backed services.
-class _FakeReceiptScanner extends ReceiptScanner {
-  _FakeReceiptScanner(this.result);
+/// Stands in for [ClaudeReceiptScanner] so tests never make a real
+/// Anthropic API call — mirrors the fakes in test_harness.dart for
+/// other externally-backed services.
+class _FakeReceiptScanner extends ClaudeReceiptScanner {
+  _FakeReceiptScanner(this.result, {required super.secureStore});
 
   final ReceiptScanResult result;
 
@@ -22,10 +23,12 @@ class _FakeReceiptScanner extends ReceiptScanner {
   Future<void> dispose() async {}
 }
 
-class _ThrowingReceiptScanner extends ReceiptScanner {
+class _ThrowingReceiptScanner extends ClaudeReceiptScanner {
+  _ThrowingReceiptScanner({required super.secureStore});
+
   @override
   Future<ReceiptScanResult> scanImage(String imagePath) =>
-      throw StateError('OCR failed');
+      throw StateError('Scan failed');
 
   @override
   Future<void> dispose() async {}
@@ -37,7 +40,7 @@ void main() {
   setUp(() async => services = await createTestServices());
   tearDown(() async => services.dispose());
 
-  TransactionEntryCubit buildCubit(ReceiptScanner scanner) {
+  TransactionEntryCubit buildCubit(ClaudeReceiptScanner scanner) {
     return TransactionEntryCubit(
       transactions: services.transactions,
       accounts: services.accounts,
@@ -47,6 +50,7 @@ void main() {
       rawCaptures: services.rawCaptures,
       transfers: services.transfers,
       budgetPeriods: services.budgetPeriods,
+      secureStore: services.secureStore,
       categorizer: services.merchantCategorizer,
       receiptScanner: scanner,
       documentsDirectory: () async => Directory.systemTemp.createTemp(),
@@ -62,6 +66,7 @@ void main() {
             merchant: 'Shoprite Mukuba',
             amountMinor: 4500,
           ),
+          secureStore: services.secureStore,
         ),
       );
       final photo = await _tempImageFile();
@@ -86,6 +91,7 @@ void main() {
             merchant: 'Some Store',
             amountMinor: 9900,
           ),
+          secureStore: services.secureStore,
         ),
       );
       cubit.amountChanged('12.34');
@@ -101,7 +107,10 @@ void main() {
 
     test('still attaches the photo when the scan finds nothing', () async {
       final cubit = buildCubit(
-        _FakeReceiptScanner(const ReceiptScanResult(rawText: 'garbled text')),
+        _FakeReceiptScanner(
+          const ReceiptScanResult(rawText: 'garbled text'),
+          secureStore: services.secureStore,
+        ),
       );
       final photo = await _tempImageFile();
 
@@ -113,8 +122,10 @@ void main() {
       await cubit.close();
     });
 
-    test('still attaches the photo when OCR throws', () async {
-      final cubit = buildCubit(_ThrowingReceiptScanner());
+    test('still attaches the photo when the scan throws', () async {
+      final cubit = buildCubit(
+        _ThrowingReceiptScanner(secureStore: services.secureStore),
+      );
       final photo = await _tempImageFile();
 
       await cubit.scanReceipt(photo.path);

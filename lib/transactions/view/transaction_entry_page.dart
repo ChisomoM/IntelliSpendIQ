@@ -14,6 +14,7 @@ import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
+import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -82,6 +83,7 @@ class TransactionEntryPage extends StatelessWidget {
         rawCaptures: context.read<RawCaptureRepository>(),
         transfers: context.read<TransferRepository>(),
         budgetPeriods: context.read<BudgetPeriodRepository>(),
+        secureStore: context.read<SecureStore>(),
         categorizer: context.read<MerchantCategorizer>(),
         existing: existing,
         rawCaptureId: rawCaptureId,

@@ -13,6 +13,8 @@ import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
+import 'package:intellispendiq/data/secure/secure_store.dart';
+import 'package:intellispendiq/domain/ai/claude_receipt_scanner.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -39,8 +41,9 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     required RawCaptureRepository rawCaptures,
     required TransferRepository transfers,
     required BudgetPeriodRepository budgetPeriods,
+    required SecureStore secureStore,
     MerchantCategorizer? categorizer,
-    ReceiptScanner? receiptScanner,
+    ClaudeReceiptScanner? receiptScanner,
     Transaction? existing,
     String? rawCaptureId,
     String? initialAccountId,
@@ -54,7 +57,8 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
        _transfers = transfers,
        _budgetPeriods = budgetPeriods,
        _categorizer = categorizer,
-       _receiptScanner = receiptScanner ?? ReceiptScanner(),
+       _receiptScanner =
+           receiptScanner ?? ClaudeReceiptScanner(secureStore: secureStore),
        _existing = existing,
        _rawCaptureId = rawCaptureId,
        _documentsDirectory =
@@ -88,7 +92,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   final TransferRepository _transfers;
   final BudgetPeriodRepository _budgetPeriods;
   final MerchantCategorizer? _categorizer;
-  final ReceiptScanner _receiptScanner;
+  final ClaudeReceiptScanner _receiptScanner;
   final Transaction? _existing;
   final String? _rawCaptureId;
   final Future<Directory> Function() _documentsDirectory;

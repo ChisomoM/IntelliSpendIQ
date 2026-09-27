@@ -8,7 +8,9 @@ import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
+import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/ai/claude_receipt_scanner.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
@@ -117,14 +119,23 @@ class _TransactionsViewState extends State<TransactionsView> {
 
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    final scanner = ReceiptScanner();
+    final scanner = ClaudeReceiptScanner(
+      secureStore: context.read<SecureStore>(),
+    );
     ReceiptScanResult result;
     try {
       result = await scanner.scanImage(path);
-    } on Object {
+    } on Object catch (error) {
       await scanner.dispose();
       messenger.showSnackBar(
-        const SnackBar(content: Text("Couldn't read that receipt")),
+        SnackBar(
+          content: const Text("Couldn't read that receipt"),
+          action: SnackBarAction(
+            label: 'Details',
+            onPressed: () => _showRawScanText(context, error.toString()),
+          ),
+          duration: const Duration(seconds: 6),
+        ),
       );
       return;
     }
@@ -138,7 +149,7 @@ class _TransactionsViewState extends State<TransactionsView> {
             'try Add entry instead',
           ),
           action: SnackBarAction(
-            label: 'View scanned text',
+            label: 'Details',
             onPressed: () => _showRawScanText(context, result.rawText),
           ),
           duration: const Duration(seconds: 6),
@@ -159,19 +170,19 @@ class _TransactionsViewState extends State<TransactionsView> {
     }
   }
 
-  /// Diagnostic view for when the scan finds no items — shows exactly
-  /// what OCR read off the photo, selectable, so a mismatch between
-  /// this receipt's real layout and the parser's assumptions can be
-  /// reported instead of guessed at.
-  void _showRawScanText(BuildContext context, String rawText) {
+  /// Diagnostic view for a scan that failed or found nothing usable —
+  /// shows the detail (Claude's response, or the error) as selectable
+  /// text, so a scanning problem can be inspected and reported instead
+  /// of guessed at.
+  void _showRawScanText(BuildContext context, String detail) {
     unawaited(
       showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Scanned text'),
+          title: const Text('Scan details'),
           content: SingleChildScrollView(
             child: SelectableText(
-              rawText.isEmpty ? '(nothing was recognized)' : rawText,
+              detail.isEmpty ? '(nothing was recognized)' : detail,
             ),
           ),
           actions: [

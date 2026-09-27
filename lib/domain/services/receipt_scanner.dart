@@ -49,6 +49,16 @@ class ReceiptLineItem extends Equatable {
   List<Object?> get props => [name, amountMinor];
 }
 
+// UNUSED — kept for reference/tests only, not wired into the app.
+//
+// Superseded by [ClaudeReceiptScanner] (lib/domain/ai/claude_receipt_scanner.dart),
+// which reads the photo directly with Claude's vision instead of these
+// regex heuristics over on-device OCR text: real phone-camera receipts
+// vary enough in layout that the heuristics below kept missing or
+// misreading line items in practice. Left in place rather than
+// deleted in case the on-device path is worth reviving later (fully
+// offline, no API cost) — its own tests still exercise it.
+//
 /// Scans a receipt photo with on-device text recognition (Google ML Kit,
 /// runs locally — nothing leaves the phone) and pulls out a best-guess
 /// merchant, total and date with plain regex/heuristics. Deliberately not
