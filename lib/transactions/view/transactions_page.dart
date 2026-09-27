@@ -1,5 +1,7 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
@@ -9,6 +11,8 @@ import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
+import 'package:intellispendiq/domain/services/receipt_scanner.dart';
+import 'package:intellispendiq/receipts/view/receipt_items_page.dart';
 import 'package:intellispendiq/transactions/cubit/activity_entry.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
 import 'package:intellispendiq/transactions/view/transaction_entry_page.dart';
@@ -72,6 +76,82 @@ class _TransactionsViewState extends State<TransactionsView> {
     }
   }
 
+  /// Scans a photo for priced line items and, when it finds more than
+  /// one, opens the review screen to split them into separate entries.
+  /// Kept apart from Add Entry's "Scan a receipt" (which fills one
+  /// entry from the total) — this is specifically for a receipt you
+  /// want broken into its individual items.
+  Future<void> _scanItemizedReceipt(BuildContext context) async {
+    final source = await AppSheet.show<ImageSource>(
+      context,
+      isScrollControlled: false,
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppListRow(
+            leading: AppIcon(AppIcons.scanReceipt),
+            title: const Text('Take photo'),
+            onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+          ),
+          AppListRow(
+            leading: AppIcon(AppIcons.exportData),
+            title: const Text('Choose from gallery'),
+            onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+          ),
+        ],
+      ),
+    );
+    if (source == null || !context.mounted) return;
+
+    String? path;
+    if (source == ImageSource.camera) {
+      final photo = await ImagePicker().pickImage(source: ImageSource.camera);
+      path = photo?.path;
+    } else {
+      final result = await FilePicker.pickFiles(type: FileType.image);
+      path = result?.files.single.path;
+    }
+    if (path == null || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final scanner = ReceiptScanner();
+    ReceiptScanResult result;
+    try {
+      result = await scanner.scanImage(path);
+    } on Object {
+      await scanner.dispose();
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't read that receipt")),
+      );
+      return;
+    }
+    await scanner.dispose();
+
+    if (result.lineItems.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Couldn't find separate items on this receipt — "
+            'try Add entry instead',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final count = await navigator.push<int?>(
+      ReceiptItemsPage.route(scan: result, sourcePath: path),
+    );
+    if (count != null && count > 0) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Added $count ${count == 1 ? 'entry' : 'entries'}'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<TransactionsCubit>();
@@ -80,6 +160,11 @@ class _TransactionsViewState extends State<TransactionsView> {
       appBar: AppBar(
         title: const Text('Activity'),
         actions: [
+          IconButton(
+            icon: AppIcon(AppIcons.scanReceipt),
+            tooltip: 'Scan itemized receipt',
+            onPressed: () => _scanItemizedReceipt(context),
+          ),
           IconButton(
             icon: AppIcon(_searchOpen ? AppIcons.close : AppIcons.search),
             tooltip: _searchOpen ? 'Close search' : 'Search',

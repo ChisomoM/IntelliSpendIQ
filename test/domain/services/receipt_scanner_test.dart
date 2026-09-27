@@ -20,6 +20,10 @@ Thank you for shopping
       expect(result.merchant, 'Shoprite Mukuba');
       expect(result.amountMinor, 4500);
       expect(result.transactedAt, DateTime(2026, 3, 12));
+      expect(result.lineItems, [
+        const ReceiptLineItem(name: 'Bread', amountMinor: 1500),
+        const ReceiptLineItem(name: 'Milk', amountMinor: 2250),
+      ]);
     });
 
     test('picks the grand total over a smaller subtotal line', () {
@@ -56,6 +60,42 @@ GRAND TOTAL 12.50
       final result = ReceiptScanner.parseText('Store\n31/02/2026\nTOTAL 5.00');
 
       expect(result.transactedAt, isNull);
+    });
+  });
+
+  group('ReceiptScanner.parseText line items', () {
+    test('ignores a bare integer with no decimal (e.g. a phone number)', () {
+      final result = ReceiptScanner.parseText('Store\nTel 0211 123 456');
+
+      expect(result.lineItems, isEmpty);
+    });
+
+    test('ignores total/subtotal/cash/tax lines even with a decimal', () {
+      final result = ReceiptScanner.parseText('''
+Store
+SUBTOTAL 37.50
+TOTAL 45.00
+CASH 50.00
+VAT 5.00
+''');
+
+      expect(result.lineItems, isEmpty);
+    });
+
+    test('skips a line whose name is too short or has no letters', () {
+      final result = ReceiptScanner.parseText('''
+Store
+1 45.00
+X-- 12.00
+''');
+
+      expect(result.lineItems, isEmpty);
+    });
+
+    test('returns an empty list rather than null when nothing matches', () {
+      final result = ReceiptScanner.parseText('Store\nTOTAL 5.00');
+
+      expect(result.lineItems, isEmpty);
     });
   });
 }

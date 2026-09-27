@@ -12,17 +12,41 @@ class ReceiptScanResult extends Equatable {
     this.merchant,
     this.amountMinor,
     this.transactedAt,
+    this.lineItems = const [],
   });
 
   final String? merchant;
   final int? amountMinor;
   final DateTime? transactedAt;
 
+  /// Individual priced lines found on the receipt (name + amount), for
+  /// splitting one receipt into several expense entries. Best-effort:
+  /// a receipt whose layout the heuristics can't follow just comes back
+  /// with an empty list, same as any other field the scan couldn't find.
+  final List<ReceiptLineItem> lineItems;
+
   /// Full OCR text, kept for debugging a bad scan.
   final String rawText;
 
   @override
-  List<Object?> get props => [merchant, amountMinor, transactedAt, rawText];
+  List<Object?> get props => [
+    merchant,
+    amountMinor,
+    transactedAt,
+    lineItems,
+    rawText,
+  ];
+}
+
+/// One priced line lifted off a receipt, e.g. `Bread` at `1500` (ngwee).
+class ReceiptLineItem extends Equatable {
+  const ReceiptLineItem({required this.name, required this.amountMinor});
+
+  final String name;
+  final int amountMinor;
+
+  @override
+  List<Object?> get props => [name, amountMinor];
 }
 
 /// Scans a receipt photo with on-device text recognition (Google ML Kit,
@@ -77,8 +101,41 @@ class ReceiptScanner {
       merchant: _extractMerchant(rawText),
       amountMinor: _extractTotalMinor(rawText),
       transactedAt: _extractDate(rawText),
+      lineItems: _extractLineItems(rawText),
       rawText: rawText,
     );
+  }
+
+  /// A priced line's name, trailing whitespace then a decimal amount:
+  /// `Bread             15.00`. The decimal part is required (not
+  /// optional) specifically to reject bare integers like a phone number
+  /// or an item quantity, which would otherwise read as a price.
+  static final RegExp _trailingPrice = RegExp(
+    r'^(.+?)\s+([0-9]+\.[0-9]{2})$',
+  );
+
+  /// Lines that carry a price but are not an item — totals, tender,
+  /// tax and receipt boilerplate.
+  static final RegExp _nonItemLine = RegExp(
+    'total|tax|vat|change|cash|card|balance|tender|discount|'
+    'thank you|tel:|receipt|invoice|qty|cashier|register|served|table',
+    caseSensitive: false,
+  );
+
+  static List<ReceiptLineItem> _extractLineItems(String text) {
+    final items = <ReceiptLineItem>[];
+    for (final rawLine in text.split('\n')) {
+      final line = rawLine.trim();
+      if (line.length < 4 || _nonItemLine.hasMatch(line)) continue;
+      final match = _trailingPrice.firstMatch(line);
+      if (match == null) continue;
+      final name = match.group(1)!.trim();
+      if (!RegExp('[A-Za-z]{2,}').hasMatch(name)) continue;
+      final amountMinor = Money.tryParseToMinor(match.group(2)!);
+      if (amountMinor == null || amountMinor <= 0) continue;
+      items.add(ReceiptLineItem(name: name, amountMinor: amountMinor));
+    }
+    return items;
   }
 
   static String? _extractMerchant(String text) {
