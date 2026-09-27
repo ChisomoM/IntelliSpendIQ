@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -129,7 +130,13 @@ class _TransactionsViewState extends State<TransactionsView> {
     try {
       final categories = await categoryRepository.getAll();
       result = await scanner.scanImage(path, categories: categories);
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      log(
+        'itemized scan failed',
+        name: 'receipt_scan',
+        error: error,
+        stackTrace: stackTrace,
+      );
       await scanner.dispose();
       if (context.mounted) AppLoadingDialog.hide(context);
       messenger.showSnackBar(
@@ -148,6 +155,11 @@ class _TransactionsViewState extends State<TransactionsView> {
     if (context.mounted) AppLoadingDialog.hide(context);
 
     if (result.lineItems.isEmpty) {
+      log(
+        'itemized scan found no line items: merchant=${result.merchant} '
+        'amountMinor=${result.amountMinor}',
+        name: 'receipt_scan',
+      );
       messenger.showSnackBar(
         SnackBar(
           content: const Text(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -33,6 +34,7 @@ class ClaudeReceiptScanner {
   static const _apiVersion = '2023-06-01';
   static const _model = 'claude-haiku-4-5';
   static const _toolName = 'extract_receipt';
+  static const _logName = 'receipt_scan';
 
   final SecureStore _secureStore;
   final http.Client _http;
@@ -46,13 +48,25 @@ class ClaudeReceiptScanner {
     String imagePath, {
     List<Category> categories = const [],
   }) async {
+    log(
+      'scanImage start: file=${p.basename(imagePath)} '
+      'categoriesGiven=${categories.length}',
+      name: _logName,
+    );
+
     final apiKey = await resolveAnthropicApiKey(_secureStore);
     if (apiKey == null || apiKey.isEmpty) {
+      log('scanImage abort: no API key configured', name: _logName);
       throw AiExtractionException('Anthropic API key not configured');
     }
 
     final mediaType = _mediaTypeFor(imagePath);
     if (mediaType == null) {
+      log(
+        'scanImage abort: unsupported image type '
+        '${p.extension(imagePath)}',
+        name: _logName,
+      );
       throw AiExtractionException(
         'Unsupported image type: ${p.extension(imagePath)}',
       );
@@ -65,6 +79,11 @@ class ClaudeReceiptScanner {
         .toList();
     final categoriesById = {for (final c in categories) c.id: c};
     final categoryIds = [for (final c in expenseCategories) c.id];
+    log(
+      'scanImage request: bytes=${bytes.length} mediaType=$mediaType '
+      'expenseCategories=${categoryIds.length}',
+      name: _logName,
+    );
 
     final body = jsonEncode({
       'model': _model,
@@ -102,6 +121,7 @@ class ClaudeReceiptScanner {
     });
 
     http.Response response;
+    final stopwatch = Stopwatch()..start();
     try {
       response = await _http
           .post(
@@ -114,11 +134,23 @@ class ClaudeReceiptScanner {
             body: body,
           )
           .timeout(const Duration(seconds: 45));
-    } on Exception catch (error) {
+    } on Exception catch (error, stackTrace) {
+      log(
+        'scanImage network error after ${stopwatch.elapsedMilliseconds}ms',
+        name: _logName,
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw AiExtractionException('Network error: $error');
     }
+    log(
+      'scanImage response: status=${response.statusCode} '
+      'elapsedMs=${stopwatch.elapsedMilliseconds}',
+      name: _logName,
+    );
 
     if (response.statusCode != 200) {
+      log('scanImage non-200 body: ${response.body}', name: _logName);
       throw AiExtractionException(
         'Anthropic API error ${response.statusCode}: ${response.body}',
       );
@@ -126,6 +158,7 @@ class ClaudeReceiptScanner {
 
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
     if (decoded['stop_reason'] == 'refusal') {
+      log('scanImage refused by safety classifiers', name: _logName);
       throw AiExtractionException('Request declined by safety classifiers');
     }
     final content = (decoded['content'] as List<dynamic>? ?? [])
@@ -134,15 +167,28 @@ class ClaudeReceiptScanner {
       (block) => block['type'] == 'tool_use' && block['name'] == _toolName,
     );
     if (toolUse.isEmpty) {
+      log(
+        'scanImage no tool_use block: stop_reason=${decoded['stop_reason']}',
+        name: _logName,
+      );
       throw AiExtractionException('No tool_use block in response');
     }
 
     final input = toolUse.first['input'] as Map<String, dynamic>;
-    return _resultFromToolInput(
+    final result = _resultFromToolInput(
       input,
       rawText: response.body,
       validCategoryIds: categoryIds.toSet(),
     );
+    log(
+      'scanImage parsed: merchant=${result.merchant} '
+      'amountMinor=${result.amountMinor} date=${result.transactedAt} '
+      'items=${result.lineItems.length} '
+      'itemsWithCategory='
+      '${result.lineItems.where((i) => i.categoryId != null).length}',
+      name: _logName,
+    );
+    return result;
   }
 
   Future<void> dispose() async => _http.close();
@@ -273,14 +319,27 @@ class ClaudeReceiptScanner {
                   amountMinor: Money.minorFromDouble(
                     (raw['amount']! as num).toDouble(),
                   ),
-                  // Never trust an id Claude didn't actually offer — a
-                  // hallucinated one would otherwise silently fail to
-                  // resolve to a category later.
-                  categoryId: validCategoryIds.contains(raw['category_id'])
-                      ? raw['category_id'] as String
-                      : null,
+                  categoryId: _resolveCategoryId(
+                    raw['category_id'],
+                    validCategoryIds,
+                  ),
                 ),
       ],
     );
+  }
+
+  /// Never trust an id Claude didn't actually offer — a hallucinated
+  /// one would otherwise silently fail to resolve to a category later.
+  static String? _resolveCategoryId(
+    Object? categoryId,
+    Set<String> validCategoryIds,
+  ) {
+    if (categoryId == null) return null;
+    if (validCategoryIds.contains(categoryId)) return categoryId as String;
+    log(
+      'scanImage dropped hallucinated category_id: $categoryId',
+      name: _logName,
+    );
+    return null;
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:bloc/bloc.dart';
@@ -260,7 +261,13 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
         receiptPath,
         categories: state.categories,
       );
-    } on Object {
+    } on Object catch (error, stackTrace) {
+      log(
+        'scanReceipt failed',
+        name: 'receipt_scan',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return null;
     }
 
