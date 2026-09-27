@@ -122,11 +122,16 @@ class _TransactionsViewState extends State<TransactionsView> {
     final scanner = ClaudeReceiptScanner(
       secureStore: context.read<SecureStore>(),
     );
+    final categoryRepository = context.read<CategoryRepository>();
+
+    AppLoadingDialog.show(context, 'Reading your receipt…');
     ReceiptScanResult result;
     try {
-      result = await scanner.scanImage(path);
+      final categories = await categoryRepository.getAll();
+      result = await scanner.scanImage(path, categories: categories);
     } on Object catch (error) {
       await scanner.dispose();
+      if (context.mounted) AppLoadingDialog.hide(context);
       messenger.showSnackBar(
         SnackBar(
           content: const Text("Couldn't read that receipt"),
@@ -140,6 +145,7 @@ class _TransactionsViewState extends State<TransactionsView> {
       return;
     }
     await scanner.dispose();
+    if (context.mounted) AppLoadingDialog.hide(context);
 
     if (result.lineItems.isEmpty) {
       messenger.showSnackBar(

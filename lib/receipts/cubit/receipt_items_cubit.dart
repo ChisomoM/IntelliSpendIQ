@@ -7,8 +7,10 @@ import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
+import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 import 'package:intellispendiq/domain/services/receipt_scanner.dart';
@@ -25,12 +27,14 @@ class ReceiptItemsCubit extends Cubit<ReceiptItemsState> {
   ReceiptItemsCubit({
     required TransactionRepository transactions,
     required AccountRepository accounts,
+    required CategoryRepository categories,
     required BudgetPeriodRepository budgetPeriods,
     required ReceiptScanResult scan,
     required String sourcePath,
     Future<Directory> Function()? documentsDirectory,
   }) : _transactions = transactions,
        _accounts = accounts,
+       _categories = categories,
        _budgetPeriods = budgetPeriods,
        _documentsDirectory =
            documentsDirectory ?? getApplicationDocumentsDirectory,
@@ -44,6 +48,7 @@ class ReceiptItemsCubit extends Cubit<ReceiptItemsState> {
                  included: true,
                  name: item.name,
                  amount: (item.amountMinor / 100).toStringAsFixed(2),
+                 categoryId: item.categoryId,
                ),
            ],
            sourcePath: sourcePath,
@@ -52,14 +57,16 @@ class ReceiptItemsCubit extends Cubit<ReceiptItemsState> {
 
   final TransactionRepository _transactions;
   final AccountRepository _accounts;
+  final CategoryRepository _categories;
   final BudgetPeriodRepository _budgetPeriods;
   final Future<Directory> Function() _documentsDirectory;
 
   /// Fire-and-forget entry point for widget construction.
-  void loadAccountsUnawaited() => unawaited(loadAccounts());
+  void loadOptionsUnawaited() => unawaited(loadOptions());
 
-  Future<void> loadAccounts() async {
+  Future<void> loadOptions() async {
     final accounts = await _accounts.getAll();
+    final categories = await _categories.getAll();
     final defaultAccount = accounts.isEmpty
         ? null
         : accounts.firstWhere(
@@ -69,6 +76,7 @@ class ReceiptItemsCubit extends Cubit<ReceiptItemsState> {
     emit(
       state.copyWith(
         accounts: accounts,
+        categories: categories.where((c) => c.isExpense).toList(),
         accountId: state.accountId ?? defaultAccount?.id,
       ),
     );
@@ -76,11 +84,9 @@ class ReceiptItemsCubit extends Cubit<ReceiptItemsState> {
 
   void merchantChanged(String value) => emit(state.copyWith(merchant: value));
 
-  void dateChanged(DateTime value) =>
-      emit(state.copyWith(transactedAt: value));
+  void dateChanged(DateTime value) => emit(state.copyWith(transactedAt: value));
 
-  void accountChanged(String? value) =>
-      emit(state.copyWith(accountId: value));
+  void accountChanged(String? value) => emit(state.copyWith(accountId: value));
 
   void itemToggled(int index) => _updateItem(
     index,
@@ -92,6 +98,14 @@ class ReceiptItemsCubit extends Cubit<ReceiptItemsState> {
 
   void itemAmountChanged(int index, String value) =>
       _updateItem(index, (item) => item.copyWith(amount: value));
+
+  void itemCategoryChanged(int index, String? categoryId) => _updateItem(
+    index,
+    (item) => item.copyWith(
+      categoryId: categoryId,
+      clearCategory: categoryId == null,
+    ),
+  );
 
   void _updateItem(int index, ReceiptItemDraft Function(ReceiptItemDraft) f) {
     final items = [...state.items];
@@ -152,6 +166,7 @@ class ReceiptItemsCubit extends Cubit<ReceiptItemsState> {
             transactedAt: state.transactedAt,
             merchant: merchant.isEmpty ? null : merchant,
             description: name.isEmpty ? null : name,
+            categoryId: item.categoryId,
             receiptPath: receiptPath,
           ),
           accountId: accountId,

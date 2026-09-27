@@ -14,6 +14,7 @@ export 'components/app_text_field.dart';
 export 'components/category_avatar.dart';
 export 'components/empty_state.dart';
 export 'components/error_state.dart';
+export 'components/loading_dialog.dart';
 export 'components/loading_skeleton.dart';
 export 'components/money_gauge.dart';
 export 'components/period_selector.dart';

@@ -16,7 +16,6 @@ import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/design/design.dart';
-import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
@@ -159,9 +158,11 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
     // whatever period contains "now" rather than the transaction's
     // own date, and can go missing from the period actually being
     // edited.
-    final period = await context.read<BudgetPeriodRepository>().ensurePeriodContaining(
-      cubit.state.transactedAt,
-    );
+    final period = await context
+        .read<BudgetPeriodRepository>()
+        .ensurePeriodContaining(
+          cubit.state.transactedAt,
+        );
     if (!context.mounted) return;
     final id = await Navigator.of(context).push<String?>(
       CategoryEditorPage.route(
@@ -477,13 +478,6 @@ class _DirectionToggle extends StatelessWidget {
   }
 }
 
-/// Result of the category sheet. Distinct from a dismissed sheet so
-/// clearing the selection (`categoryId == null`) is intentional.
-class _CategoryPick {
-  const _CategoryPick(this.categoryId);
-  final String? categoryId;
-}
-
 /// Compact field that shows the chosen category's avatar and colour,
 /// then opens a sheet with the full hierarchy — richer than a Material
 /// dropdown, without the chip-row's vertical sprawl.
@@ -493,37 +487,16 @@ class _CategoryPicker extends StatelessWidget {
   final TransactionEntryState state;
   final VoidCallback onAddCategory;
 
-  /// Top-level categories first, each followed by its children.
-  static List<Category> ordered(List<Category> options) {
-    final topLevel = options.where((c) => c.parentId == null).toList();
-    final childrenByParent = <String, List<Category>>{};
-    for (final category in options.where((c) => c.parentId != null)) {
-      childrenByParent
-          .putIfAbsent(category.parentId!, () => <Category>[])
-          .add(category);
-    }
-
-    final ordered = <Category>[];
-    for (final parent in topLevel) {
-      ordered.add(parent);
-      ordered.addAll(childrenByParent.remove(parent.id) ?? const []);
-    }
-    for (final remaining in childrenByParent.values) {
-      ordered.addAll(remaining);
-    }
-    return ordered;
-  }
-
   Future<void> _open(BuildContext context) async {
     final cubit = context.read<TransactionEntryCubit>();
-    final options = ordered(state.categoriesForDirection);
+    final options = orderedCategories(state.categoriesForDirection);
     final selectedId = options.any((c) => c.id == state.categoryId)
         ? state.categoryId
         : null;
 
-    final result = await AppSheet.show<_CategoryPick>(
+    final result = await AppSheet.show<CategoryPick>(
       context,
-      builder: (sheetContext) => _CategoryPickerSheet(
+      builder: (sheetContext) => CategoryPickerSheet(
         categories: options,
         selectedId: selectedId,
         isIncome: state.direction == TxDirection.credit,
@@ -541,7 +514,7 @@ class _CategoryPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final options = ordered(state.categoriesForDirection);
+    final options = orderedCategories(state.categoriesForDirection);
     final selected = options.where((c) => c.id == state.categoryId).firstOrNull;
     final hue = selected == null
         ? null
@@ -653,184 +626,6 @@ class _CategoryPicker extends StatelessWidget {
           onPressed: onAddCategory,
         ),
       ],
-    );
-  }
-}
-
-/// Hierarchical category list for [_CategoryPicker]. Each row carries
-/// the category's own avatar and tint so the list reads as colour, not
-/// a wall of identical text.
-class _CategoryPickerSheet extends StatelessWidget {
-  const _CategoryPickerSheet({
-    required this.categories,
-    required this.selectedId,
-    required this.isIncome,
-    required this.onAddCategory,
-  });
-
-  final List<Category> categories;
-  final String? selectedId;
-  final bool isIncome;
-  final VoidCallback onAddCategory;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final parentsById = {
-      for (final category in categories)
-        if (category.parentId == null) category.id: category,
-    };
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionHeader(
-          title: 'Category',
-          subtitle: isIncome ? 'Income categories' : 'Spending categories',
-          action: 'New',
-          onActionTap: onAddCategory,
-        ),
-        ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.55,
-          ),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              _CategoryPickRow(
-                label: 'No category',
-                subtitle: 'Leave uncategorised',
-                selected: selectedId == null,
-                onTap: () => Navigator.of(
-                  context,
-                ).pop(const _CategoryPick(null)),
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.center,
-                  child: AppIcon(
-                    AppIcons.close,
-                    size: 18,
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              for (final category in categories)
-                _CategoryPickRow(
-                  label: category.displayName,
-                  subtitle: category.parentId == null
-                      ? null
-                      : parentsById[category.parentId!]?.displayName,
-                  indent: category.parentId != null,
-                  selected: category.id == selectedId,
-                  hue: CategoryPalette.forCategory(
-                    categoryId: category.id,
-                    storedColor: category.color,
-                    brightness: Theme.of(context).brightness,
-                  ),
-                  leading: CategoryAvatar(
-                    iconKey: category.icon,
-                    categoryId: category.id,
-                    colorName: category.color,
-                  ),
-                  onTap: () => Navigator.of(
-                    context,
-                  ).pop(_CategoryPick(category.id)),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CategoryPickRow extends StatelessWidget {
-  const _CategoryPickRow({
-    required this.label,
-    required this.leading,
-    required this.selected,
-    required this.onTap,
-    this.subtitle,
-    this.indent = false,
-    this.hue,
-  });
-
-  final String label;
-  final String? subtitle;
-  final Widget leading;
-  final bool selected;
-  final bool indent;
-  final CategoryHue? hue;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Every row gets a whisper of its own hue; the selected one gets
-    // the full wash so the list never reads as identical grey tiles.
-    final wash = hue == null
-        ? Colors.transparent
-        : selected
-        ? hue!.tint.withValues(alpha: isDark ? 0.55 : 0.85)
-        : hue!.tint.withValues(alpha: isDark ? 0.18 : 0.35);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Material(
-        color: wash,
-        borderRadius: Radii.inputRadius,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: Radii.inputRadius,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              indent ? Space.x3 : Space.x1,
-              Space.x1,
-              Space.x1,
-              Space.x1,
-            ),
-            child: Row(
-              children: [
-                leading,
-                const SizedBox(width: Space.x2),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: AppTypography.rowTitle(color: colors.onSurface),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle!,
-                          style: AppTypography.metadata(
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (selected)
-                  AppIcon(
-                    AppIcons.check,
-                    size: 22,
-                    color: hue?.ink ?? colors.primary,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1118,7 +913,9 @@ class _ReceiptField extends StatelessWidget {
     if (path == null || !context.mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
+    AppLoadingDialog.show(context, 'Reading your receipt…');
     final result = await cubit.scanReceipt(path);
+    if (context.mounted) AppLoadingDialog.hide(context);
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(_scanFeedback(result))));

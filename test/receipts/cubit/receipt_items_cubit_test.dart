@@ -22,6 +22,7 @@ void main() {
     return ReceiptItemsCubit(
       transactions: services.transactions,
       accounts: services.accounts,
+      categories: services.categories,
       budgetPeriods: services.budgetPeriods,
       scan: scan,
       sourcePath: photo.path,
@@ -50,7 +51,7 @@ void main() {
     expect(cubit.state.canSave, isTrue);
   });
 
-  test('unchecking an item excludes it from canSave\'s count', () {
+  test("unchecking an item excludes it from canSave's count", () {
     final cubit = buildCubit(scan);
 
     cubit.itemToggled(0);
@@ -95,22 +96,95 @@ void main() {
     expect(cubit.state.items.single.name, 'Milk');
   });
 
-  test('submit saves one transaction per checked item, uncategorized', () async {
-    final cubit = buildCubit(scan);
+  test(
+    'submit saves one transaction per checked item, uncategorized when '
+    'the scan suggested nothing',
+    () async {
+      final cubit = buildCubit(scan);
 
-    await cubit.submit();
+      await cubit.submit();
 
-    expect(cubit.state.status, ReceiptItemsStatus.saved);
-    final all = await services.transactions.getAllForExport();
-    expect(all, hasLength(2));
-    expect(all.map((t) => t.description), containsAll(['Bread', 'Milk']));
-    expect(all.every((t) => t.merchant == 'Shoprite Mukuba'), isTrue);
-    expect(all.every((t) => t.categoryId == null), isTrue);
-    expect(all.every((t) => t.receiptPath != null), isTrue);
-    // Both items point at the same copied photo, not the picker's
-    // original temp path.
-    expect(all[0].receiptPath, all[1].receiptPath);
-    expect(all[0].receiptPath, isNot(photo.path));
+      expect(cubit.state.status, ReceiptItemsStatus.saved);
+      final all = await services.transactions.getAllForExport();
+      expect(all, hasLength(2));
+      expect(all.map((t) => t.description), containsAll(['Bread', 'Milk']));
+      expect(all.every((t) => t.merchant == 'Shoprite Mukuba'), isTrue);
+      expect(all.every((t) => t.categoryId == null), isTrue);
+      expect(all.every((t) => t.receiptPath != null), isTrue);
+      // Both items point at the same copied photo, not the picker's
+      // original temp path.
+      expect(all[0].receiptPath, all[1].receiptPath);
+      expect(all[0].receiptPath, isNot(photo.path));
+    },
+  );
+
+  group('category suggestions', () {
+    test('loadOptions loads only expense categories', () async {
+      final cubit = buildCubit(scan);
+
+      await cubit.loadOptions();
+
+      expect(cubit.state.categories, isNotEmpty);
+      expect(cubit.state.categories.every((c) => c.isExpense), isTrue);
+    });
+
+    test(
+      "seeds each item with the scan's per-item category suggestion",
+      () async {
+        final shopping = await services.categories.byName('Shopping');
+        final scanWithSuggestion = ReceiptScanResult(
+          rawText: scan.rawText,
+          merchant: scan.merchant,
+          amountMinor: scan.amountMinor,
+          lineItems: [
+            ReceiptLineItem(
+              name: 'Bread',
+              amountMinor: 1500,
+              categoryId: shopping!.id,
+            ),
+            const ReceiptLineItem(name: 'Milk', amountMinor: 2250),
+          ],
+        );
+        final cubit = buildCubit(scanWithSuggestion);
+
+        expect(cubit.state.items[0].categoryId, shopping.id);
+        expect(cubit.state.items[1].categoryId, isNull);
+      },
+    );
+
+    test('itemCategoryChanged overrides the suggestion for one item', () async {
+      final shopping = await services.categories.byName('Shopping');
+      final cubit = buildCubit(scan);
+
+      cubit.itemCategoryChanged(0, shopping!.id);
+
+      expect(cubit.state.items[0].categoryId, shopping.id);
+      expect(cubit.state.items[1].categoryId, isNull);
+    });
+
+    test('itemCategoryChanged(null) clears a category', () async {
+      final shopping = await services.categories.byName('Shopping');
+      final cubit = buildCubit(scan);
+      cubit.itemCategoryChanged(0, shopping!.id);
+
+      cubit.itemCategoryChanged(0, null);
+
+      expect(cubit.state.items[0].categoryId, isNull);
+    });
+
+    test("submit persists each item's category", () async {
+      final shopping = await services.categories.byName('Shopping');
+      final cubit = buildCubit(scan);
+      cubit.itemCategoryChanged(0, shopping!.id);
+
+      await cubit.submit();
+
+      final all = await services.transactions.getAllForExport();
+      final bread = all.firstWhere((t) => t.description == 'Bread');
+      final milk = all.firstWhere((t) => t.description == 'Milk');
+      expect(bread.categoryId, shopping.id);
+      expect(milk.categoryId, isNull);
+    });
   });
 
   test('an unchecked item is not saved', () async {

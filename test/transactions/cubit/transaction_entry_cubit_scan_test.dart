@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intellispendiq/app/app_services.dart';
 import 'package:intellispendiq/domain/ai/claude_receipt_scanner.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/services/receipt_scanner.dart';
 import 'package:intellispendiq/transactions/cubit/cubit.dart';
 
@@ -17,7 +18,10 @@ class _FakeReceiptScanner extends ClaudeReceiptScanner {
   final ReceiptScanResult result;
 
   @override
-  Future<ReceiptScanResult> scanImage(String imagePath) async => result;
+  Future<ReceiptScanResult> scanImage(
+    String imagePath, {
+    List<Category> categories = const [],
+  }) async => result;
 
   @override
   Future<void> dispose() async {}
@@ -27,8 +31,10 @@ class _ThrowingReceiptScanner extends ClaudeReceiptScanner {
   _ThrowingReceiptScanner({required super.secureStore});
 
   @override
-  Future<ReceiptScanResult> scanImage(String imagePath) =>
-      throw StateError('Scan failed');
+  Future<ReceiptScanResult> scanImage(
+    String imagePath, {
+    List<Category> categories = const [],
+  }) => throw StateError('Scan failed');
 
   @override
   Future<void> dispose() async {}

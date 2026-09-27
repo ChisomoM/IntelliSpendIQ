@@ -40,13 +40,22 @@ class ReceiptScanResult extends Equatable {
 
 /// One priced line lifted off a receipt, e.g. `Bread` at `1500` (ngwee).
 class ReceiptLineItem extends Equatable {
-  const ReceiptLineItem({required this.name, required this.amountMinor});
+  const ReceiptLineItem({
+    required this.name,
+    required this.amountMinor,
+    this.categoryId,
+  });
 
   final String name;
   final int amountMinor;
 
+  /// Best-matching category/subcategory id, when the scanner was given
+  /// the app's own category list to choose from and found a match.
+  /// Null when no category list was supplied, or none fit.
+  final String? categoryId;
+
   @override
-  List<Object?> get props => [name, amountMinor];
+  List<Object?> get props => [name, amountMinor, categoryId];
 }
 
 // UNUSED — kept for reference/tests only, not wired into the app.

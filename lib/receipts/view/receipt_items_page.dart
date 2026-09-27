@@ -3,10 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
+import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/services/receipt_scanner.dart';
 import 'package:intellispendiq/receipts/cubit/receipt_items_cubit.dart';
 import 'package:intl/intl.dart';
@@ -41,10 +44,11 @@ class ReceiptItemsPage extends StatelessWidget {
       create: (context) => ReceiptItemsCubit(
         transactions: context.read<TransactionRepository>(),
         accounts: context.read<AccountRepository>(),
+        categories: context.read<CategoryRepository>(),
         budgetPeriods: context.read<BudgetPeriodRepository>(),
         scan: scan,
         sourcePath: sourcePath,
-      )..loadAccountsUnawaited(),
+      )..loadOptionsUnawaited(),
       child: const _ReceiptItemsView(),
     );
   }
@@ -224,10 +228,13 @@ class _ReceiptItemsViewState extends State<_ReceiptItemsView> {
                     _ItemRow(
                       key: ValueKey(state.items[i].id),
                       item: state.items[i],
+                      categories: state.categories,
                       onToggled: () => cubit.itemToggled(i),
                       onNameChanged: (value) => cubit.itemNameChanged(i, value),
                       onAmountChanged: (value) =>
                           cubit.itemAmountChanged(i, value),
+                      onCategoryChanged: (categoryId) =>
+                          cubit.itemCategoryChanged(i, categoryId),
                       onRemoved: () => cubit.removeItem(i),
                     ),
                   const SizedBox(height: Space.x1),
@@ -268,16 +275,20 @@ class _ItemRow extends StatefulWidget {
   const _ItemRow({
     required super.key,
     required this.item,
+    required this.categories,
     required this.onToggled,
     required this.onNameChanged,
     required this.onAmountChanged,
+    required this.onCategoryChanged,
     required this.onRemoved,
   });
 
   final ReceiptItemDraft item;
+  final List<Category> categories;
   final VoidCallback onToggled;
   final ValueChanged<String> onNameChanged;
   final ValueChanged<String> onAmountChanged;
+  final ValueChanged<String?> onCategoryChanged;
   final VoidCallback onRemoved;
 
   @override
@@ -302,36 +313,87 @@ class _ItemRowState extends State<_ItemRow> {
     super.dispose();
   }
 
+  Future<void> _openCategoryPicker(BuildContext context) async {
+    final options = orderedCategories(widget.categories);
+    final selectedId = options.any((c) => c.id == widget.item.categoryId)
+        ? widget.item.categoryId
+        : null;
+
+    final result = await AppSheet.show<CategoryPick>(
+      context,
+      builder: (sheetContext) => CategoryPickerSheet(
+        categories: options,
+        selectedId: selectedId,
+        isIncome: false,
+        // A category can only be added from the main category list, not
+        // from inside this sheet — closing it here just means "no add".
+        onAddCategory: () => Navigator.of(sheetContext).pop(),
+      ),
+    );
+    if (result == null) return;
+    widget.onCategoryChanged(result.categoryId);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final category = widget.categories
+        .where((c) => c.id == widget.item.categoryId)
+        .firstOrNull;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Space.x1 / 2),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Checkbox(
-            value: widget.item.included,
-            onChanged: (_) => widget.onToggled(),
+          Row(
+            children: [
+              Checkbox(
+                value: widget.item.included,
+                onChanged: (_) => widget.onToggled(),
+              ),
+              Expanded(
+                flex: 3,
+                child: AppTextField(
+                  controller: _nameController,
+                  label: 'Item',
+                  onChanged: widget.onNameChanged,
+                ),
+              ),
+              const SizedBox(width: Space.x1),
+              Expanded(
+                flex: 2,
+                child: AmountField(
+                  controller: _amountController,
+                  onChanged: widget.onAmountChanged,
+                ),
+              ),
+              IconButton(
+                icon: AppIcon(AppIcons.delete, size: 20),
+                tooltip: 'Remove item',
+                onPressed: widget.onRemoved,
+              ),
+            ],
           ),
-          Expanded(
-            flex: 3,
-            child: AppTextField(
-              controller: _nameController,
-              label: 'Item',
-              onChanged: widget.onNameChanged,
+          Padding(
+            padding: const EdgeInsets.only(left: 48, bottom: Space.x1),
+            child: ActionChip(
+              avatar: category == null
+                  ? AppIcon(AppIcons.budgets, size: 16)
+                  : CategoryAvatar(
+                      iconKey: category.icon,
+                      categoryId: category.id,
+                      colorName: category.color,
+                      size: 20,
+                    ),
+              label: Text(category?.displayName ?? 'Add category'),
+              labelStyle: AppTypography.metadata(
+                color: category == null
+                    ? colors.onSurfaceVariant
+                    : colors.onSurface,
+              ),
+              onPressed: () => _openCategoryPicker(context),
             ),
-          ),
-          const SizedBox(width: Space.x1),
-          Expanded(
-            flex: 2,
-            child: AmountField(
-              controller: _amountController,
-              onChanged: widget.onAmountChanged,
-            ),
-          ),
-          IconButton(
-            icon: AppIcon(AppIcons.delete, size: 20),
-            tooltip: 'Remove item',
-            onPressed: widget.onRemoved,
           ),
         ],
       ),

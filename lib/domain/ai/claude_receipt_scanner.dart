@@ -7,6 +7,8 @@ import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/domain/ai/anthropic_claude_provider.dart';
 import 'package:intellispendiq/domain/ai/transaction_extraction.dart';
+import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/services/receipt_scanner.dart';
 import 'package:path/path.dart' as p;
 
@@ -35,57 +37,15 @@ class ClaudeReceiptScanner {
   final SecureStore _secureStore;
   final http.Client _http;
 
-  static const Map<String, dynamic> _extractionTool = {
-    'name': _toolName,
-    'description':
-        'Record the structured contents of a photographed receipt. Call '
-        'this exactly once with your best reading of the photo.',
-    'input_schema': {
-      'type': 'object',
-      'properties': {
-        'merchant': {
-          'type': ['string', 'null'],
-          'description': 'Store or merchant name, or null if illegible.',
-        },
-        'total': {
-          'type': ['number', 'null'],
-          'description':
-              'The grand total actually charged, in major currency units '
-              '(e.g. 45.0 for K45.00) — not a subtotal. Null if unclear.',
-        },
-        'date': {
-          'type': ['string', 'null'],
-          'description':
-              'Purchase date as YYYY-MM-DD if printed on the receipt, '
-              'else null.',
-        },
-        'items': {
-          'type': 'array',
-          'description':
-              'Every individually priced product/service line actually '
-              'purchased — not the subtotal, tax, tip, tender, change, or '
-              'total lines.',
-          'items': {
-            'type': 'object',
-            'properties': {
-              'name': {
-                'type': 'string',
-                'description': 'The item as printed, cleaned up if garbled.',
-              },
-              'amount': {
-                'type': 'number',
-                'description': "That item's price in major currency units.",
-              },
-            },
-            'required': ['name', 'amount'],
-          },
-        },
-      },
-      'required': ['merchant', 'total', 'date', 'items'],
-    },
-  };
-
-  Future<ReceiptScanResult> scanImage(String imagePath) async {
+  /// Scans [imagePath] for a receipt's contents. [categories] — normally
+  /// the app's whole category list — is filtered down to expense
+  /// categories and offered to Claude so it can suggest one per item
+  /// (a receipt is always an expense); pass an empty list to skip
+  /// category suggestions entirely.
+  Future<ReceiptScanResult> scanImage(
+    String imagePath, {
+    List<Category> categories = const [],
+  }) async {
     final apiKey = await resolveAnthropicApiKey(_secureStore);
     if (apiKey == null || apiKey.isEmpty) {
       throw AiExtractionException('Anthropic API key not configured');
@@ -99,6 +59,12 @@ class ClaudeReceiptScanner {
     }
     final bytes = await File(imagePath).readAsBytes();
     final base64Image = base64Encode(bytes);
+
+    final expenseCategories = categories
+        .where((c) => c.type == CategoryType.expense)
+        .toList();
+    final categoriesById = {for (final c in categories) c.id: c};
+    final categoryIds = [for (final c in expenseCategories) c.id];
 
     final body = jsonEncode({
       'model': _model,
@@ -124,12 +90,14 @@ class ClaudeReceiptScanner {
             },
             {
               'type': 'text',
-              'text': "Extract this receipt's contents.",
+              'text':
+                  "Extract this receipt's contents."
+                  '${_categoryPrompt(expenseCategories, categoriesById)}',
             },
           ],
         },
       ],
-      'tools': [_extractionTool],
+      'tools': [_buildExtractionTool(categoryIds)],
       'tool_choice': {'type': 'tool', 'name': _toolName},
     });
 
@@ -170,7 +138,11 @@ class ClaudeReceiptScanner {
     }
 
     final input = toolUse.first['input'] as Map<String, dynamic>;
-    return _resultFromToolInput(input, rawText: response.body);
+    return _resultFromToolInput(
+      input,
+      rawText: response.body,
+      validCategoryIds: categoryIds.toSet(),
+    );
   }
 
   Future<void> dispose() async => _http.close();
@@ -191,9 +163,93 @@ class ClaudeReceiptScanner {
     }
   }
 
+  /// `id: Name` for a top-level category, `id: Parent > Name` for a
+  /// subcategory — plain enough for the model to line up against what
+  /// it reads on the receipt without needing the rest of the app's
+  /// category-hierarchy code.
+  static String _categoryPrompt(
+    List<Category> expenseCategories,
+    Map<String, Category> categoriesById,
+  ) {
+    if (expenseCategories.isEmpty) return '';
+    final lines = [
+      for (final c in expenseCategories)
+        '${c.id}: ${c.parentId == null ? c.displayName : '${categoriesById[c.parentId]?.displayName ?? '?'} > ${c.displayName}'}',
+    ];
+    return '\n\nAvailable categories (id: name) — for each item, suggest '
+        'the id of the closest match, or null if none fit. Never invent '
+        'an id that is not in this list:\n${lines.join('\n')}';
+  }
+
+  static Map<String, dynamic> _buildExtractionTool(List<String> categoryIds) {
+    return {
+      'name': _toolName,
+      'description':
+          'Record the structured contents of a photographed receipt. '
+          'Call this exactly once with your best reading of the photo.',
+      'input_schema': {
+        'type': 'object',
+        'properties': {
+          'merchant': {
+            'type': ['string', 'null'],
+            'description': 'Store or merchant name, or null if illegible.',
+          },
+          'total': {
+            'type': ['number', 'null'],
+            'description':
+                'The grand total actually charged, in major currency '
+                'units (e.g. 45.0 for K45.00) — not a subtotal. Null if '
+                'unclear.',
+          },
+          'date': {
+            'type': ['string', 'null'],
+            'description':
+                'Purchase date as YYYY-MM-DD if printed on the receipt, '
+                'else null.',
+          },
+          'items': {
+            'type': 'array',
+            'description':
+                'Every individually priced product/service line '
+                'actually purchased — not the subtotal, tax, tip, '
+                'tender, change, or total lines.',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'name': {
+                  'type': 'string',
+                  'description': 'The item as printed, cleaned up if garbled.',
+                },
+                'amount': {
+                  'type': 'number',
+                  'description': "That item's price in major currency units.",
+                },
+                if (categoryIds.isNotEmpty)
+                  'category_id': {
+                    'type': ['string', 'null'],
+                    'enum': [...categoryIds, null],
+                    'description':
+                        "This item's best-matching category id from the "
+                        'list given, or null if none fit.',
+                  },
+              },
+              'required': [
+                'name',
+                'amount',
+                if (categoryIds.isNotEmpty) 'category_id',
+              ],
+            },
+          },
+        },
+        'required': ['merchant', 'total', 'date', 'items'],
+      },
+    };
+  }
+
   static ReceiptScanResult _resultFromToolInput(
     Map<String, dynamic> input, {
     required String rawText,
+    required Set<String> validCategoryIds,
   }) {
     final merchant = (input['merchant'] as String?)?.trim();
     final total = input['total'];
@@ -217,6 +273,12 @@ class ClaudeReceiptScanner {
                   amountMinor: Money.minorFromDouble(
                     (raw['amount']! as num).toDouble(),
                   ),
+                  // Never trust an id Claude didn't actually offer — a
+                  // hallucinated one would otherwise silently fail to
+                  // resolve to a category later.
+                  categoryId: validCategoryIds.contains(raw['category_id'])
+                      ? raw['category_id'] as String
+                      : null,
                 ),
       ],
     );

@@ -240,11 +240,11 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   }
 
   /// Attaches the photo like [attachReceipt], then reads it with
-  /// on-device OCR (no external AI call) and fills in whatever of
-  /// amount/merchant/date the form doesn't already have, best-guessing a
-  /// category the same deterministic way the SMS capture path does.
-  /// A scan that fails or finds nothing still leaves the photo attached —
-  /// this only ever fills blanks, never overwrites what's already typed.
+  /// Claude's vision and fills in whatever of amount/merchant/date the
+  /// form doesn't already have, best-guessing a category the same
+  /// deterministic way the SMS capture path does. A scan that fails or
+  /// finds nothing still leaves the photo attached — this only ever
+  /// fills blanks, never overwrites what's already typed.
   ///
   /// Returns the scan result (null on failure) so the caller can tell the
   /// user what, if anything, was found — a silent no-op here would leave
@@ -256,7 +256,10 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
 
     ReceiptScanResult result;
     try {
-      result = await _receiptScanner.scanImage(receiptPath);
+      result = await _receiptScanner.scanImage(
+        receiptPath,
+        categories: state.categories,
+      );
     } on Object {
       return null;
     }
