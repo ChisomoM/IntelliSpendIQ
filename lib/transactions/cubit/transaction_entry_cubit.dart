@@ -21,6 +21,7 @@ import 'package:intellispendiq/domain/models/payee.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
+import 'package:intellispendiq/domain/services/receipt_scanner.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -39,6 +40,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     required TransferRepository transfers,
     required BudgetPeriodRepository budgetPeriods,
     MerchantCategorizer? categorizer,
+    ReceiptScanner? receiptScanner,
     Transaction? existing,
     String? rawCaptureId,
     String? initialAccountId,
@@ -52,6 +54,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
        _transfers = transfers,
        _budgetPeriods = budgetPeriods,
        _categorizer = categorizer,
+       _receiptScanner = receiptScanner ?? ReceiptScanner(),
        _existing = existing,
        _rawCaptureId = rawCaptureId,
        _documentsDirectory =
@@ -85,6 +88,7 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
   final TransferRepository _transfers;
   final BudgetPeriodRepository _budgetPeriods;
   final MerchantCategorizer? _categorizer;
+  final ReceiptScanner _receiptScanner;
   final Transaction? _existing;
   final String? _rawCaptureId;
   final Future<Directory> Function() _documentsDirectory;
@@ -231,6 +235,52 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
     if (previous != null) await _tryDelete(previous);
   }
 
+  /// Attaches the photo like [attachReceipt], then reads it with
+  /// on-device OCR (no external AI call) and fills in whatever of
+  /// amount/merchant/date the form doesn't already have, best-guessing a
+  /// category the same deterministic way the SMS capture path does.
+  /// A scan that fails or finds nothing still leaves the photo attached —
+  /// this only ever fills blanks, never overwrites what's already typed.
+  Future<void> scanReceipt(String sourcePath) async {
+    await attachReceipt(sourcePath);
+    final receiptPath = state.receiptPath;
+    if (receiptPath == null) return;
+
+    ReceiptScanResult result;
+    try {
+      result = await _receiptScanner.scanImage(receiptPath);
+    } on Object {
+      return;
+    }
+
+    final current = state.transactedAt;
+    emit(
+      state.copyWith(
+        amount: state.amount.isEmpty && result.amountMinor != null
+            ? (result.amountMinor! / 100).toStringAsFixed(2)
+            : null,
+        merchant: state.merchant.isEmpty && result.merchant != null
+            ? result.merchant
+            : null,
+        transactedAt: result.transactedAt == null
+            ? null
+            : DateTime(
+                result.transactedAt!.year,
+                result.transactedAt!.month,
+                result.transactedAt!.day,
+                current.hour,
+                current.minute,
+              ),
+      ),
+    );
+
+    final merchant = state.merchant.trim();
+    if (state.categoryId == null && merchant.isNotEmpty) {
+      final categoryId = await _categorizer?.categorize(merchant: merchant);
+      if (categoryId != null) emit(state.copyWith(categoryId: categoryId));
+    }
+  }
+
   Future<void> removeReceipt() async {
     final previous = state.receiptPath;
     emit(state.copyWith(clearReceiptPath: true));
@@ -336,6 +386,12 @@ class TransactionEntryCubit extends Cubit<TransactionEntryState> {
         ),
       );
     }
+  }
+
+  @override
+  Future<void> close() {
+    unawaited(_receiptScanner.dispose());
+    return super.close();
   }
 
   Future<void> delete() async {

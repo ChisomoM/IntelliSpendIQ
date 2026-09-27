@@ -1050,7 +1050,9 @@ class _MoreDetails extends StatelessWidget {
 /// Attaches, previews, or removes a receipt photo — snapped with the
 /// camera or picked from the gallery. The chosen file is copied into
 /// app-local storage by the cubit, so it survives the user deleting
-/// it from wherever it was picked.
+/// it from wherever it was picked, then scanned on-device (OCR, no
+/// external AI call) to fill in amount/merchant/date/category where
+/// the form is still blank.
 class _ReceiptField extends StatelessWidget {
   const _ReceiptField({required this.receiptPath});
 
@@ -1087,7 +1089,7 @@ class _ReceiptField extends StatelessWidget {
       final result = await FilePicker.pickFiles(type: FileType.image);
       path = result?.files.single.path;
     }
-    if (path != null) await cubit.attachReceipt(path);
+    if (path != null) await cubit.scanReceipt(path);
   }
 
   @override
@@ -1098,7 +1100,7 @@ class _ReceiptField extends StatelessWidget {
       return OutlinedButton.icon(
         onPressed: () => _pick(context),
         icon: AppIcon(AppIcons.scanReceipt, size: 18),
-        label: const Text('Attach a receipt'),
+        label: const Text('Scan a receipt'),
       );
     }
 
