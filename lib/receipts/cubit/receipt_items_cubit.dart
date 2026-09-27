@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:bloc/bloc.dart';
@@ -175,8 +176,19 @@ class ReceiptItemsCubit extends Cubit<ReceiptItemsState> {
           periodId: periodId,
         );
       }
+      log(
+        'ReceiptItemsCubit.submit saved '
+        '${state.includedCount} items',
+        name: 'receipt_scan',
+      );
       emit(state.copyWith(status: ReceiptItemsStatus.saved));
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      log(
+        'ReceiptItemsCubit.submit failed',
+        name: 'receipt_scan',
+        error: error,
+        stackTrace: stackTrace,
+      );
       emit(
         state.copyWith(
           status: ReceiptItemsStatus.failure,
