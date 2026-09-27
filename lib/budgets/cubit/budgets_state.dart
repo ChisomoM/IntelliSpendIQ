@@ -14,6 +14,7 @@ class BudgetsState extends Equatable {
     this.provisionalIncomeMinor = 0,
     this.spentByCategory = const {},
     this.totalSpent = 0,
+    this.includePlanned = false,
     this.errorMessage,
   });
 
@@ -47,7 +48,19 @@ class BudgetsState extends Equatable {
   final Map<String, int> spentByCategory;
 
   /// Confirmed debit spend across every category for [budgetPeriod].
+  ///
+  /// Confirmed-only when [includePlanned] is false; confirmed +
+  /// [TxStatus.planned] (future/unpaid entries) when true.
   final int totalSpent;
+
+  /// Whether [totalSpent] and [spentByCategory] also count planned
+  /// (unpaid, possibly future-dated) transactions — the Budgets
+  /// screen's "Planned" view, for previewing how scheduled expenses
+  /// land against the plan. Defaults to actual-only every time the
+  /// screen loads, so a total is never quietly inflated by something
+  /// unpaid.
+  final bool includePlanned;
+
   final String? errorMessage;
 
   /// Display label `DD/MM/YYYY – DD/MM/YYYY`, or empty before load.
@@ -101,17 +114,10 @@ class BudgetsState extends Equatable {
       .where((c) => c.isExpense && c.parentId == null && c.hasBudget)
       .toList();
 
-  /// Top-level expense categories worth showing on the budget screen:
-  /// budgeted themselves, with confirmed spend (direct or via a
-  /// subcategory), or with a subcategory that has money assigned.
-  List<Category> get visibleExpenseCategories => categories
-      .where((c) => c.isExpense && c.parentId == null && _isVisibleExpense(c))
-      .toList();
-
-  bool _isVisibleExpense(Category category) {
-    if (category.hasBudget || spentFor(category.id) > 0) return true;
-    return childrenOf(category.id).any((child) => child.hasBudget);
-  }
+  /// Every top-level expense category — with or without a budget or
+  /// spend yet, same as [topLevelIncomeCategories].
+  List<Category> get visibleExpenseCategories =>
+      categories.where((c) => c.isExpense && c.parentId == null).toList();
 
   /// Every top-level income source — with or without a planned amount.
   List<Category> get topLevelIncomeCategories =>
@@ -194,6 +200,7 @@ class BudgetsState extends Equatable {
     int? provisionalIncomeMinor,
     Map<String, int>? spentByCategory,
     int? totalSpent,
+    bool? includePlanned,
     String? errorMessage,
   }) {
     return BudgetsState(
@@ -211,6 +218,7 @@ class BudgetsState extends Equatable {
           provisionalIncomeMinor ?? this.provisionalIncomeMinor,
       spentByCategory: spentByCategory ?? this.spentByCategory,
       totalSpent: totalSpent ?? this.totalSpent,
+      includePlanned: includePlanned ?? this.includePlanned,
       errorMessage: errorMessage,
     );
   }
@@ -227,6 +235,7 @@ class BudgetsState extends Equatable {
     provisionalIncomeMinor,
     spentByCategory,
     totalSpent,
+    includePlanned,
     errorMessage,
   ];
 }

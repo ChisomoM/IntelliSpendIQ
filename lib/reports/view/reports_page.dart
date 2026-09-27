@@ -93,12 +93,19 @@ class ReportsView extends StatelessWidget {
                           _BreakdownSection(state: state, cubit: cubit),
                           if (!isCycleMode) ...[
                             const SizedBox(height: Space.sectionGap),
+                            const SectionHeader(title: 'Income vs expenses'),
+                            AppCard(
+                              child: IncomeExpenseTrendChart(
+                                trend: state.incomeExpenseTrend,
+                              ),
+                            ),
+                            const SizedBox(height: Space.sectionGap),
                             const SectionHeader(title: 'Last 6 months'),
                             AppCard(
                               child: MonthTrendChart(trend: state.monthTrend),
                             ),
                             const SizedBox(height: Space.sectionGap),
-                            SectionHeader(
+                            const SectionHeader(
                               title: 'Day by day',
                               subtitle: 'Tap a day to see what was captured',
                             ),

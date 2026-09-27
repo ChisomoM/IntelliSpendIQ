@@ -9,6 +9,9 @@ import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
+import 'package:intellispendiq/domain/parsers/airtel_money_parser.dart';
+import 'package:intellispendiq/domain/parsers/mtn_momo_parser.dart';
+import 'package:intellispendiq/domain/parsers/stanchart_parser.dart';
 import 'package:intellispendiq/domain/services/fee_lookup.dart';
 
 String accountTypeLabel(AccountType type) => switch (type) {
@@ -16,6 +19,16 @@ String accountTypeLabel(AccountType type) => switch (type) {
   AccountType.bank => 'Bank',
   AccountType.mobileMoney => 'Mobile Money',
   AccountType.card => 'Card',
+};
+
+/// Providers the fee tariff list can key against — picking one here is
+/// what lets [FeeLookup] match this account to a band on the shared
+/// schedule. Null means "don't apply provider fees to this account".
+const Map<String, String> knownFeeProviders = {
+  AirtelMoneyParser.providerKey: 'Airtel Money',
+  MtnMoMoParser.providerKey: 'MTN MoMo',
+  'zamtel': 'Zamtel',
+  StanChartParser.providerKey: 'Standard Chartered',
 };
 
 List<List<dynamic>> accountTypeIcon(AccountType type) => switch (type) {
@@ -280,6 +293,7 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
   final _nameController = TextEditingController();
   final _openingBalanceController = TextEditingController();
   AccountType _type = AccountType.mobileMoney;
+  String? _providerKey;
   String? _error;
 
   @override
@@ -295,6 +309,7 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
       name: _nameController.text,
       type: _type,
       openingBalance: _openingBalanceController.text,
+      providerKey: _providerKey,
     );
     if (!mounted) return;
     final state = context.read<AccountsCubit>().state;
@@ -332,6 +347,26 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
               ),
           ],
           onChanged: (value) => setState(() => _type = value ?? _type),
+        ),
+        const SizedBox(height: Space.x2),
+        DropdownButtonFormField<String?>(
+          initialValue: _providerKey,
+          decoration: const InputDecoration(labelText: 'Provider (optional)'),
+          hint: const Text('None'),
+          items: [
+            const DropdownMenuItem(child: Text('None')),
+            for (final entry in knownFeeProviders.entries)
+              DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+          ],
+          onChanged: (value) => setState(() => _providerKey = value),
+        ),
+        const SizedBox(height: Space.x1),
+        Text(
+          "Pick this account's provider so transfer fees can be looked up "
+          'automatically. Leave as None for cash or accounts with no fees.',
+          style: AppTypography.metadata(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: Space.x2),
         AppTextField(

@@ -9,6 +9,7 @@ import 'package:intellispendiq/auth/auth.dart';
 import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
+import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
@@ -279,8 +280,15 @@ class _ThemeOption extends StatelessWidget {
   };
 }
 
-class _MoneySection extends StatelessWidget {
+class _MoneySection extends StatefulWidget {
   const _MoneySection();
+
+  @override
+  State<_MoneySection> createState() => _MoneySectionState();
+}
+
+class _MoneySectionState extends State<_MoneySection> {
+  bool _refreshingFees = false;
 
   @override
   Widget build(BuildContext context) {
@@ -316,8 +324,43 @@ class _MoneySection extends StatelessWidget {
           onTap: () =>
               Navigator.of(context).push<void>(CustomSendersPage.route()),
         ),
+        AppListRow(
+          leading: _RowIcon(icon: AppIcons.accountBank),
+          title: const Text('Transfer fees'),
+          subtitle: const Text('Update the cash-out and transfer fee tariffs'),
+          trailing: _refreshingFees
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh),
+          onTap: _refreshingFees ? null : () => _refreshFees(context),
+        ),
       ],
     );
+  }
+
+  Future<void> _refreshFees(BuildContext context) async {
+    final fees = context.read<FeeScheduleRepository>();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _refreshingFees = true);
+    try {
+      final schedule = await fees.refreshIfOnline();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Fees updated: ${schedule.bands.length} tariff band(s).',
+          ),
+        ),
+      );
+    } on Exception catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not update fees: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _refreshingFees = false);
+    }
   }
 }
 

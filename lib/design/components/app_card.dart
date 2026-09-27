@@ -66,12 +66,14 @@ class HeroCard extends StatelessWidget {
   const HeroCard({
     required this.child,
     this.onTap,
+    this.onDoubleTap,
     this.padding = const EdgeInsets.all(Space.x3),
     super.key,
   });
 
   final Widget child;
   final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -89,10 +91,11 @@ class HeroCard extends StatelessWidget {
         color: Colors.transparent,
         borderRadius: Radii.heroRadius,
         clipBehavior: Clip.antiAlias,
-        child: onTap == null
+        child: onTap == null && onDoubleTap == null
             ? content
             : InkWell(
                 onTap: onTap,
+                onDoubleTap: onDoubleTap,
                 borderRadius: Radii.heroRadius,
                 child: content,
               ),

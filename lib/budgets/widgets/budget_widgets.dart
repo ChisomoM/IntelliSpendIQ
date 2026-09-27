@@ -150,6 +150,40 @@ class PeriodPill extends StatelessWidget {
   }
 }
 
+/// Switches every figure below it — the hero's spent total, each
+/// category envelope, overspend detection — between actual (confirmed
+/// only) and planned (confirmed + unpaid/future-dated) spend.
+///
+/// This is a planning lens, not a correction: "Actual" never stops
+/// being what really happened. "Planned" answers a different
+/// question — if everything already scheduled goes through, where
+/// does that leave each envelope? — which is why it resets to
+/// "Actual" every time the screen is reopened rather than being
+/// remembered.
+class SpendModeToggle extends StatelessWidget {
+  const SpendModeToggle({
+    required this.includePlanned,
+    required this.onChanged,
+    super.key,
+  });
+
+  final bool includePlanned;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<bool>(
+      segments: const [
+        ButtonSegment(value: false, label: Text('Actual')),
+        ButtonSegment(value: true, label: Text('Planned')),
+      ],
+      selected: {includePlanned},
+      showSelectedIcon: false,
+      onSelectionChanged: (values) => onChanged(values.first),
+    );
+  }
+}
+
 /// The period's plan and what has been spent against it.
 ///
 /// The three figures underneath — spent, left, days remaining — sit as
@@ -163,6 +197,8 @@ class BudgetHeroCard extends StatelessWidget {
     required this.daysLeft,
     required this.isCurrentPeriod,
     this.overallBudget,
+    this.onViewPlan,
+    this.includePlanned = false,
     super.key,
   });
 
@@ -172,6 +208,16 @@ class BudgetHeroCard extends StatelessWidget {
   final int daysLeft;
   final bool isCurrentPeriod;
   final OverallBudget? overallBudget;
+
+  /// Whether [totalSpent] already includes planned (unpaid/future)
+  /// spend, so the "Spent" figure can say so rather than looking like
+  /// an unexplained jump from what actually happened.
+  final bool includePlanned;
+
+  /// Double-tap: opens the planned income vs. expenses chart. Null
+  /// while a budget hasn't been set yet, since there's nothing to
+  /// chart before [SetBudgetPrompt] hands off to the editor.
+  final VoidCallback? onViewPlan;
 
   @override
   Widget build(BuildContext context) {
@@ -197,6 +243,7 @@ class BudgetHeroCard extends StatelessWidget {
     return HeroCard(
       onTap: () =>
           OverallBudgetEditorSheet.show(context, existing: overallBudget),
+      onDoubleTap: onViewPlan,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -231,7 +278,7 @@ class BudgetHeroCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _HeroStat(
-                  label: 'Spent',
+                  label: includePlanned ? 'Spent + planned' : 'Spent',
                   value: Money.display(totalSpent),
                 ),
               ),

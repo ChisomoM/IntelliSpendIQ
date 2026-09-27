@@ -8,6 +8,7 @@ void main() {
     bootstrap(
       (services) async => App(services: services),
       flavor: AppFlavor.development,
+      
     ),
   );
 }

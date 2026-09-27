@@ -93,6 +93,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     final totalSpent = await _transactions.totalSpentInRange(
       from: period.startAt,
       to: period.endAt,
+      includePlanned: state.includePlanned,
     );
     if (isClosed) return;
     emit(
@@ -211,6 +212,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
         category.id,
         from: period.startAt,
         to: period.endAt,
+        includePlanned: state.includePlanned,
       );
     }
     // A top-level category's progress includes every subcategory's
@@ -233,6 +235,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     final totalSpent = await _transactions.totalSpentInRange(
       from: period.startAt,
       to: period.endAt,
+      includePlanned: state.includePlanned,
     );
     if (isClosed) return;
     emit(
@@ -243,6 +246,18 @@ class BudgetsCubit extends Cubit<BudgetsState> {
         totalSpent: totalSpent,
       ),
     );
+  }
+
+  /// Toggles between actual (confirmed-only) and planned (confirmed +
+  /// unpaid/future) spend across the hero, category envelopes, and
+  /// overspend detection. Always starts back on actual when the screen
+  /// reloads — see [BudgetsState.includePlanned].
+  Future<void> setIncludePlanned({required bool value}) async {
+    if (value == state.includePlanned) return;
+    emit(state.copyWith(includePlanned: value));
+    await _refreshSpend(state.categories);
+    final period = state.budgetPeriod;
+    if (period != null) await _onPeriod(period);
   }
 
   /// Overlays this period's envelopes only — never the standing

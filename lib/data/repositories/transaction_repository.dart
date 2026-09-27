@@ -54,6 +54,24 @@ class MonthSpend extends Equatable {
   List<Object?> get props => [period, spentMinor];
 }
 
+/// Confirmed income and expense totals for one month, for the Reports
+/// income-vs-expenses trend chart.
+class MonthIncomeExpense extends Equatable {
+  const MonthIncomeExpense({
+    required this.period,
+    required this.incomeMinor,
+    required this.expenseMinor,
+  });
+
+  /// Month key, `YYYY-MM`.
+  final String period;
+  final int incomeMinor;
+  final int expenseMinor;
+
+  @override
+  List<Object?> get props => [period, incomeMinor, expenseMinor];
+}
+
 /// A debit and a credit that look like the two legs of the user
 /// moving money between their own accounts — same amount, different
 /// accounts, close together in time.
@@ -670,10 +688,16 @@ class TransactionRepository {
   }
 
   /// Confirmed debit total for one category in a half-open UTC range.
+  ///
+  /// [includePlanned] also counts [TxStatus.planned] debits — future or
+  /// unpaid entries a user recorded ahead of time — for the Budgets
+  /// screen's "planned" view. Every other caller leaves it off, so
+  /// spend everywhere else stays confirmed-only.
   Future<int> spentForCategoryInRange(
     String categoryId, {
     required String from,
     required String to,
+    bool includePlanned = false,
   }) async {
     final t = _db.transactions;
     final total = t.amountMinor.sum();
@@ -684,7 +708,7 @@ class TransactionRepository {
             t.deletedAt.isNull() &
             t.categoryId.equals(categoryId) &
             t.direction.equals(TxDirection.debit.name) &
-            t.status.equals(TxStatus.confirmed.dbName) &
+            _statusFilter(t, includePlanned: includePlanned) &
             t.transactedAt.isBiggerOrEqualValue(from) &
             t.transactedAt.isSmallerThanValue(to),
       );
@@ -692,14 +716,26 @@ class TransactionRepository {
     return row.read(total) ?? 0;
   }
 
+  /// `confirmed`, or `confirmed` + `planned` when [includePlanned].
+  Expression<bool> _statusFilter(
+    $TransactionsTable t, {
+    required bool includePlanned,
+  }) {
+    return includePlanned
+        ? t.status.isIn([TxStatus.confirmed.dbName, TxStatus.planned.dbName])
+        : t.status.equals(TxStatus.confirmed.dbName);
+  }
+
   /// Confirmed debit transactions posted directly against one category
   /// — not any of its subcategories — in a half-open UTC range. Same
-  /// filter as [spentForCategoryInRange], as a list rather than a sum,
-  /// for the "Direct transactions" section of a category's detail page.
+  /// filter (and [includePlanned]) as [spentForCategoryInRange], as a
+  /// list rather than a sum, for the "Direct transactions" section of
+  /// a category's detail page.
   Future<List<Transaction>> directTransactionsForCategoryInRange(
     String categoryId, {
     required String from,
     required String to,
+    bool includePlanned = false,
   }) async {
     final t = _db.transactions;
     final query = _db.select(t)
@@ -709,7 +745,7 @@ class TransactionRepository {
             t.deletedAt.isNull() &
             t.categoryId.equals(categoryId) &
             t.direction.equals(TxDirection.debit.name) &
-            t.status.equals(TxStatus.confirmed.dbName) &
+            _statusFilter(t, includePlanned: includePlanned) &
             t.transactedAt.isBiggerOrEqualValue(from) &
             t.transactedAt.isSmallerThanValue(to),
       )
@@ -746,9 +782,11 @@ class TransactionRepository {
   }
 
   /// Confirmed debit total in a half-open UTC range (budget periods).
+  /// See [spentForCategoryInRange] for [includePlanned].
   Future<int> totalSpentInRange({
     required String from,
     required String to,
+    bool includePlanned = false,
   }) async {
     final t = _db.transactions;
     final total = t.amountMinor.sum();
@@ -758,6 +796,27 @@ class TransactionRepository {
         t.userId.equals(userId) &
             t.deletedAt.isNull() &
             t.direction.equals(TxDirection.debit.name) &
+            _statusFilter(t, includePlanned: includePlanned) &
+            t.transactedAt.isBiggerOrEqualValue(from) &
+            t.transactedAt.isSmallerThanValue(to),
+      );
+    final row = await query.getSingle();
+    return row.read(total) ?? 0;
+  }
+
+  /// Confirmed credit total across every category for a calendar month —
+  /// the credit-side mirror of [totalSpent], for the income-vs-expenses
+  /// trend chart.
+  Future<int> totalIncome(String period) async {
+    final (from, to) = Iso.monthBoundsUtc(period);
+    final t = _db.transactions;
+    final total = t.amountMinor.sum();
+    final query = _db.selectOnly(t)
+      ..addColumns([total])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.direction.equals(TxDirection.credit.name) &
             t.status.equals(TxStatus.confirmed.dbName) &
             t.transactedAt.isBiggerOrEqualValue(from) &
             t.transactedAt.isSmallerThanValue(to),
@@ -885,6 +944,31 @@ class TransactionRepository {
     for (final period in periods.reversed) {
       result.add(
         MonthSpend(period: period, spentMinor: await totalSpent(period)),
+      );
+    }
+    return result;
+  }
+
+  /// Confirmed income and expense totals for each of the [months] ending
+  /// with [endPeriod], oldest first, for the Reports income-vs-expenses
+  /// trend chart.
+  Future<List<MonthIncomeExpense>> incomeExpenseTrend(
+    String endPeriod, {
+    int months = 6,
+  }) async {
+    final periods = [endPeriod];
+    for (var i = 1; i < months; i++) {
+      periods.add(Iso.previousMonthKey(periods.last));
+    }
+
+    final result = <MonthIncomeExpense>[];
+    for (final period in periods.reversed) {
+      result.add(
+        MonthIncomeExpense(
+          period: period,
+          incomeMinor: await totalIncome(period),
+          expenseMinor: await totalSpent(period),
+        ),
       );
     }
     return result;

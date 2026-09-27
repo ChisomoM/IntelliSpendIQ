@@ -131,7 +131,7 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
       context: context,
       initialDate: current,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
     );
     if (date == null || !context.mounted) return;
     final time = await showTimePicker(
@@ -152,11 +152,20 @@ class _TransactionEntryViewState extends State<TransactionEntryView> {
   Future<void> _addCategory(BuildContext context) async {
     final cubit = context.read<TransactionEntryCubit>();
     final direction = cubit.state.direction;
+    // Without this, a new income category's planned amount lands in
+    // whatever period contains "now" rather than the transaction's
+    // own date, and can go missing from the period actually being
+    // edited.
+    final period = await context.read<BudgetPeriodRepository>().ensurePeriodContaining(
+      cubit.state.transactedAt,
+    );
+    if (!context.mounted) return;
     final id = await Navigator.of(context).push<String?>(
       CategoryEditorPage.route(
         initialType: direction == TxDirection.credit
             ? CategoryType.income
             : CategoryType.expense,
+        periodId: period.id,
       ),
     );
     if (id == null) return;

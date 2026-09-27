@@ -23,6 +23,7 @@ class ReportsState extends Equatable {
     this.accountRows = const [],
     this.dailySpend = const [],
     this.monthTrend = const [],
+    this.incomeExpenseTrend = const [],
     this.breakdown = ReportsBreakdown.category,
   });
 
@@ -45,6 +46,10 @@ class ReportsState extends Equatable {
   /// Confirmed debit total for each of the trailing 6 months ending
   /// with [period], oldest first. Month mode only.
   final List<MonthSpend> monthTrend;
+
+  /// Confirmed income and expense totals for each of the trailing 6
+  /// months ending with [period], oldest first. Month mode only.
+  final List<MonthIncomeExpense> incomeExpenseTrend;
   final ReportsBreakdown breakdown;
 
   bool get isEmpty => status == ReportsStatus.loaded && rows.isEmpty;
@@ -112,6 +117,7 @@ class ReportsState extends Equatable {
     List<AccountSpend>? accountRows,
     List<DailySpend>? dailySpend,
     List<MonthSpend>? monthTrend,
+    List<MonthIncomeExpense>? incomeExpenseTrend,
     ReportsBreakdown? breakdown,
   }) {
     return ReportsState(
@@ -123,6 +129,7 @@ class ReportsState extends Equatable {
       accountRows: accountRows ?? this.accountRows,
       dailySpend: dailySpend ?? this.dailySpend,
       monthTrend: monthTrend ?? this.monthTrend,
+      incomeExpenseTrend: incomeExpenseTrend ?? this.incomeExpenseTrend,
       breakdown: breakdown ?? this.breakdown,
     );
   }
@@ -137,6 +144,7 @@ class ReportsState extends Equatable {
     accountRows,
     dailySpend,
     monthTrend,
+    incomeExpenseTrend,
     breakdown,
   ];
 }

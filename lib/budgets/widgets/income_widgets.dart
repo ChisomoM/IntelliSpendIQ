@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intellispendiq/categories/widgets/widgets.dart';
 import 'package:intellispendiq/core/money.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 
@@ -256,35 +257,50 @@ class _IncomeSourceRow extends StatelessWidget {
   }
 }
 
-/// Amount + date picked when marking an income envelope paid — may
-/// differ from the envelope's planned figure (e.g. only part came in).
+/// Amount + date + account picked when marking an income envelope paid
+/// — the amount may differ from the envelope's planned figure (e.g.
+/// only part came in), and the account is wherever it actually landed.
 class MarkIncomePaidResult {
   const MarkIncomePaidResult({
     required this.amountMinor,
     required this.transactedAt,
+    required this.accountId,
   });
 
   final int amountMinor;
   final DateTime transactedAt;
+  final String accountId;
 }
 
-/// Confirms (and lets the user adjust) the amount/date before marking an
-/// income category paid. Returns null if the user cancels.
+/// Confirms (and lets the user adjust) the amount/date/account before
+/// marking an income category paid. Returns null if the user cancels.
 Future<MarkIncomePaidResult?> showMarkIncomePaidSheet(
   BuildContext context, {
   required Category category,
+  required List<Account> accounts,
+  required String defaultAccountId,
 }) {
   return showModalBottomSheet<MarkIncomePaidResult>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => _MarkIncomePaidSheet(category: category),
+    builder: (context) => _MarkIncomePaidSheet(
+      category: category,
+      accounts: accounts,
+      defaultAccountId: defaultAccountId,
+    ),
   );
 }
 
 class _MarkIncomePaidSheet extends StatefulWidget {
-  const _MarkIncomePaidSheet({required this.category});
+  const _MarkIncomePaidSheet({
+    required this.category,
+    required this.accounts,
+    required this.defaultAccountId,
+  });
 
   final Category category;
+  final List<Account> accounts;
+  final String defaultAccountId;
 
   @override
   State<_MarkIncomePaidSheet> createState() => _MarkIncomePaidSheetState();
@@ -293,6 +309,7 @@ class _MarkIncomePaidSheet extends StatefulWidget {
 class _MarkIncomePaidSheetState extends State<_MarkIncomePaidSheet> {
   late final TextEditingController _amountController;
   DateTime _transactedAt = DateTime.now();
+  late String _accountId;
 
   @override
   void initState() {
@@ -301,6 +318,7 @@ class _MarkIncomePaidSheetState extends State<_MarkIncomePaidSheet> {
     _amountController = TextEditingController(
       text: planned == null ? '' : Money.display(planned),
     );
+    _accountId = widget.defaultAccountId;
   }
 
   @override
@@ -335,6 +353,18 @@ class _MarkIncomePaidSheetState extends State<_MarkIncomePaidSheet> {
             decoration: const InputDecoration(labelText: 'Amount received'),
           ),
           const SizedBox(height: Space.x2),
+          DropdownButtonFormField<String>(
+            initialValue: _accountId,
+            decoration: const InputDecoration(labelText: 'Received into'),
+            items: [
+              for (final account in widget.accounts)
+                DropdownMenuItem(value: account.id, child: Text(account.name)),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => _accountId = value);
+            },
+          ),
+          const SizedBox(height: Space.x2),
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Date received'),
@@ -361,6 +391,7 @@ class _MarkIncomePaidSheetState extends State<_MarkIncomePaidSheet> {
                 MarkIncomePaidResult(
                   amountMinor: amountMinor,
                   transactedAt: _transactedAt,
+                  accountId: _accountId,
                 ),
               );
             },

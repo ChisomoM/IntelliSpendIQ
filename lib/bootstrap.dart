@@ -42,6 +42,7 @@ Future<void> bootstrap(
         log(
           details.exceptionAsString(),
           stackTrace: details.stack,
+          
           name: 'flutter',
         );
       };
@@ -63,6 +64,7 @@ Future<void> bootstrap(
           // ID token Firebase Auth can verify.
           serverClientId:
               '298945862169-1ehi9mmg4tm0pn0k3ns5ajjhqcsehh2d.apps.googleusercontent.com',
+              
         );
       }
 

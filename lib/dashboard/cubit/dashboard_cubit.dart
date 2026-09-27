@@ -13,6 +13,7 @@ import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
 import 'package:intellispendiq/domain/models/account.dart';
 import 'package:intellispendiq/domain/models/budget_period.dart';
 import 'package:intellispendiq/domain/models/category.dart';
+import 'package:intellispendiq/domain/models/category_budget.dart';
 import 'package:intellispendiq/domain/models/savings_goal.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/wishlist_item.dart';
@@ -51,6 +52,7 @@ class DashboardCubit extends Cubit<DashboardState> {
   final SavingsGoalRepository _savingsGoals;
   final WishlistRepository _wishlist;
   StreamSubscription<List<Category>>? _categoriesSubscription;
+  StreamSubscription<List<CategoryBudget>>? _categoryBudgetSubscription;
   StreamSubscription<List<CategorySpend>>? _categorySpendSubscription;
   StreamSubscription<List<Transaction>>? _recentSubscription;
   StreamSubscription<int>? _reviewSubscription;
@@ -64,6 +66,16 @@ class DashboardCubit extends Cubit<DashboardState> {
 
   /// How many categories the Top categories card shows.
   static const _topCategoryLimit = 4;
+
+  // Creating an income category is two separate writes (the category
+  // row, then its planned amount for the period), landing via two
+  // independent streams with no ordering guarantee between them.
+  // Caching each stream's latest value and recomputing from both
+  // whenever either fires avoids a one-shot query racing the other
+  // write and dropping the new income until something else nudges
+  // the categories list again.
+  List<Category> _latestCategories = const [];
+  Map<String, int> _latestPeriodAmounts = const {};
 
   void loadUnawaited() => unawaited(load());
 
@@ -163,7 +175,11 @@ class DashboardCubit extends Cubit<DashboardState> {
     // emit and the cancel and put the old period back into state.
     await _periodSubscription?.cancel();
     await _categoriesSubscription?.cancel();
+    await _categoryBudgetSubscription?.cancel();
     await _categorySpendSubscription?.cancel();
+
+    _latestCategories = const [];
+    _latestPeriodAmounts = const {};
 
     emit(state.copyWith(budgetPeriod: period));
 
@@ -176,6 +192,10 @@ class DashboardCubit extends Cubit<DashboardState> {
     });
 
     _categoriesSubscription = _categories.watchAll().listen(_onCategories);
+
+    _categoryBudgetSubscription = _budgetPeriods
+        .watchCategoryBudgets(period.id)
+        .listen(_onCategoryBudgets);
 
     _categorySpendSubscription = _transactions
         .watchSpendByCategoryInRange(from: period.startAt, to: period.endAt)
@@ -192,28 +212,7 @@ class DashboardCubit extends Cubit<DashboardState> {
   Future<void> _onCategories(List<Category> categories) async {
     final period = state.budgetPeriod;
     if (period == null) return;
-
-    final periodAmounts = {
-      for (final b in await _budgetPeriods.categoryBudgetsFor(period.id))
-        b.categoryId: b.amountMinor,
-    };
-    final incomeCategories = categories
-        .where((c) => c.isIncome && c.parentId == null)
-        .map(
-          (c) => Category(
-            id: c.id,
-            name: c.name,
-            icon: c.icon,
-            color: c.color,
-            parentId: c.parentId,
-            isSystem: c.isSystem,
-            sortOrder: c.sortOrder,
-            type: c.type,
-            budgetedAmountMinor: periodAmounts[c.id],
-          ),
-        )
-        .where((c) => c.hasBudget)
-        .toList();
+    _latestCategories = categories;
 
     final totalSpent = await _transactions.totalSpentInRange(
       from: period.startAt,
@@ -223,12 +222,38 @@ class DashboardCubit extends Cubit<DashboardState> {
     emit(
       state.copyWith(
         status: DashboardStatus.loaded,
-        incomeCategories: incomeCategories,
+        incomeCategories: _computeIncomeCategories(),
         categoriesById: {for (final c in categories) c.id: c},
         totalSpent: totalSpent,
       ),
     );
   }
+
+  void _onCategoryBudgets(List<CategoryBudget> budgets) {
+    if (state.budgetPeriod == null || isClosed) return;
+    _latestPeriodAmounts = {
+      for (final b in budgets) b.categoryId: b.amountMinor,
+    };
+    emit(state.copyWith(incomeCategories: _computeIncomeCategories()));
+  }
+
+  List<Category> _computeIncomeCategories() => _latestCategories
+      .where((c) => c.isIncome && c.parentId == null)
+      .map(
+        (c) => Category(
+          id: c.id,
+          name: c.name,
+          icon: c.icon,
+          color: c.color,
+          parentId: c.parentId,
+          isSystem: c.isSystem,
+          sortOrder: c.sortOrder,
+          type: c.type,
+          budgetedAmountMinor: _latestPeriodAmounts[c.id],
+        ),
+      )
+      .where((c) => c.hasBudget)
+      .toList();
 
   Future<void> _onCategorySpend(List<CategorySpend> rows) async {
     final period = state.budgetPeriod;
@@ -250,6 +275,7 @@ class DashboardCubit extends Cubit<DashboardState> {
   @override
   Future<void> close() async {
     await _categoriesSubscription?.cancel();
+    await _categoryBudgetSubscription?.cancel();
     await _categorySpendSubscription?.cancel();
     await _recentSubscription?.cancel();
     await _reviewSubscription?.cancel();

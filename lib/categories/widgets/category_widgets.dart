@@ -199,10 +199,12 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
   late final TextEditingController _nameController = TextEditingController(
     text: widget.existing?.name ?? '',
   );
+
   /// A category already on this device may still hold a legacy emoji,
   /// so it is mapped onto the equivalent key rather than shown as an
   /// unrecognised value the user would have to re-pick.
-  late String? _iconKey = CategoryIcons.legacyEmojiToKey[widget.existing?.icon] ??
+  late String? _iconKey =
+      CategoryIcons.legacyEmojiToKey[widget.existing?.icon] ??
       widget.existing?.icon;
   late final TextEditingController _budgetController = TextEditingController(
     text: widget.existing?.budgetedAmountMinor == null
@@ -254,6 +256,42 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
     navigator.pop(savedId);
   }
 
+  Future<void> _confirmDelete() async {
+    final existing = widget.existing;
+    if (existing == null) return;
+    final navigator = Navigator.of(context);
+    final cubit = context.read<CategoriesCubit>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          _type == CategoryType.income
+              ? 'Delete this income source?'
+              : 'Delete this category?',
+        ),
+        content: Text(
+          'Transactions already in "${existing.name}" keep their history, '
+          'but you will not be able to pick it for new ones.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed ?? false) {
+      await cubit.delete(existing.id);
+      if (!mounted) return;
+      navigator.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existing != null;
@@ -270,6 +308,12 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                     : 'Add category'),
         ),
         actions: [
+          if (isEditing && !widget.existing!.isSystem)
+            IconButton(
+              icon: AppIcon(AppIcons.delete, size: 20),
+              tooltip: 'Delete',
+              onPressed: _confirmDelete,
+            ),
           TextButton(onPressed: _save, child: const Text('Save')),
           const SizedBox(width: Space.x1),
         ],
@@ -338,7 +382,9 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                 label: _type == CategoryType.income
                     ? 'Planned amount for this period'
                     : 'Budgeted amount (optional)',
-                hint: _type == CategoryType.income ? 'e.g. monthly salary' : null,
+                hint: _type == CategoryType.income
+                    ? 'e.g. monthly salary'
+                    : null,
                 // The symbol, with no space — ZMW is for statements
                 // and export only.
                 prefixIcon: const Padding(

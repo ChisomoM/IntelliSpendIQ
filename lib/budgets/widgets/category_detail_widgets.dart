@@ -16,12 +16,17 @@ class CategoryStatTiles extends StatelessWidget {
     required this.budgetedMinor,
     required this.spentMinor,
     required this.remainingMinor,
+    this.includePlanned = false,
     super.key,
   });
 
   final int budgetedMinor;
   final int spentMinor;
   final int remainingMinor;
+
+  /// Whether [spentMinor] already includes planned (unpaid/future)
+  /// spend, so the "Spent" tile can say so.
+  final bool includePlanned;
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +46,7 @@ class CategoryStatTiles extends StatelessWidget {
         const SizedBox(width: Space.x1),
         Expanded(
           child: StatTile(
-            label: 'Spent',
+            label: includePlanned ? 'Spent + planned' : 'Spent',
             value: MoneyText(spentMinor, size: MoneySize.meta),
           ),
         ),

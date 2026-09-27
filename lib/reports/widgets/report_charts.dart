@@ -251,6 +251,127 @@ class MonthTrendChart extends StatelessWidget {
   }
 }
 
+/// Confirmed income and expenses for the trailing months, oldest first —
+/// a pair of horizontal bars per month rather than a vertical bar
+/// chart, so the figure that matters (the amount) sits at the end of a
+/// bar you read left to right, the same way [ProgressMeter] reads
+/// everywhere else in the app.
+class IncomeExpenseTrendChart extends StatelessWidget {
+  const IncomeExpenseTrendChart({required this.trend, super.key});
+
+  final List<MonthIncomeExpense> trend;
+
+  static String _monthLabel(String period) =>
+      MonthTrendChart._monthLabel(period);
+
+  @override
+  Widget build(BuildContext context) {
+    if (trend.isEmpty) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+    final money = Theme.of(context).extension<MoneyColors>()!;
+    final maxAmount = trend
+        .map(
+          (month) => month.incomeMinor > month.expenseMinor
+              ? month.incomeMinor
+              : month.expenseMinor,
+        )
+        .reduce((a, b) => a > b ? a : b);
+
+    double fractionOf(int amountMinor) =>
+        maxAmount == 0 ? 0 : amountMinor / maxAmount;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            _LegendDot(color: money.inflow, label: 'Income'),
+            const SizedBox(width: Space.x3),
+            _LegendDot(color: money.outflow, label: 'Expenses'),
+          ],
+        ),
+        const SizedBox(height: Space.x2),
+        for (final (index, month) in trend.indexed) ...[
+          if (index > 0) const SizedBox(height: Space.x3),
+          Text(
+            _monthLabel(month.period),
+            style: AppTypography.metadata(color: colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: Space.x1),
+          _IncomeExpenseBarRow(
+            fraction: fractionOf(month.incomeMinor),
+            amountMinor: month.incomeMinor,
+            color: money.inflow,
+          ),
+          const SizedBox(height: Space.x1),
+          _IncomeExpenseBarRow(
+            fraction: fractionOf(month.expenseMinor),
+            amountMinor: month.expenseMinor,
+            color: money.outflow,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _IncomeExpenseBarRow extends StatelessWidget {
+  const _IncomeExpenseBarRow({
+    required this.fraction,
+    required this.amountMinor,
+    required this.color,
+  });
+
+  final double fraction;
+  final int amountMinor;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: ProgressMeter(
+            value: fraction,
+            fillColor: color,
+            height: 10,
+          ),
+        ),
+        const SizedBox(width: Space.x2),
+        SizedBox(
+          width: 76,
+          child: MoneyText(amountMinor, size: MoneySize.meta),
+        ),
+      ],
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: Space.x1),
+        Text(label, style: AppTypography.metadata(color: colors.onSurface)),
+      ],
+    );
+  }
+}
+
 /// A month grid shaded by how much was spent each day.
 class SpendCalendarHeatmap extends StatelessWidget {
   const SpendCalendarHeatmap({

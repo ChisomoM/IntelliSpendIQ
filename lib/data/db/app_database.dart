@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -123,6 +123,21 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
         if (from < 12) {
           await _createTableIfMissing(m, wishlistItems);
           await _createTableIfMissing(m, wishlistItemPhotos);
+        }
+        if (from < 13) {
+          // Income's standing row was, until now, wrongly getting its
+          // amount written alongside the period-scoped one — leaking
+          // one cycle's figure into every later period viewed. Wipes
+          // whatever got stamped there; the period envelopes that are
+          // the real source of truth are untouched.
+          await (update(
+                categories,
+              )..where(
+                (c) => c.categoryType.equals(CategoryType.income.dbName),
+              ))
+              .write(
+                const CategoriesCompanion(budgetedAmountMinor: Value(null)),
+              );
         }
       });
     },
@@ -307,10 +322,11 @@ Future<void> _migrateOverallBudgetsToPeriods(AppDatabase db) async {
   if (userIds.isEmpty) return;
 
   for (final userId in userIds) {
-    final existingSchedule = await (db.select(
-      db.budgetSchedules,
-    )..where((s) => s.userId.equals(userId) & s.deletedAt.isNull()))
-        .getSingleOrNull();
+    final existingSchedule =
+        await (db.select(
+              db.budgetSchedules,
+            )..where((s) => s.userId.equals(userId) & s.deletedAt.isNull()))
+            .getSingleOrNull();
     final scheduleId = existingSchedule?.id ?? Ids.newId();
     if (existingSchedule == null) {
       await db
@@ -415,15 +431,16 @@ Future<void> _migrateOverallBudgetsToPeriods(AppDatabase db) async {
       periodsCreated.add(currentExists.id);
     }
 
-    final budgetedCategories = await (db.select(
-      db.categories,
-    )..where(
-          (c) =>
-              c.userId.equals(userId) &
-              c.deletedAt.isNull() &
-              c.budgetedAmountMinor.isNotNull(),
-        ))
-        .get();
+    final budgetedCategories =
+        await (db.select(
+              db.categories,
+            )..where(
+              (c) =>
+                  c.userId.equals(userId) &
+                  c.deletedAt.isNull() &
+                  c.budgetedAmountMinor.isNotNull(),
+            ))
+            .get();
 
     for (final periodId in periodsCreated) {
       for (final category in budgetedCategories) {

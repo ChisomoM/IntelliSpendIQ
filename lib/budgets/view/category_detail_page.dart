@@ -9,6 +9,7 @@ import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/models/category.dart';
 import 'package:intellispendiq/transactions/widgets/widgets.dart';
 
 /// One category's budget envelope: stat tiles, a spend gauge, its
@@ -138,10 +139,21 @@ class CategoryDetailView extends StatelessWidget {
               Space.x4,
             ),
             children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: SpendModeToggle(
+                  includePlanned: state.includePlanned,
+                  onChanged: (value) => context
+                      .read<CategoryDetailCubit>()
+                      .setIncludePlanned(value: value),
+                ),
+              ),
+              const SizedBox(height: Space.x2),
               CategoryStatTiles(
                 budgetedMinor: state.budgetedMinor,
                 spentMinor: state.spentMinor,
                 remainingMinor: state.remainingMinor,
+                includePlanned: state.includePlanned,
               ),
               if (hasBudget) ...[
                 const SizedBox(height: Space.sectionGap),
@@ -172,7 +184,8 @@ class CategoryDetailView extends StatelessWidget {
                   subtitle: state.children.isEmpty
                       ? null
                       : '${Money.display(state.totalSubcategoriesBudgetedMinor)}'
-                            ' budgeted across them',
+                            ' budgeted across them'
+                            '${state.includePlanned ? ' · including planned' : ''}',
                   action: state.children.isEmpty ? null : 'Add',
                   onActionTap: () => _addSubcategory(context, state),
                 ),
@@ -203,10 +216,7 @@ class CategoryDetailView extends StatelessWidget {
               const SizedBox(height: Space.sectionGap),
               SectionHeader(
                 title: 'Direct transactions',
-                subtitle: category.parentId == null && state.children.isNotEmpty
-                    ? 'Not assigned to a subcategory, but still counted in '
-                          'the total above'
-                    : null,
+                subtitle: _directTransactionsSubtitle(category, state),
               ),
               if (state.directTransactions.isEmpty)
                 EmptyState(
@@ -230,6 +240,18 @@ class CategoryDetailView extends StatelessWidget {
         );
       },
     );
+  }
+
+  String? _directTransactionsSubtitle(
+    Category category,
+    CategoryDetailState state,
+  ) {
+    final parts = [
+      if (category.parentId == null && state.children.isNotEmpty)
+        'Not assigned to a subcategory, but still counted in the total above',
+      if (state.includePlanned) 'including planned (unpaid) entries',
+    ];
+    return parts.isEmpty ? null : parts.join(', ');
   }
 
   void _addSubcategory(BuildContext context, CategoryDetailState state) {

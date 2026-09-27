@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/budgets/cubit/cubit.dart';
+import 'package:intellispendiq/budgets/view/budget_plan_page.dart';
 import 'package:intellispendiq/budgets/widgets/widgets.dart';
 import 'package:intellispendiq/categories/widgets/widgets.dart';
 import 'package:intellispendiq/chat/chat.dart';
@@ -69,6 +70,15 @@ class BudgetsView extends StatelessWidget {
                     onNext: () => cubit.shiftPeriod(1),
                   ),
                   const SizedBox(height: Space.x2),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: SpendModeToggle(
+                      includePlanned: state.includePlanned,
+                      onChanged: (value) =>
+                          cubit.setIncludePlanned(value: value),
+                    ),
+                  ),
+                  const SizedBox(height: Space.x2),
                   BudgetHeroCard(
                     plannedMinor: state.totalPlannedMinor,
                     totalSpent: state.totalSpent,
@@ -76,6 +86,15 @@ class BudgetsView extends StatelessWidget {
                     daysLeft: state.daysLeft,
                     isCurrentPeriod: state.isCurrentPeriod,
                     overallBudget: state.overallBudget,
+                    includePlanned: state.includePlanned,
+                    onViewPlan: () => Navigator.of(context).push<void>(
+                      BudgetPlanPage.route(
+                        periodLabel: state.periodDisplayLabel,
+                        plannedIncomeMinor: state.provisionalIncomeMinor,
+                        plannedExpenseMinor: state.totalAllocatedMinor,
+                        expenseCategories: state.budgetedExpenseCategories,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: Space.sectionGap),
                   IncomeSummaryCard(
@@ -93,6 +112,9 @@ class BudgetsView extends StatelessWidget {
                   else ...[
                     SectionHeader(
                       title: 'Category budgets',
+                      subtitle: state.includePlanned
+                          ? 'Including planned (unpaid) spend'
+                          : null,
                       action: 'Cycle',
                       onActionTap: () => Navigator.of(
                         context,
@@ -149,13 +171,20 @@ class BudgetsView extends StatelessWidget {
       await cubit.markIncomeUnpaid(category.id);
       return;
     }
-    final result = await showMarkIncomePaidSheet(context, category: category);
-    if (result == null) return;
+    final accountRepository = context.read<AccountRepository>();
+    final accounts = await accountRepository.getAll();
+    final defaultAccount = await accountRepository.getDefault();
     if (!context.mounted) return;
-    final account = await context.read<AccountRepository>().getDefault();
+    final result = await showMarkIncomePaidSheet(
+      context,
+      category: category,
+      accounts: accounts,
+      defaultAccountId: defaultAccount.id,
+    );
+    if (result == null) return;
     await cubit.markIncomePaid(
       categoryId: category.id,
-      accountId: account.id,
+      accountId: result.accountId,
       amountMinor: result.amountMinor,
       transactedAt: result.transactedAt,
     );

@@ -15,6 +15,7 @@ class CategoryDetailState extends Equatable {
     this.directSpentMinor = 0,
     this.directTransactions = const [],
     this.spentByChild = const {},
+    this.includePlanned = false,
     this.errorMessage,
   });
 
@@ -36,6 +37,15 @@ class CategoryDetailState extends Equatable {
   /// The transactions behind [directSpentMinor], most recent first.
   final List<Transaction> directTransactions;
   final Map<String, int> spentByChild;
+
+  /// Whether [directSpentMinor], [directTransactions] and
+  /// [spentByChild] also count planned (unpaid, possibly future-dated)
+  /// spend — mirrors the Budgets screen's Actual/Planned toggle so a
+  /// category's own detail page can preview the same "if everything
+  /// scheduled goes through" view. Resets to actual-only every time
+  /// the page opens.
+  final bool includePlanned;
+
   final String? errorMessage;
 
   /// Direct spend plus every subcategory's spend — the figure the
@@ -75,6 +85,7 @@ class CategoryDetailState extends Equatable {
     int? directSpentMinor,
     List<Transaction>? directTransactions,
     Map<String, int>? spentByChild,
+    bool? includePlanned,
     String? errorMessage,
   }) {
     return CategoryDetailState(
@@ -89,6 +100,7 @@ class CategoryDetailState extends Equatable {
       directSpentMinor: directSpentMinor ?? this.directSpentMinor,
       directTransactions: directTransactions ?? this.directTransactions,
       spentByChild: spentByChild ?? this.spentByChild,
+      includePlanned: includePlanned ?? this.includePlanned,
       errorMessage: errorMessage,
     );
   }
@@ -106,6 +118,7 @@ class CategoryDetailState extends Equatable {
     directSpentMinor,
     directTransactions,
     spentByChild,
+    includePlanned,
     errorMessage,
   ];
 }

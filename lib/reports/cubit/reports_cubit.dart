@@ -52,6 +52,7 @@ class ReportsCubit extends Cubit<ReportsState> {
         accountRows: const [],
         dailySpend: const [],
         monthTrend: const [],
+        incomeExpenseTrend: const [],
       ),
     );
     _resubscribe();
@@ -129,6 +130,7 @@ class ReportsCubit extends Cubit<ReportsState> {
         state.copyWith(
           dailySpend: const [],
           monthTrend: const [],
+          incomeExpenseTrend: const [],
         ),
       );
       return;
@@ -164,6 +166,17 @@ class ReportsCubit extends Cubit<ReportsState> {
     final trend = await _transactions.spendTrend(state.period);
     if (isClosed) return;
     emit(state.copyWith(status: ReportsStatus.loaded, monthTrend: trend));
+
+    final incomeExpense = await _transactions.incomeExpenseTrend(
+      state.period,
+    );
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        status: ReportsStatus.loaded,
+        incomeExpenseTrend: incomeExpense,
+      ),
+    );
   }
 
   @override

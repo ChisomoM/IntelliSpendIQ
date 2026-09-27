@@ -48,15 +48,18 @@ class CategoriesCubit extends Cubit<CategoriesState> {
     final periods = _budgetPeriods;
     if (periods != null) {
       final periodId =
-          _periodId ?? (await periods.ensurePeriodContaining(DateTime.now())).id;
-      _periodBudgetsSubscription = periods.watchCategoryBudgets(periodId).listen(
-        (budgets) {
-          _periodIncomeAmounts = {
-            for (final b in budgets) b.categoryId: b.amountMinor,
-          };
-          _emitCategories();
-        },
-      );
+          _periodId ??
+          (await periods.ensurePeriodContaining(DateTime.now())).id;
+      _periodBudgetsSubscription = periods
+          .watchCategoryBudgets(periodId)
+          .listen(
+            (budgets) {
+              _periodIncomeAmounts = {
+                for (final b in budgets) b.categoryId: b.amountMinor,
+              };
+              _emitCategories();
+            },
+          );
     }
 
     _subscription = _categories.watchAll().listen((rows) {
@@ -125,16 +128,23 @@ class CategoriesCubit extends Cubit<CategoriesState> {
         budgetedAmountMinor: budgetedAmountMinor,
       );
       if (error != null) {
-        emit(state.copyWith(status: CategoriesStatus.invalid, errorMessage: error));
+        emit(
+          state.copyWith(status: CategoriesStatus.invalid, errorMessage: error),
+        );
         return null;
       }
     }
+    // Income's amount belongs to one cycle only (see class doc) — it
+    // must never be stamped onto the standing category row, or it
+    // would leak into every period this category is later viewed in.
     final created = await _categories.create(
       trimmed,
       icon: _trimIcon(icon),
       parentId: parentId,
       type: type,
-      budgetedAmountMinor: budgetedAmountMinor,
+      budgetedAmountMinor: type == CategoryType.income
+          ? null
+          : budgetedAmountMinor,
     );
     await _syncPeriodAmount(created.id, budgetedAmountMinor);
     return created;
@@ -176,11 +186,17 @@ class CategoriesCubit extends Cubit<CategoriesState> {
         excludingCategoryId: id,
       );
       if (error != null) {
-        emit(state.copyWith(status: CategoriesStatus.invalid, errorMessage: error));
+        emit(
+          state.copyWith(status: CategoriesStatus.invalid, errorMessage: error),
+        );
         return;
       }
     }
     final trimmedIcon = _trimIcon(icon);
+    // Same reasoning as add(): resolve the type this save leaves the
+    // category as (type may be unset when only other fields change)
+    // and, if it's income, keep its amount out of the standing row.
+    final isIncome = (type ?? _currentType(id)) == CategoryType.income;
     await _categories.update(
       id,
       name: trimmed,
@@ -189,18 +205,24 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       parentId: parentId,
       clearParent: parentId == null,
       type: type,
-      budgetedAmountMinor: budgetedAmountMinor,
-      clearBudget: budgetedAmountMinor == null,
+      budgetedAmountMinor: isIncome ? null : budgetedAmountMinor,
+      clearBudget: isIncome || budgetedAmountMinor == null,
     );
     await _syncPeriodAmount(id, budgetedAmountMinor);
+  }
+
+  CategoryType? _currentType(String id) {
+    for (final category in _rawCategories) {
+      if (category.id == id) return category.type;
+    }
+    return null;
   }
 
   Future<void> _syncPeriodAmount(String categoryId, int? amountMinor) async {
     final periods = _budgetPeriods;
     if (periods == null) return;
     final periodId =
-        _periodId ??
-        (await periods.ensurePeriodContaining(DateTime.now())).id;
+        _periodId ?? (await periods.ensurePeriodContaining(DateTime.now())).id;
     if (amountMinor == null) {
       await periods.clearCategoryBudget(
         periodId: periodId,
@@ -225,9 +247,7 @@ class CategoriesCubit extends Cubit<CategoriesState> {
     required int? budgetedAmountMinor,
     String? excludingCategoryId,
   }) {
-    final parent = state.categories
-        .where((c) => c.id == parentId)
-        .firstOrNull;
+    final parent = state.categories.where((c) => c.id == parentId).firstOrNull;
     if (parent == null) return null;
     if (parent.parentId != null) {
       return "A subcategory can't itself have subcategories — pick a "

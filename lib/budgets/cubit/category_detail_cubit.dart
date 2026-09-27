@@ -40,6 +40,10 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
   final TransactionRepository _transactions;
   StreamSubscription<List<Category>>? _subscription;
 
+  /// Cached so [setIncludePlanned] can recompute without waiting for
+  /// the categories stream to fire again on its own.
+  List<Category> _latestCategories = const [];
+
   void loadUnawaited() => unawaited(load());
 
   Future<void> load() async {
@@ -49,6 +53,7 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
   }
 
   Future<void> _onCategories(List<Category> categories) async {
+    _latestCategories = categories;
     final self = categories.where((c) => c.id == state.categoryId).firstOrNull;
     if (self == null) {
       if (!isClosed) {
@@ -86,12 +91,14 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
       state.categoryId,
       from: state.periodStartAt,
       to: state.periodEndAt,
+      includePlanned: state.includePlanned,
     );
     final directTransactions = await _transactions
         .directTransactionsForCategoryInRange(
           state.categoryId,
           from: state.periodStartAt,
           to: state.periodEndAt,
+          includePlanned: state.includePlanned,
         );
     final spentByChild = <String, int>{};
     for (final child in children) {
@@ -99,6 +106,7 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
         child.id,
         from: state.periodStartAt,
         to: state.periodEndAt,
+        includePlanned: state.includePlanned,
       );
     }
     if (isClosed) return;
@@ -113,6 +121,16 @@ class CategoryDetailCubit extends Cubit<CategoryDetailState> {
         spentByChild: spentByChild,
       ),
     );
+  }
+
+  /// Toggles between actual (confirmed-only) and planned (confirmed +
+  /// unpaid/future) spend for this category, its direct transactions,
+  /// and every subcategory row. Always starts back on actual — see
+  /// [CategoryDetailState.includePlanned].
+  Future<void> setIncludePlanned({required bool value}) async {
+    if (value == state.includePlanned) return;
+    emit(state.copyWith(includePlanned: value));
+    await _onCategories(_latestCategories);
   }
 
   /// Moves budget from this category to [toCategoryId].

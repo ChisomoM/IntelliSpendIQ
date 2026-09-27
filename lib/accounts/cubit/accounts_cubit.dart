@@ -45,6 +45,7 @@ class AccountsCubit extends Cubit<AccountsState> {
     required String name,
     required AccountType type,
     String? openingBalance,
+    String? providerKey,
   }) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
@@ -72,7 +73,11 @@ class AccountsCubit extends Cubit<AccountsState> {
       }
     }
 
-    final account = await _accounts.create(name: trimmed, type: type);
+    final account = await _accounts.create(
+      name: trimmed,
+      type: type,
+      providerKey: providerKey,
+    );
     if (openingBalanceMinor != null) {
       await _accounts.updateBalance(account.id, openingBalanceMinor);
     }
