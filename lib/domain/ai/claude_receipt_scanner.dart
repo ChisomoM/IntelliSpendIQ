@@ -149,8 +149,12 @@ class ClaudeReceiptScanner {
       name: _logName,
     );
 
+    // The literal, un-parsed response body — logged unconditionally
+    // (success or not) so a wrong extraction can always be checked
+    // against exactly what the API sent back, not a summary of it.
+    log('scanImage raw response body: ${response.body}', name: _logName);
+
     if (response.statusCode != 200) {
-      log('scanImage non-200 body: ${response.body}', name: _logName);
       throw AiExtractionException(
         'Anthropic API error ${response.statusCode}: ${response.body}',
       );
@@ -175,6 +179,13 @@ class ClaudeReceiptScanner {
     }
 
     final input = toolUse.first['input'] as Map<String, dynamic>;
+    // Raw, exactly as Claude returned it — before any of the parsing/
+    // validation below touches it. A category_id that gets dropped as
+    // a hallucination, an odd date format, an item this build's schema
+    // doesn't expect: all show up here as Claude actually wrote them,
+    // not as whatever the parsed ReceiptScanResult made of them.
+    log('scanImage raw tool input: ${jsonEncode(input)}', name: _logName);
+
     final result = _resultFromToolInput(
       input,
       rawText: response.body,
