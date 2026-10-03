@@ -45,7 +45,7 @@ void main() {
   }
 
   group('SavingsGoalRepository.contribute', () {
-    test('earmarks money without recording an expense', () async {
+    test('really transfers money into the goal\'s own account', () async {
       final goal = await services.savingsGoals.create(
         name: 'New Laptop',
         targetMinor: 1500000,
@@ -64,14 +64,22 @@ void main() {
       expect(
         txs,
         isEmpty,
-        reason: 'a contribution is an earmark, never a transaction',
+        reason: 'a contribution is a transfer, never a transaction',
       );
 
+      final goalAccountId = (await services.savingsGoals.watchAll().first)
+          .single
+          .accountId!;
       final balances = await services.accounts.watchComputedBalances().first;
       expect(
         balances[bankId],
-        0,
-        reason: 'a contribution never moves real money out of the account',
+        -200000,
+        reason: 'the contribution really leaves the source account',
+      );
+      expect(
+        balances[goalAccountId],
+        200000,
+        reason: 'and really arrives in the goal\'s own hidden account',
       );
     });
 
@@ -99,7 +107,7 @@ void main() {
   });
 
   group('SavingsGoalRepository.withdraw', () {
-    test('releases money back without touching spend totals', () async {
+    test('really transfers money back without touching spend totals', () async {
       final goal = await services.savingsGoals.create(
         name: 'New Phone',
         targetMinor: 300000,
@@ -120,6 +128,13 @@ void main() {
       final saved = await services.savingsGoals.watchSaved().first;
       expect(saved[goal.id], 60000);
       expect(await services.transactions.getAllForExport(), isEmpty);
+
+      final balances = await services.accounts.watchComputedBalances().first;
+      expect(
+        balances[bankId],
+        -60000,
+        reason: 'contributed 1000 then took 400 back, net 600 still away',
+      );
     });
 
     test('refuses to withdraw more than is saved', () async {
@@ -191,7 +206,14 @@ void main() {
         );
 
         final balances = await services.accounts.watchComputedBalances().first;
-        expect(balances[bankId], 1000000 - 180000);
+        expect(
+          balances[bankId],
+          1000000 - 200000,
+          reason:
+              'the 2000 already left the bank when it was contributed; '
+              'a fully goal-funded purchase draws from the goal\'s own '
+              'account, not the bank again',
+        );
       },
     );
 
@@ -215,7 +237,24 @@ void main() {
         merchant: 'Phone Shop',
       );
 
-      expect(tx.amountMinor, 150000);
+      expect(
+        tx.amountMinor,
+        50000,
+        reason:
+            'the returned transaction is the shortfall leg charged to '
+            'the real account; the other 1000 was already drawn from '
+            'the goal\'s own account',
+      );
+      final totalSpent = await services.transactions.totalSpentInRange(
+        from: Iso.fromDateTime(DateTime(2026, 7, 1)),
+        to: Iso.fromDateTime(DateTime(2026, 8, 1)),
+      );
+      expect(
+        totalSpent,
+        150000,
+        reason: 'the two legs together still add up to the full price paid',
+      );
+
       final saved = await services.savingsGoals.watchSaved().first;
       expect(saved[goal.id], 0);
 
@@ -249,32 +288,46 @@ void main() {
   });
 
   group('SavingsGoalRepository.delete', () {
-    test('returns earmarked money to each source account, then hides the goal',
-        () async {
-      final goal = await services.savingsGoals.create(
-        name: 'Trip',
-        targetMinor: 500000,
-      );
-      await services.savingsGoals.contribute(
-        goalId: goal.id,
-        accountId: bankId,
-        amountMinor: 100000,
-        transactedAt: DateTime(2026, 7, 1),
-      );
-      await services.savingsGoals.contribute(
-        goalId: goal.id,
-        accountId: cashId,
-        amountMinor: 50000,
-        transactedAt: DateTime(2026, 7, 2),
-      );
+    test(
+      'transfers saved money back to each source account, then hides the goal',
+      () async {
+        final goal = await services.savingsGoals.create(
+          name: 'Trip',
+          targetMinor: 500000,
+        );
+        await services.savingsGoals.contribute(
+          goalId: goal.id,
+          accountId: bankId,
+          amountMinor: 100000,
+          transactedAt: DateTime(2026, 7, 1),
+        );
+        await services.savingsGoals.contribute(
+          goalId: goal.id,
+          accountId: cashId,
+          amountMinor: 50000,
+          transactedAt: DateTime(2026, 7, 2),
+        );
 
-      await services.savingsGoals.delete(goal.id);
+        await services.savingsGoals.delete(goal.id);
 
-      final saved = await services.savingsGoals.watchSaved().first;
-      expect(saved[goal.id] ?? 0, 0);
+        final saved = await services.savingsGoals.watchSaved().first;
+        expect(saved[goal.id] ?? 0, 0);
 
-      final goals = await services.savingsGoals.watchAll().first;
-      expect(goals, isEmpty);
-    });
+        final goals = await services.savingsGoals.watchAll().first;
+        expect(goals, isEmpty);
+
+        final balances = await services.accounts.watchComputedBalances().first;
+        expect(
+          balances[bankId],
+          0,
+          reason: 'deleting the goal returns the 1000 it took from Bank',
+        );
+        expect(
+          balances[cashId],
+          0,
+          reason: 'and the 500 it took from Cash',
+        );
+      },
+    );
   });
 }

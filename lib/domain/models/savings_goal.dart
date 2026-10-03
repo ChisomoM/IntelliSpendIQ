@@ -2,10 +2,9 @@ import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 
 /// A named target the user is setting money aside for — a laptop, a
-/// deposit, a trip. Money "in" a goal never physically leaves the real
-/// account it was contributed from; a goal only earmarks part of that
-/// account's balance (see [SavingsGoalEntry]), the same way an envelope
-/// budget earmarks part of a period's income without moving it anywhere.
+/// deposit, a trip. A contribution really moves money, via a [Transfer],
+/// out of the source account and into this goal's own hidden account
+/// (see [accountId]) — it's not just an earmark on paper.
 class SavingsGoal extends Equatable {
   const SavingsGoal({
     required this.id,
@@ -14,6 +13,7 @@ class SavingsGoal extends Equatable {
     required this.status,
     this.targetDate,
     this.defaultAccountId,
+    this.accountId,
   });
 
   final String id;
@@ -27,6 +27,11 @@ class SavingsGoal extends Equatable {
   final String? defaultAccountId;
   final GoalStatus status;
 
+  /// The hidden account that actually holds this goal's saved money.
+  /// Nullable only for goals created before this existed —
+  /// `SavingsGoalRepository` creates one lazily on first use for those.
+  final String? accountId;
+
   @override
   List<Object?> get props => [
     id,
@@ -35,5 +40,6 @@ class SavingsGoal extends Equatable {
     targetDate,
     defaultAccountId,
     status,
+    accountId,
   ];
 }

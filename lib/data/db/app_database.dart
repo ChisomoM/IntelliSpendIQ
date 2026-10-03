@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -123,6 +123,15 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
         if (from < 12) {
           await _createTableIfMissing(m, wishlistItems);
           await _createTableIfMissing(m, wishlistItemPhotos);
+        }
+        if (from < 13) {
+          await _addColumnIfMissing(m, accounts, accounts.linkedGoalId);
+          await _addColumnIfMissing(m, savingsGoals, savingsGoals.accountId);
+          await _addColumnIfMissing(
+            m,
+            savingsGoalEntries,
+            savingsGoalEntries.linkedTransferId,
+          );
         }
       });
     },

@@ -39,6 +39,13 @@ class Accounts extends SyncedTable {
   /// been set, so the displayed balance sums the account's entire
   /// transaction history instead.
   TextColumn get balanceAsOf => text().nullable()();
+
+  /// Set only on the hidden account backing a [SavingsGoals] row's real
+  /// balance. Excluded from every normal account list/picker — see
+  /// `AccountRepository.getAll`/`watchAll` — so it never appears
+  /// alongside the user's own accounts; only `SavingsGoalRepository`
+  /// moves money into or out of it, via real [Transfers].
+  TextColumn get linkedGoalId => text().nullable()();
 }
 
 @DataClassName('CategoryRow')
@@ -278,6 +285,12 @@ class SavingsGoals extends SyncedTable {
 
   /// `active` | `completed` | `abandoned`.
   TextColumn get status => text().withDefault(const Constant('active'))();
+
+  /// The hidden [Accounts] row that actually holds this goal's saved
+  /// money — see [Accounts.linkedGoalId]. Nullable only for rows
+  /// created before this existed; `SavingsGoalRepository` creates one
+  /// lazily on first use for those.
+  TextColumn get accountId => text().nullable()();
 }
 
 /// A contribution into or withdrawal out of a [SavingsGoals] row's
@@ -302,6 +315,13 @@ class SavingsGoalEntries extends SyncedTable {
   /// goal-funded portion of a real purchase rather than a plain
   /// take-back.
   TextColumn get linkedTransactionId => text().nullable()();
+
+  /// The real [Transfers] row that actually moved this contribution's
+  /// (or plain withdrawal's) money between [accountId] and the goal's
+  /// hidden account. Null for the goal-funded portion of a purchase —
+  /// that leg moves no money of its own, [linkedTransactionId] already
+  /// covers it.
+  TextColumn get linkedTransferId => text().nullable()();
 }
 
 /// Something the user wants but hasn't committed to — no budget, no

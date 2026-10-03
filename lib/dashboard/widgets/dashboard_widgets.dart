@@ -275,6 +275,7 @@ class AccountBalanceStrip extends StatelessWidget {
     AccountType.bank => AppIcons.accountBank,
     AccountType.mobileMoney => AppIcons.accountMobileMoney,
     AccountType.card => AppIcons.accountCard,
+    AccountType.savingsGoal => AppIcons.savingsGoal,
   };
 
   @override

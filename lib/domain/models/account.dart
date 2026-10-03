@@ -12,6 +12,7 @@ class Account extends Equatable {
     this.providerKey,
     this.balanceMinor,
     this.balanceAsOf,
+    this.linkedGoalId,
   });
 
   final String id;
@@ -32,6 +33,10 @@ class Account extends Equatable {
   /// When [balanceMinor] was set by hand.
   final DateTime? balanceAsOf;
 
+  /// Set only on the hidden account backing a savings goal's real balance —
+  /// see `AccountRepository.getAll`/`watchAll`, which exclude these.
+  final String? linkedGoalId;
+
   @override
   List<Object?> get props => [
     id,
@@ -42,5 +47,6 @@ class Account extends Equatable {
     providerKey,
     balanceMinor,
     balanceAsOf,
+    linkedGoalId,
   ];
 }

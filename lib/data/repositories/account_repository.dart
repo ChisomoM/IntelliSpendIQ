@@ -25,6 +25,7 @@ class AccountRepository {
     balanceAsOf: row.balanceAsOf == null
         ? null
         : Iso.toDateTime(row.balanceAsOf!),
+    linkedGoalId: row.linkedGoalId,
   );
 
   /// Day-one seed (D07): one default mobile-money account mapped to
@@ -51,16 +52,73 @@ class AccountRepository {
         );
   }
 
+  /// Excludes the hidden accounts backing savings goals' real balances —
+  /// see [Account.linkedGoalId] — so they never appear in a normal
+  /// account list or picker.
   Stream<List<Account>> watchAll() {
     final query = _db.select(_db.accounts)
-      ..where((a) => a.userId.equals(userId) & a.deletedAt.isNull());
+      ..where(
+        (a) =>
+            a.userId.equals(userId) &
+            a.deletedAt.isNull() &
+            a.linkedGoalId.isNull(),
+      );
     return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
   Future<List<Account>> getAll() async {
     final query = _db.select(_db.accounts)
+      ..where(
+        (a) =>
+            a.userId.equals(userId) &
+            a.deletedAt.isNull() &
+            a.linkedGoalId.isNull(),
+      );
+    return (await query.get()).map(_fromRow).toList();
+  }
+
+  /// Every account, including the hidden ones backing savings goals —
+  /// for backups. A restore needs those rows too, so a goal's
+  /// `accountId` still resolves after import.
+  Future<List<Account>> getAllForExport() async {
+    final query = _db.select(_db.accounts)
       ..where((a) => a.userId.equals(userId) & a.deletedAt.isNull());
     return (await query.get()).map(_fromRow).toList();
+  }
+
+  /// The hidden account backing [goalId]'s real balance, if it has one.
+  Future<Account?> getForGoal(String goalId) async {
+    final row = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.linkedGoalId.equals(goalId) & a.deletedAt.isNull()))
+        .getSingleOrNull();
+    return row == null ? null : _fromRow(row);
+  }
+
+  /// Creates the hidden account that actually holds a savings goal's
+  /// money — never shown in a normal account list or picker (see
+  /// [watchAll]/[getAll]), only ever touched by `SavingsGoalRepository`
+  /// via real transfers.
+  Future<Account> createGoalAccount(String goalId, String goalName) async {
+    final now = Iso.nowUtc();
+    final id = Ids.newId();
+    await _db
+        .into(_db.accounts)
+        .insert(
+          AccountsCompanion.insert(
+            id: id,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+            name: goalName,
+            type: AccountType.savingsGoal.dbName,
+            linkedGoalId: Value(goalId),
+          ),
+        );
+    final row = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.id.equals(id))).getSingle();
+    return _fromRow(row);
   }
 
   Future<Account> getDefault() async {

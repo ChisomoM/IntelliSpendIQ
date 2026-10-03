@@ -2,32 +2,44 @@ import 'package:drift/drift.dart';
 import 'package:intellispendiq/core/ids.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
+import 'package:intellispendiq/data/repositories/account_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/savings_goal.dart';
 import 'package:intellispendiq/domain/models/savings_goal_entry.dart';
 import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 
-/// Savings goals, modeled as earmarks on money that stays in the user's
-/// real accounts — never as accounts of their own. See [SavingsGoal] and
-/// [SavingsGoalEntry] for why: a contribution reserves part of a real
-/// account's balance rather than moving currency into a fictitious one,
-/// so "how much is saved" is always a sum over [SavingsGoalEntries]
-/// rather than a mutable counter that could drift out of sync.
+/// Savings goals, each backed by its own hidden [Account] (see
+/// [SavingsGoal.accountId] / [Account.linkedGoalId]). A contribution is a
+/// real [Transfer] out of the chosen account and into that hidden one —
+/// money actually leaves the account's balance, rather than merely being
+/// earmarked on paper — and spending draws the purchase back out of
+/// whichever account(s) actually hold it. [SavingsGoalEntries] stays as
+/// the goal's own ledger (contributions minus withdrawals), so "how much
+/// is saved" is always a sum over entries rather than a mutable counter
+/// that could drift out of sync — it's just backed by real money
+/// movements now instead of bookkeeping-only ones.
 class SavingsGoalRepository {
   SavingsGoalRepository(
     this._db, {
     required this.userId,
     required TransactionRepository transactions,
+    required TransferRepository transfers,
+    required AccountRepository accounts,
     required BudgetPeriodRepository budgetPeriods,
   }) : _transactions = transactions,
+       _transfers = transfers,
+       _accounts = accounts,
        _budgetPeriods = budgetPeriods;
 
   final AppDatabase _db;
   final String userId;
   final TransactionRepository _transactions;
+  final TransferRepository _transfers;
+  final AccountRepository _accounts;
   final BudgetPeriodRepository _budgetPeriods;
 
   static SavingsGoal _fromRow(SavingsGoalRow row) => SavingsGoal(
@@ -37,6 +49,7 @@ class SavingsGoalRepository {
     targetDate: row.targetDate == null ? null : Iso.toDateTime(row.targetDate!),
     defaultAccountId: row.defaultAccountId,
     status: GoalStatus.fromDbName(row.status),
+    accountId: row.accountId,
   );
 
   static SavingsGoalEntry _entryFromRow(SavingsGoalEntryRow row) =>
@@ -49,6 +62,7 @@ class SavingsGoalRepository {
         transactedAt: Iso.toDateTime(row.transactedAt),
         note: row.note,
         linkedTransactionId: row.linkedTransactionId,
+        linkedTransferId: row.linkedTransferId,
       );
 
   Stream<List<SavingsGoal>> watchAll() {
@@ -84,33 +98,6 @@ SELECT goal_id,
 FROM savings_goal_entries
 WHERE user_id = ? AND deleted_at IS NULL
 GROUP BY goal_id
-''';
-
-  /// Every real account's money currently earmarked across all of the
-  /// user's active goals — what a future "available to spend" figure on
-  /// the Accounts screen would subtract from the computed balance.
-  Stream<Map<String, int>> watchCommittedByAccount() {
-    return _db
-        .customSelect(
-          _committedByAccountSql,
-          variables: [Variable.withString(userId)],
-          readsFrom: {_db.savingsGoalEntries},
-        )
-        .watch()
-        .map(
-          (rows) => {
-            for (final row in rows)
-              row.read<String>('account_id'): row.read<int>('committed'),
-          },
-        );
-  }
-
-  static const _committedByAccountSql = '''
-SELECT account_id,
-  COALESCE(SUM(CASE WHEN kind = 'contribution' THEN amount_minor ELSE -amount_minor END), 0) AS committed
-FROM savings_goal_entries
-WHERE user_id = ? AND deleted_at IS NULL
-GROUP BY account_id
 ''';
 
   Stream<List<SavingsGoalEntry>> watchEntries(String goalId) {
@@ -152,6 +139,13 @@ GROUP BY account_id
             defaultAccountId: Value(defaultAccountId),
           ),
         );
+    final account = await _accounts.createGoalAccount(id, name);
+    await (_db.update(_db.savingsGoals)..where((g) => g.id.equals(id))).write(
+      SavingsGoalsCompanion(
+        accountId: Value(account.id),
+        updatedAt: Value(now),
+      ),
+    );
     return SavingsGoal(
       id: id,
       name: name,
@@ -159,6 +153,7 @@ GROUP BY account_id
       targetDate: targetDate,
       defaultAccountId: defaultAccountId,
       status: GoalStatus.active,
+      accountId: account.id,
     );
   }
 
@@ -196,8 +191,8 @@ GROUP BY account_id
     );
   }
 
-  /// Earmarks [amountMinor] of [accountId]'s balance toward [goalId].
-  /// Moves no real money — see the class doc comment.
+  /// Really transfers [amountMinor] out of [accountId] and into [goalId]'s
+  /// own hidden account.
   Future<void> contribute({
     required String goalId,
     required String accountId,
@@ -208,6 +203,14 @@ GROUP BY account_id
     if (amountMinor <= 0) {
       throw ArgumentError('Contribution amount must be positive');
     }
+    final goalAccountId = await _ensureGoalAccountId(goalId);
+    final transfer = await _transfers.create(
+      fromAccountId: accountId,
+      toAccountId: goalAccountId,
+      amountMinor: amountMinor,
+      transactedAt: transactedAt,
+      note: note,
+    );
     await _insertEntry(
       goalId: goalId,
       accountId: accountId,
@@ -215,11 +218,12 @@ GROUP BY account_id
       kind: GoalEntryKind.contribution,
       transactedAt: transactedAt,
       note: note,
+      linkedTransferId: transfer.id,
     );
   }
 
-  /// Releases [amountMinor] back to [accountId]'s available balance
-  /// without spending it — the user changed their mind about this much
+  /// Really transfers [amountMinor] back out of [goalId]'s hidden account
+  /// and into [accountId] — the user changed their mind about this much
   /// of what they'd set aside. Refuses to release more than is saved.
   Future<void> withdraw({
     required String goalId,
@@ -235,6 +239,14 @@ GROUP BY account_id
     if (amountMinor > saved) {
       throw ArgumentError('Cannot withdraw more than is saved toward this goal');
     }
+    final goalAccountId = await _ensureGoalAccountId(goalId);
+    final transfer = await _transfers.create(
+      fromAccountId: goalAccountId,
+      toAccountId: accountId,
+      amountMinor: amountMinor,
+      transactedAt: transactedAt,
+      note: note,
+    );
     await _insertEntry(
       goalId: goalId,
       accountId: accountId,
@@ -242,15 +254,20 @@ GROUP BY account_id
       kind: GoalEntryKind.withdrawal,
       transactedAt: transactedAt,
       note: note,
+      linkedTransferId: transfer.id,
     );
   }
 
-  /// Converts (some of) a goal into an actual purchase: records a real
-  /// expense [Transaction] for [amountMinor] — the full price paid,
-  /// which may exceed what was saved — and withdraws whatever portion
-  /// of that was actually saved toward the goal, tagging the withdrawal
-  /// with the transaction it funded. The saved portion never shows up
-  /// as spend twice: it was never spend in the first place until now.
+  /// Converts (some of) a goal into an actual purchase, for the full
+  /// price paid ([amountMinor]), which may exceed what was saved. The
+  /// portion already saved is real money already sitting in the goal's
+  /// hidden account, so that portion is recorded as an expense against
+  /// *that* account; any shortfall above what was saved is a separate
+  /// expense leg against [accountId], the real account covering the
+  /// difference. Returns the shortfall leg when there is one (the
+  /// transaction against the user's own account), otherwise the
+  /// goal-account leg — either way the single transaction a caller
+  /// should point a purchase record at.
   Future<Transaction> spend({
     required String goalId,
     required String accountId,
@@ -265,13 +282,48 @@ GROUP BY account_id
     }
     final saved = await _savedFor(goalId);
     final fundedByGoal = amountMinor < saved ? amountMinor : saved;
-
+    final shortfall = amountMinor - fundedByGoal;
     final periodId = (await _budgetPeriods.ensurePeriodContaining(
       transactedAt,
     )).id;
-    final tx = await _transactions.insertDraft(
+
+    Transaction? goalTx;
+    if (fundedByGoal > 0) {
+      final goalAccountId = await _ensureGoalAccountId(goalId);
+      goalTx = await _transactions.insertDraft(
+        TransactionDraft(
+          amountMinor: fundedByGoal,
+          direction: TxDirection.debit,
+          source: TxSource.manual,
+          transactedAt: transactedAt,
+          merchant: merchant,
+          description: description,
+          categoryId: categoryId,
+          metadata: {'linkedGoalId': goalId},
+        ),
+        accountId: goalAccountId,
+        idempotencyKey: 'goal:$goalId:spend:${Ids.newId()}',
+        status: TxStatus.confirmed,
+        periodId: periodId,
+      );
+      await _insertEntry(
+        goalId: goalId,
+        accountId: goalAccountId,
+        amountMinor: fundedByGoal,
+        kind: GoalEntryKind.withdrawal,
+        transactedAt: transactedAt,
+        note: merchant == null ? 'Spent' : 'Spent on $merchant',
+        linkedTransactionId: goalTx.id,
+      );
+    }
+
+    if (shortfall <= 0) {
+      return goalTx!;
+    }
+
+    return _transactions.insertDraft(
       TransactionDraft(
-        amountMinor: amountMinor,
+        amountMinor: shortfall,
         direction: TxDirection.debit,
         source: TxSource.manual,
         transactedAt: transactedAt,
@@ -285,38 +337,39 @@ GROUP BY account_id
       status: TxStatus.confirmed,
       periodId: periodId,
     );
-
-    if (fundedByGoal > 0) {
-      await _insertEntry(
-        goalId: goalId,
-        accountId: accountId,
-        amountMinor: fundedByGoal,
-        kind: GoalEntryKind.withdrawal,
-        transactedAt: transactedAt,
-        note: merchant == null ? 'Spent' : 'Spent on $merchant',
-        linkedTransactionId: tx.id,
-      );
-    }
-    return tx;
   }
 
-  /// Returns every account's still-earmarked money for [goalId] back to
-  /// that same account, then soft-deletes the goal. Money always goes
-  /// back to the account it was earmarked *from* — never lumped into a
-  /// single default account — so each account's own availability is
-  /// restored correctly even when a goal was funded from several.
+  /// Transfers every account's still-saved money for [goalId] back to
+  /// the account it was contributed *from*, then soft-deletes the goal
+  /// and its hidden account. Money always goes back to the account it
+  /// came from — never lumped into a single default account — so each
+  /// account's own balance is restored correctly even when a goal was
+  /// funded from several.
   Future<void> delete(String id) async {
+    final goalRow = await (_db.select(
+      _db.savingsGoals,
+    )..where((g) => g.id.equals(id))).getSingleOrNull();
+    final goalAccountId = goalRow?.accountId;
     final byAccount = await _netByAccount(id);
     final now = Iso.nowUtc();
+    final nowDt = DateTime.now();
     for (final entry in byAccount.entries) {
-      if (entry.value <= 0) continue;
+      if (entry.value <= 0 || goalAccountId == null) continue;
+      final transfer = await _transfers.create(
+        fromAccountId: goalAccountId,
+        toAccountId: entry.key,
+        amountMinor: entry.value,
+        transactedAt: nowDt,
+        note: 'Goal deleted — returned to account',
+      );
       await _insertEntry(
         goalId: id,
         accountId: entry.key,
         amountMinor: entry.value,
         kind: GoalEntryKind.withdrawal,
-        transactedAt: DateTime.now(),
+        transactedAt: nowDt,
         note: 'Goal deleted — returned to account',
+        linkedTransferId: transfer.id,
       );
     }
     await (_db.update(_db.savingsGoals)..where((g) => g.id.equals(id))).write(
@@ -326,6 +379,32 @@ GROUP BY account_id
         updatedAt: Value(now),
       ),
     );
+    if (goalAccountId != null) {
+      await (_db.update(
+        _db.accounts,
+      )..where((a) => a.id.equals(goalAccountId))).write(
+        AccountsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+      );
+    }
+  }
+
+  /// The hidden account backing [goalId]'s real balance, creating one
+  /// lazily if this goal predates [accountId] existing.
+  Future<String> _ensureGoalAccountId(String goalId) async {
+    final row = await (_db.select(
+      _db.savingsGoals,
+    )..where((g) => g.id.equals(goalId))).getSingle();
+    if (row.accountId != null) return row.accountId!;
+    final account = await _accounts.createGoalAccount(goalId, row.name);
+    await (_db.update(
+      _db.savingsGoals,
+    )..where((g) => g.id.equals(goalId))).write(
+      SavingsGoalsCompanion(
+        accountId: Value(account.id),
+        updatedAt: Value(Iso.nowUtc()),
+      ),
+    );
+    return account.id;
   }
 
   Future<int> _savedFor(String goalId) async {
@@ -402,6 +481,7 @@ GROUP BY account_id
             ),
             defaultAccountId: Value(goal.defaultAccountId),
             status: Value(goal.status.dbName),
+            accountId: Value(goal.accountId),
           ),
         );
     return true;
@@ -433,6 +513,7 @@ GROUP BY account_id
             transactedAt: Iso.fromDateTime(entry.transactedAt),
             note: Value(entry.note),
             linkedTransactionId: Value(entry.linkedTransactionId),
+            linkedTransferId: Value(entry.linkedTransferId),
           ),
         );
     return true;
@@ -446,6 +527,7 @@ GROUP BY account_id
     required DateTime transactedAt,
     String? note,
     String? linkedTransactionId,
+    String? linkedTransferId,
   }) async {
     final now = Iso.nowUtc();
     await _db
@@ -463,6 +545,7 @@ GROUP BY account_id
             transactedAt: Iso.fromDateTime(transactedAt),
             note: Value(note),
             linkedTransactionId: Value(linkedTransactionId),
+            linkedTransferId: Value(linkedTransferId),
           ),
         );
   }
