@@ -129,7 +129,11 @@ class _TransactionsViewState extends State<TransactionsView> {
     ReceiptScanResult result;
     try {
       final categories = await categoryRepository.getAll();
-      result = await scanner.scanImage(path, categories: categories);
+      result = await scanner.scanImage(
+        path,
+        categories: categories,
+        extractSummary: false,
+      );
     } on Object catch (error, stackTrace) {
       log(
         'itemized scan failed',
