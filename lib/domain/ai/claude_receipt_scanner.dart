@@ -44,13 +44,20 @@ class ClaudeReceiptScanner {
   /// categories and offered to Claude so it can suggest one per item
   /// (a receipt is always an expense); pass an empty list to skip
   /// category suggestions entirely.
+  ///
+  /// [extractSummary] controls whether merchant/total/date are asked
+  /// for at all — the single-entry "Scan a receipt" flow needs them
+  /// (it has no items to show), the itemized flow only needs items
+  /// (merchant/date are typed by hand on that screen) and dropping
+  /// them keeps the schema smaller and the call faster.
   Future<ReceiptScanResult> scanImage(
     String imagePath, {
     List<Category> categories = const [],
+    bool extractSummary = true,
   }) async {
     log(
       'scanImage start: file=${p.basename(imagePath)} '
-      'categoriesGiven=${categories.length}',
+      'categoriesGiven=${categories.length} extractSummary=$extractSummary',
       name: _logName,
     );
 
@@ -90,9 +97,11 @@ class ClaudeReceiptScanner {
       'max_tokens': 1024,
       'system':
           'You read photographed retail receipts for a Zambian personal '
-          'finance app (currency ZMW, "K" also means ZMW). Extract the '
-          'merchant, the grand total actually paid, the purchase date, '
-          'and every individual priced item — never guess a value you '
+          'finance app (currency ZMW, "K" also means ZMW). '
+          '${extractSummary ? 'Extract the merchant, the grand total '
+                    'actually paid, the purchase date, and every '
+                    'individually priced item' : 'Extract every individually '
+                    'priced item on the receipt'} — never guess a value you '
           "can't actually read; use null instead. Always call the "
           '$_toolName tool.',
       'messages': [
@@ -116,7 +125,7 @@ class ClaudeReceiptScanner {
           ],
         },
       ],
-      'tools': [_buildExtractionTool(categoryIds)],
+      'tools': [_buildExtractionTool(categoryIds, extractSummary)],
       'tool_choice': {'type': 'tool', 'name': _toolName},
     });
 
@@ -190,6 +199,7 @@ class ClaudeReceiptScanner {
       input,
       rawText: response.body,
       validCategoryIds: categoryIds.toSet(),
+      extractSummary: extractSummary,
     );
     log(
       'scanImage parsed: merchant=${result.merchant} '
@@ -238,7 +248,10 @@ class ClaudeReceiptScanner {
         'an id that is not in this list:\n${lines.join('\n')}';
   }
 
-  static Map<String, dynamic> _buildExtractionTool(List<String> categoryIds) {
+  static Map<String, dynamic> _buildExtractionTool(
+    List<String> categoryIds,
+    bool extractSummary,
+  ) {
     return {
       'name': _toolName,
       'description':
@@ -247,22 +260,24 @@ class ClaudeReceiptScanner {
       'input_schema': {
         'type': 'object',
         'properties': {
-          'merchant': {
-            'type': ['string', 'null'],
-            'description': 'Store or merchant name, or null if illegible.',
-          },
-          'total': {
-            'type': ['number', 'null'],
-            'description':
-                'The grand total actually charged, in major currency '
-                'units (e.g. 45.0 for K45.00) — not a subtotal. Null if '
-                'unclear.',
-          },
-          'date': {
-            'type': ['string', 'null'],
-            'description':
-                'Purchase date as YYYY-MM-DD if printed on the receipt, '
-                'else null.',
+          if (extractSummary) ...{
+            'merchant': {
+              'type': ['string', 'null'],
+              'description': 'Store or merchant name, or null if illegible.',
+            },
+            'total': {
+              'type': ['number', 'null'],
+              'description':
+                  'The grand total actually charged, in major currency '
+                  'units (e.g. 45.0 for K45.00) — not a subtotal. Null if '
+                  'unclear.',
+            },
+            'date': {
+              'type': ['string', 'null'],
+              'description':
+                  'Purchase date as YYYY-MM-DD if printed on the receipt, '
+                  'else null.',
+            },
           },
           'items': {
             'type': 'array',
@@ -284,21 +299,20 @@ class ClaudeReceiptScanner {
                 if (categoryIds.isNotEmpty)
                   'category_id': {
                     'type': ['string', 'null'],
-                    'enum': [...categoryIds, null],
                     'description':
-                        "This item's best-matching category id from the "
-                        'list given, or null if none fit.',
+                        "This item's best-matching category id, copied "
+                        'exactly from the list given in the prompt, or '
+                        'null if none fit. Never invent an id.',
                   },
               },
-              'required': [
-                'name',
-                'amount',
-                if (categoryIds.isNotEmpty) 'category_id',
-              ],
+              'required': ['name', 'amount'],
             },
           },
         },
-        'required': ['merchant', 'total', 'date', 'items'],
+        'required': [
+          if (extractSummary) ...['merchant', 'total', 'date'],
+          'items',
+        ],
       },
     };
   }
@@ -307,10 +321,13 @@ class ClaudeReceiptScanner {
     Map<String, dynamic> input, {
     required String rawText,
     required Set<String> validCategoryIds,
+    required bool extractSummary,
   }) {
-    final merchant = (input['merchant'] as String?)?.trim();
-    final total = input['total'];
-    final date = input['date'] as String?;
+    final merchant = extractSummary
+        ? (input['merchant'] as String?)?.trim()
+        : null;
+    final total = extractSummary ? input['total'] : null;
+    final date = extractSummary ? input['date'] as String? : null;
     final itemsRaw = (input['items'] as List<dynamic>?) ?? const [];
 
     return ReceiptScanResult(

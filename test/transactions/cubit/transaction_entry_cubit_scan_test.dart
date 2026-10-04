@@ -21,6 +21,7 @@ class _FakeReceiptScanner extends ClaudeReceiptScanner {
   Future<ReceiptScanResult> scanImage(
     String imagePath, {
     List<Category> categories = const [],
+    bool extractSummary = true,
   }) async => result;
 
   @override
@@ -34,6 +35,7 @@ class _ThrowingReceiptScanner extends ClaudeReceiptScanner {
   Future<ReceiptScanResult> scanImage(
     String imagePath, {
     List<Category> categories = const [],
+    bool extractSummary = true,
   }) => throw StateError('Scan failed');
 
   @override
