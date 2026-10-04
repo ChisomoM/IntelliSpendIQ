@@ -192,6 +192,8 @@ class AppServices {
       db,
       userId: userId,
       transactions: transactions,
+      transfers: transfers,
+      accounts: accounts,
       budgetPeriods: budgetPeriods,
     );
     final wishlist = WishlistRepository(

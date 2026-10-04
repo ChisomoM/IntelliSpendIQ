@@ -154,7 +154,7 @@ void main() {
       addTearDown(file.delete);
       final document =
           jsonDecode(await file.readAsString()) as Map<String, Object?>;
-      expect(document['version'], 5);
+      expect(document['version'], 6);
 
       // A brand-new install: its own seeded categories and default
       // account already exist before the backup is ever touched.
@@ -171,7 +171,13 @@ void main() {
             'transfer legs were soft-deleted on the source once linked, so '
             'they were never exported',
       );
-      expect(summary.transfersImported, 1);
+      expect(
+        summary.transfersImported,
+        2,
+        reason:
+            'the bank-to-cash transfer, plus the real transfer the '
+            'contribution made into the goal\'s own hidden account',
+      );
       expect(summary.overallBudgetsImported, 1);
       expect(summary.savingsGoalsImported, 1);
       expect(
@@ -181,8 +187,10 @@ void main() {
       );
       expect(
         summary.accountsImported,
-        2,
-        reason: 'only Cash and Bank are new',
+        3,
+        reason:
+            'Cash and Bank, plus the goal\'s own hidden account — only '
+            'the seeded default Airtel Money account already exists',
       );
       expect(
         summary.categoriesImported,
@@ -230,15 +238,27 @@ void main() {
       );
 
       final targetTransfers = await target.transfers.watchAll().first;
-      expect(targetTransfers, hasLength(1));
-      expect(targetTransfers.single.amountMinor, 15000);
-      expect(targetTransfers.single.fromAccountId, bank.id);
-      expect(targetTransfers.single.toAccountId, cash.id);
+      expect(targetTransfers, hasLength(2));
+      final bankToCash = targetTransfers.firstWhere(
+        (t) => t.toAccountId == cash.id,
+      );
+      expect(bankToCash.amountMinor, 15000);
+      expect(bankToCash.fromAccountId, bank.id);
 
       final targetGoals = await target.savingsGoals.watchAll().first;
       expect(targetGoals, hasLength(1));
       expect(targetGoals.single.id, goal.id);
       expect(targetGoals.single.targetMinor, 1500000);
+      expect(
+        targetGoals.single.accountId,
+        isNotNull,
+        reason: 'the goal\'s own hidden account must resolve after restore',
+      );
+      expect(
+        (await target.accounts.getAllForExport())
+            .map((a) => a.id),
+        contains(targetGoals.single.accountId),
+      );
 
       final targetSaved = await target.savingsGoals.watchSaved().first;
       expect(

@@ -75,13 +75,19 @@ enum AccountType {
   cash,
   bank,
   mobileMoney,
-  card;
+  card,
+
+  /// The hidden account type backing a savings goal's real balance —
+  /// see `Account.linkedGoalId`. Never offered in a normal account
+  /// type picker.
+  savingsGoal;
 
   static const Map<AccountType, String> _names = {
     cash: 'cash',
     bank: 'bank',
     mobileMoney: 'mobile_money',
     card: 'card',
+    savingsGoal: 'savings_goal',
   };
 
   String get dbName => _names[this]!;

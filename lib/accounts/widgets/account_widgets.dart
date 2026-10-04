@@ -19,6 +19,7 @@ String accountTypeLabel(AccountType type) => switch (type) {
   AccountType.bank => 'Bank',
   AccountType.mobileMoney => 'Mobile Money',
   AccountType.card => 'Card',
+  AccountType.savingsGoal => 'Savings Goal',
 };
 
 /// Providers the fee tariff list can key against — picking one here is
@@ -36,6 +37,7 @@ List<List<dynamic>> accountTypeIcon(AccountType type) => switch (type) {
   AccountType.bank => AppIcons.accountBank,
   AccountType.mobileMoney => AppIcons.accountMobileMoney,
   AccountType.card => AppIcons.accountCard,
+  AccountType.savingsGoal => AppIcons.savingsGoal,
 };
 
 /// An account's glyph on its own tinted chip — hue keyed to the
@@ -341,10 +343,11 @@ class _AccountEditorSheetState extends State<AccountEditorSheet> {
           decoration: const InputDecoration(labelText: 'Type'),
           items: [
             for (final type in AccountType.values)
-              DropdownMenuItem(
-                value: type,
-                child: Text(accountTypeLabel(type)),
-              ),
+              if (type != AccountType.savingsGoal)
+                DropdownMenuItem(
+                  value: type,
+                  child: Text(accountTypeLabel(type)),
+                ),
           ],
           onChanged: (value) => setState(() => _type = value ?? _type),
         ),

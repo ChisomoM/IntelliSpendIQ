@@ -30,10 +30,16 @@ import 'package:path_provider/path_provider.dart';
 /// should keep reading older versions rather than refusing them.
 ///
 /// v4 added `savingsGoals`/`savingsGoalEntries`; v5 added
-/// `wishlistItems`/`wishlistItemPhotos`. An older file simply has no
-/// such keys, and `_listOf` already treats a missing key as an empty
-/// list, so older backups keep importing everything else fine.
-const _backupSchemaVersion = 5;
+/// `wishlistItems`/`wishlistItemPhotos`; v6 added `Account.linkedGoalId`,
+/// `SavingsGoal.accountId` and `SavingsGoalEntry.linkedTransferId` (a
+/// goal's contributions now move real money into its own hidden
+/// account) and switched `accounts` export to include those hidden
+/// accounts. An older file simply has no such keys, and `_listOf`
+/// already treats a missing key as an empty list, so older backups
+/// keep importing everything else fine — a goal restored from one just
+/// gets a fresh hidden account lazily on first use, same as an
+/// already-installed app upgrading in place.
+const _backupSchemaVersion = 6;
 
 /// How many rows `importBackupJson` actually wrote, versus how many
 /// it left alone because they (or something they collide with) were
@@ -176,7 +182,9 @@ class BackupService {
     final document = <String, Object?>{
       'version': _backupSchemaVersion,
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
-      'accounts': (await _accounts.getAll()).map(_accountToJson).toList(),
+      'accounts': (await _accounts.getAllForExport())
+          .map(_accountToJson)
+          .toList(),
       'categories': (await _categories.getAll()).map(_categoryToJson).toList(),
       'overallBudgets': (await _overallBudgets.getAllForExport())
           .map(_overallBudgetToJson)
@@ -388,6 +396,7 @@ class BackupService {
     'providerKey': account.providerKey,
     'balanceMinor': account.balanceMinor,
     'balanceAsOf': account.balanceAsOf?.toIso8601String(),
+    'linkedGoalId': account.linkedGoalId,
   };
 
   Account _accountFromJson(Map<String, Object?> json) => Account(
@@ -401,6 +410,7 @@ class BackupService {
     balanceAsOf: json['balanceAsOf'] == null
         ? null
         : DateTime.parse(json['balanceAsOf']! as String),
+    linkedGoalId: json['linkedGoalId'] as String?,
   );
 
   Map<String, Object?> _categoryToJson(Category category) => {
@@ -491,6 +501,7 @@ class BackupService {
     'targetDate': goal.targetDate?.toIso8601String(),
     'defaultAccountId': goal.defaultAccountId,
     'status': goal.status.dbName,
+    'accountId': goal.accountId,
   };
 
   SavingsGoal _savingsGoalFromJson(Map<String, Object?> json) => SavingsGoal(
@@ -504,6 +515,7 @@ class BackupService {
     status: json['status'] == null
         ? GoalStatus.active
         : GoalStatus.fromDbName(json['status']! as String),
+    accountId: json['accountId'] as String?,
   );
 
   Map<String, Object?> _savingsGoalEntryToJson(SavingsGoalEntry entry) => {
@@ -515,6 +527,7 @@ class BackupService {
     'transactedAt': entry.transactedAt.toIso8601String(),
     'note': entry.note,
     'linkedTransactionId': entry.linkedTransactionId,
+    'linkedTransferId': entry.linkedTransferId,
   };
 
   SavingsGoalEntry _savingsGoalEntryFromJson(Map<String, Object?> json) =>
@@ -527,6 +540,7 @@ class BackupService {
         transactedAt: DateTime.parse(json['transactedAt']! as String),
         note: json['note'] as String?,
         linkedTransactionId: json['linkedTransactionId'] as String?,
+        linkedTransferId: json['linkedTransferId'] as String?,
       );
 
   Map<String, Object?> _wishlistItemToJson(WishlistItem item) => {

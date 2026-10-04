@@ -138,6 +138,17 @@ class $AccountsTable extends Accounts
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _linkedGoalIdMeta = const VerificationMeta(
+    'linkedGoalId',
+  );
+  @override
+  late final GeneratedColumn<String> linkedGoalId = GeneratedColumn<String>(
+    'linked_goal_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -152,6 +163,7 @@ class $AccountsTable extends Accounts
     providerKey,
     balanceMinor,
     balanceAsOf,
+    linkedGoalId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -255,6 +267,15 @@ class $AccountsTable extends Accounts
         ),
       );
     }
+    if (data.containsKey('linked_goal_id')) {
+      context.handle(
+        _linkedGoalIdMeta,
+        linkedGoalId.isAcceptableOrUnknown(
+          data['linked_goal_id']!,
+          _linkedGoalIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -312,6 +333,10 @@ class $AccountsTable extends Accounts
         DriftSqlType.string,
         data['${effectivePrefix}balance_as_of'],
       ),
+      linkedGoalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linked_goal_id'],
+      ),
     );
   }
 
@@ -349,6 +374,10 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
   /// been set, so the displayed balance sums the account's entire
   /// transaction history instead.
   final String? balanceAsOf;
+
+  /// Set only on the hidden account backing a savings goal's real
+  /// balance.
+  final String? linkedGoalId;
   const AccountRow({
     required this.id,
     required this.userId,
@@ -362,6 +391,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     this.providerKey,
     this.balanceMinor,
     this.balanceAsOf,
+    this.linkedGoalId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -385,6 +415,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     }
     if (!nullToAbsent || balanceAsOf != null) {
       map['balance_as_of'] = Variable<String>(balanceAsOf);
+    }
+    if (!nullToAbsent || linkedGoalId != null) {
+      map['linked_goal_id'] = Variable<String>(linkedGoalId);
     }
     return map;
   }
@@ -411,6 +444,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       balanceAsOf: balanceAsOf == null && nullToAbsent
           ? const Value.absent()
           : Value(balanceAsOf),
+      linkedGoalId: linkedGoalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedGoalId),
     );
   }
 
@@ -432,6 +468,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       providerKey: serializer.fromJson<String?>(json['providerKey']),
       balanceMinor: serializer.fromJson<int?>(json['balanceMinor']),
       balanceAsOf: serializer.fromJson<String?>(json['balanceAsOf']),
+      linkedGoalId: serializer.fromJson<String?>(json['linkedGoalId']),
     );
   }
   @override
@@ -450,6 +487,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       'providerKey': serializer.toJson<String?>(providerKey),
       'balanceMinor': serializer.toJson<int?>(balanceMinor),
       'balanceAsOf': serializer.toJson<String?>(balanceAsOf),
+      'linkedGoalId': serializer.toJson<String?>(linkedGoalId),
     };
   }
 
@@ -466,6 +504,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     Value<String?> providerKey = const Value.absent(),
     Value<int?> balanceMinor = const Value.absent(),
     Value<String?> balanceAsOf = const Value.absent(),
+    Value<String?> linkedGoalId = const Value.absent(),
   }) => AccountRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -479,6 +518,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     providerKey: providerKey.present ? providerKey.value : this.providerKey,
     balanceMinor: balanceMinor.present ? balanceMinor.value : this.balanceMinor,
     balanceAsOf: balanceAsOf.present ? balanceAsOf.value : this.balanceAsOf,
+    linkedGoalId: linkedGoalId.present
+        ? linkedGoalId.value
+        : this.linkedGoalId,
   );
   AccountRow copyWithCompanion(AccountsCompanion data) {
     return AccountRow(
@@ -500,6 +542,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       balanceAsOf: data.balanceAsOf.present
           ? data.balanceAsOf.value
           : this.balanceAsOf,
+      linkedGoalId: data.linkedGoalId.present
+          ? data.linkedGoalId.value
+          : this.linkedGoalId,
     );
   }
 
@@ -517,7 +562,8 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
           ..write('isDefault: $isDefault, ')
           ..write('providerKey: $providerKey, ')
           ..write('balanceMinor: $balanceMinor, ')
-          ..write('balanceAsOf: $balanceAsOf')
+          ..write('balanceAsOf: $balanceAsOf, ')
+          ..write('linkedGoalId: $linkedGoalId')
           ..write(')'))
         .toString();
   }
@@ -536,6 +582,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     providerKey,
     balanceMinor,
     balanceAsOf,
+    linkedGoalId,
   );
   @override
   bool operator ==(Object other) =>
@@ -552,7 +599,8 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
           other.isDefault == this.isDefault &&
           other.providerKey == this.providerKey &&
           other.balanceMinor == this.balanceMinor &&
-          other.balanceAsOf == this.balanceAsOf);
+          other.balanceAsOf == this.balanceAsOf &&
+          other.linkedGoalId == this.linkedGoalId);
 }
 
 class AccountsCompanion extends UpdateCompanion<AccountRow> {
@@ -568,6 +616,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
   final Value<String?> providerKey;
   final Value<int?> balanceMinor;
   final Value<String?> balanceAsOf;
+  final Value<String?> linkedGoalId;
   final Value<int> rowid;
   const AccountsCompanion({
     this.id = const Value.absent(),
@@ -582,6 +631,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     this.providerKey = const Value.absent(),
     this.balanceMinor = const Value.absent(),
     this.balanceAsOf = const Value.absent(),
+    this.linkedGoalId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsCompanion.insert({
@@ -597,6 +647,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     this.providerKey = const Value.absent(),
     this.balanceMinor = const Value.absent(),
     this.balanceAsOf = const Value.absent(),
+    this.linkedGoalId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -617,6 +668,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     Expression<String>? providerKey,
     Expression<int>? balanceMinor,
     Expression<String>? balanceAsOf,
+    Expression<String>? linkedGoalId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -632,6 +684,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
       if (providerKey != null) 'provider_key': providerKey,
       if (balanceMinor != null) 'balance_minor': balanceMinor,
       if (balanceAsOf != null) 'balance_as_of': balanceAsOf,
+      if (linkedGoalId != null) 'linked_goal_id': linkedGoalId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -649,6 +702,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     Value<String?>? providerKey,
     Value<int?>? balanceMinor,
     Value<String?>? balanceAsOf,
+    Value<String?>? linkedGoalId,
     Value<int>? rowid,
   }) {
     return AccountsCompanion(
@@ -664,6 +718,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
       providerKey: providerKey ?? this.providerKey,
       balanceMinor: balanceMinor ?? this.balanceMinor,
       balanceAsOf: balanceAsOf ?? this.balanceAsOf,
+      linkedGoalId: linkedGoalId ?? this.linkedGoalId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -707,6 +762,9 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
     if (balanceAsOf.present) {
       map['balance_as_of'] = Variable<String>(balanceAsOf.value);
     }
+    if (linkedGoalId.present) {
+      map['linked_goal_id'] = Variable<String>(linkedGoalId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -728,6 +786,7 @@ class AccountsCompanion extends UpdateCompanion<AccountRow> {
           ..write('providerKey: $providerKey, ')
           ..write('balanceMinor: $balanceMinor, ')
           ..write('balanceAsOf: $balanceAsOf, ')
+          ..write('linkedGoalId: $linkedGoalId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9495,6 +9554,17 @@ class $SavingsGoalsTable extends SavingsGoals
     requiredDuringInsert: false,
     defaultValue: const Constant('active'),
   );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -9507,6 +9577,7 @@ class $SavingsGoalsTable extends SavingsGoals
     targetDate,
     defaultAccountId,
     status,
+    accountId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9595,6 +9666,12 @@ class $SavingsGoalsTable extends SavingsGoals
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
     }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    }
     return context;
   }
 
@@ -9644,6 +9721,10 @@ class $SavingsGoalsTable extends SavingsGoals
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      ),
     );
   }
 
@@ -9670,6 +9751,10 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
 
   /// `active` | `completed` | `abandoned`.
   final String status;
+
+  /// The hidden [Accounts] row that actually holds this goal's saved
+  /// money.
+  final String? accountId;
   const SavingsGoalRow({
     required this.id,
     required this.userId,
@@ -9681,6 +9766,7 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
     this.targetDate,
     this.defaultAccountId,
     required this.status,
+    this.accountId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9701,6 +9787,9 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
       map['default_account_id'] = Variable<String>(defaultAccountId);
     }
     map['status'] = Variable<String>(status);
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<String>(accountId);
+    }
     return map;
   }
 
@@ -9722,6 +9811,9 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
           ? const Value.absent()
           : Value(defaultAccountId),
       status: Value(status),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
     );
   }
 
@@ -9741,6 +9833,7 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
       targetDate: serializer.fromJson<String?>(json['targetDate']),
       defaultAccountId: serializer.fromJson<String?>(json['defaultAccountId']),
       status: serializer.fromJson<String>(json['status']),
+      accountId: serializer.fromJson<String?>(json['accountId']),
     );
   }
   @override
@@ -9757,6 +9850,7 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
       'targetDate': serializer.toJson<String?>(targetDate),
       'defaultAccountId': serializer.toJson<String?>(defaultAccountId),
       'status': serializer.toJson<String>(status),
+      'accountId': serializer.toJson<String?>(accountId),
     };
   }
 
@@ -9771,6 +9865,7 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
     Value<String?> targetDate = const Value.absent(),
     Value<String?> defaultAccountId = const Value.absent(),
     String? status,
+    Value<String?> accountId = const Value.absent(),
   }) => SavingsGoalRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -9784,6 +9879,7 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
         ? defaultAccountId.value
         : this.defaultAccountId,
     status: status ?? this.status,
+    accountId: accountId.present ? accountId.value : this.accountId,
   );
   SavingsGoalRow copyWithCompanion(SavingsGoalsCompanion data) {
     return SavingsGoalRow(
@@ -9803,6 +9899,9 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
           ? data.defaultAccountId.value
           : this.defaultAccountId,
       status: data.status.present ? data.status.value : this.status,
+      accountId: data.accountId.present
+          ? data.accountId.value
+          : this.accountId,
     );
   }
 
@@ -9818,7 +9917,8 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
           ..write('targetMinor: $targetMinor, ')
           ..write('targetDate: $targetDate, ')
           ..write('defaultAccountId: $defaultAccountId, ')
-          ..write('status: $status')
+          ..write('status: $status, ')
+          ..write('accountId: $accountId')
           ..write(')'))
         .toString();
   }
@@ -9835,6 +9935,7 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
     targetDate,
     defaultAccountId,
     status,
+    accountId,
   );
   @override
   bool operator ==(Object other) =>
@@ -9849,7 +9950,8 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
           other.targetMinor == this.targetMinor &&
           other.targetDate == this.targetDate &&
           other.defaultAccountId == this.defaultAccountId &&
-          other.status == this.status);
+          other.status == this.status &&
+          other.accountId == this.accountId);
 }
 
 class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
@@ -9863,6 +9965,7 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
   final Value<String?> targetDate;
   final Value<String?> defaultAccountId;
   final Value<String> status;
+  final Value<String?> accountId;
   final Value<int> rowid;
   const SavingsGoalsCompanion({
     this.id = const Value.absent(),
@@ -9875,6 +9978,7 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
     this.targetDate = const Value.absent(),
     this.defaultAccountId = const Value.absent(),
     this.status = const Value.absent(),
+    this.accountId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SavingsGoalsCompanion.insert({
@@ -9888,6 +9992,7 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
     this.targetDate = const Value.absent(),
     this.defaultAccountId = const Value.absent(),
     this.status = const Value.absent(),
+    this.accountId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -9906,6 +10011,7 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
     Expression<String>? targetDate,
     Expression<String>? defaultAccountId,
     Expression<String>? status,
+    Expression<String>? accountId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -9919,6 +10025,7 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
       if (targetDate != null) 'target_date': targetDate,
       if (defaultAccountId != null) 'default_account_id': defaultAccountId,
       if (status != null) 'status': status,
+      if (accountId != null) 'account_id': accountId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -9934,6 +10041,7 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
     Value<String?>? targetDate,
     Value<String?>? defaultAccountId,
     Value<String>? status,
+    Value<String?>? accountId,
     Value<int>? rowid,
   }) {
     return SavingsGoalsCompanion(
@@ -9947,6 +10055,7 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
       targetDate: targetDate ?? this.targetDate,
       defaultAccountId: defaultAccountId ?? this.defaultAccountId,
       status: status ?? this.status,
+      accountId: accountId ?? this.accountId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -9984,6 +10093,9 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -10003,6 +10115,7 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoalRow> {
           ..write('targetDate: $targetDate, ')
           ..write('defaultAccountId: $defaultAccountId, ')
           ..write('status: $status, ')
+          ..write('accountId: $accountId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10137,6 +10250,17 @@ class $SavingsGoalEntriesTable extends SavingsGoalEntries
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _linkedTransferIdMeta = const VerificationMeta(
+    'linkedTransferId',
+  );
+  @override
+  late final GeneratedColumn<String> linkedTransferId = GeneratedColumn<String>(
+    'linked_transfer_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10151,6 +10275,7 @@ class $SavingsGoalEntriesTable extends SavingsGoalEntries
     transactedAt,
     note,
     linkedTransactionId,
+    linkedTransferId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10260,6 +10385,15 @@ class $SavingsGoalEntriesTable extends SavingsGoalEntries
         ),
       );
     }
+    if (data.containsKey('linked_transfer_id')) {
+      context.handle(
+        _linkedTransferIdMeta,
+        linkedTransferId.isAcceptableOrUnknown(
+          data['linked_transfer_id']!,
+          _linkedTransferIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -10317,6 +10451,10 @@ class $SavingsGoalEntriesTable extends SavingsGoalEntries
         DriftSqlType.string,
         data['${effectivePrefix}linked_transaction_id'],
       ),
+      linkedTransferId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linked_transfer_id'],
+      ),
     );
   }
 
@@ -10348,6 +10486,9 @@ class SavingsGoalEntryRow extends DataClass
   /// goal-funded portion of a real purchase rather than a plain
   /// take-back.
   final String? linkedTransactionId;
+
+  /// The real [Transfers] row that actually moved this entry's money.
+  final String? linkedTransferId;
   const SavingsGoalEntryRow({
     required this.id,
     required this.userId,
@@ -10361,6 +10502,7 @@ class SavingsGoalEntryRow extends DataClass
     required this.transactedAt,
     this.note,
     this.linkedTransactionId,
+    this.linkedTransferId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -10383,6 +10525,9 @@ class SavingsGoalEntryRow extends DataClass
     if (!nullToAbsent || linkedTransactionId != null) {
       map['linked_transaction_id'] = Variable<String>(linkedTransactionId);
     }
+    if (!nullToAbsent || linkedTransferId != null) {
+      map['linked_transfer_id'] = Variable<String>(linkedTransferId);
+    }
     return map;
   }
 
@@ -10404,6 +10549,9 @@ class SavingsGoalEntryRow extends DataClass
       linkedTransactionId: linkedTransactionId == null && nullToAbsent
           ? const Value.absent()
           : Value(linkedTransactionId),
+      linkedTransferId: linkedTransferId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedTransferId),
     );
   }
 
@@ -10427,6 +10575,9 @@ class SavingsGoalEntryRow extends DataClass
       linkedTransactionId: serializer.fromJson<String?>(
         json['linkedTransactionId'],
       ),
+      linkedTransferId: serializer.fromJson<String?>(
+        json['linkedTransferId'],
+      ),
     );
   }
   @override
@@ -10445,6 +10596,7 @@ class SavingsGoalEntryRow extends DataClass
       'transactedAt': serializer.toJson<String>(transactedAt),
       'note': serializer.toJson<String?>(note),
       'linkedTransactionId': serializer.toJson<String?>(linkedTransactionId),
+      'linkedTransferId': serializer.toJson<String?>(linkedTransferId),
     };
   }
 
@@ -10461,6 +10613,7 @@ class SavingsGoalEntryRow extends DataClass
     String? transactedAt,
     Value<String?> note = const Value.absent(),
     Value<String?> linkedTransactionId = const Value.absent(),
+    Value<String?> linkedTransferId = const Value.absent(),
   }) => SavingsGoalEntryRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -10476,6 +10629,9 @@ class SavingsGoalEntryRow extends DataClass
     linkedTransactionId: linkedTransactionId.present
         ? linkedTransactionId.value
         : this.linkedTransactionId,
+    linkedTransferId: linkedTransferId.present
+        ? linkedTransferId.value
+        : this.linkedTransferId,
   );
   SavingsGoalEntryRow copyWithCompanion(SavingsGoalEntriesCompanion data) {
     return SavingsGoalEntryRow(
@@ -10497,6 +10653,9 @@ class SavingsGoalEntryRow extends DataClass
       linkedTransactionId: data.linkedTransactionId.present
           ? data.linkedTransactionId.value
           : this.linkedTransactionId,
+      linkedTransferId: data.linkedTransferId.present
+          ? data.linkedTransferId.value
+          : this.linkedTransferId,
     );
   }
 
@@ -10514,7 +10673,8 @@ class SavingsGoalEntryRow extends DataClass
           ..write('kind: $kind, ')
           ..write('transactedAt: $transactedAt, ')
           ..write('note: $note, ')
-          ..write('linkedTransactionId: $linkedTransactionId')
+          ..write('linkedTransactionId: $linkedTransactionId, ')
+          ..write('linkedTransferId: $linkedTransferId')
           ..write(')'))
         .toString();
   }
@@ -10533,6 +10693,7 @@ class SavingsGoalEntryRow extends DataClass
     transactedAt,
     note,
     linkedTransactionId,
+    linkedTransferId,
   );
   @override
   bool operator ==(Object other) =>
@@ -10549,7 +10710,8 @@ class SavingsGoalEntryRow extends DataClass
           other.kind == this.kind &&
           other.transactedAt == this.transactedAt &&
           other.note == this.note &&
-          other.linkedTransactionId == this.linkedTransactionId);
+          other.linkedTransactionId == this.linkedTransactionId &&
+          other.linkedTransferId == this.linkedTransferId);
 }
 
 class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
@@ -10565,6 +10727,7 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
   final Value<String> transactedAt;
   final Value<String?> note;
   final Value<String?> linkedTransactionId;
+  final Value<String?> linkedTransferId;
   final Value<int> rowid;
   const SavingsGoalEntriesCompanion({
     this.id = const Value.absent(),
@@ -10579,6 +10742,7 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
     this.transactedAt = const Value.absent(),
     this.note = const Value.absent(),
     this.linkedTransactionId = const Value.absent(),
+    this.linkedTransferId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SavingsGoalEntriesCompanion.insert({
@@ -10594,6 +10758,7 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
     required String transactedAt,
     this.note = const Value.absent(),
     this.linkedTransactionId = const Value.absent(),
+    this.linkedTransferId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -10617,6 +10782,7 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
     Expression<String>? transactedAt,
     Expression<String>? note,
     Expression<String>? linkedTransactionId,
+    Expression<String>? linkedTransferId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -10633,6 +10799,7 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
       if (note != null) 'note': note,
       if (linkedTransactionId != null)
         'linked_transaction_id': linkedTransactionId,
+      if (linkedTransferId != null) 'linked_transfer_id': linkedTransferId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -10650,6 +10817,7 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
     Value<String>? transactedAt,
     Value<String?>? note,
     Value<String?>? linkedTransactionId,
+    Value<String?>? linkedTransferId,
     Value<int>? rowid,
   }) {
     return SavingsGoalEntriesCompanion(
@@ -10665,6 +10833,7 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
       transactedAt: transactedAt ?? this.transactedAt,
       note: note ?? this.note,
       linkedTransactionId: linkedTransactionId ?? this.linkedTransactionId,
+      linkedTransferId: linkedTransferId ?? this.linkedTransferId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -10710,6 +10879,9 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
         linkedTransactionId.value,
       );
     }
+    if (linkedTransferId.present) {
+      map['linked_transfer_id'] = Variable<String>(linkedTransferId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -10731,6 +10903,7 @@ class SavingsGoalEntriesCompanion extends UpdateCompanion<SavingsGoalEntryRow> {
           ..write('transactedAt: $transactedAt, ')
           ..write('note: $note, ')
           ..write('linkedTransactionId: $linkedTransactionId, ')
+          ..write('linkedTransferId: $linkedTransferId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
