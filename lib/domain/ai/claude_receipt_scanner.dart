@@ -94,7 +94,13 @@ class ClaudeReceiptScanner {
 
     final body = jsonEncode({
       'model': _model,
-      'max_tokens': 1024,
+      // A receipt with several items (plus a category id per item) can
+      // easily need more than a token-stingy budget — 1024 was cutting
+      // the tool call off mid-item, which silently looked like "found
+      // nothing" rather than "ran out of room". 4096 comfortably covers
+      // a long receipt; this call never streams, so it still returns
+      // well inside normal request timeouts.
+      'max_tokens': 4096,
       'system':
           'You read photographed retail receipts for a Zambian personal '
           'finance app (currency ZMW, "K" also means ZMW). '
@@ -173,6 +179,20 @@ class ClaudeReceiptScanner {
     if (decoded['stop_reason'] == 'refusal') {
       log('scanImage refused by safety classifiers', name: _logName);
       throw AiExtractionException('Request declined by safety classifiers');
+    }
+    if (decoded['stop_reason'] == 'max_tokens') {
+      // The tool call itself got cut off mid-generation — Claude's
+      // `input` is incomplete or empty, which would otherwise parse as
+      // a silent "no items found" instead of the truncation it is.
+      log(
+        'scanImage truncated: hit max_tokens before finishing the tool '
+        'call',
+        name: _logName,
+      );
+      throw AiExtractionException(
+        "Response was cut off before it finished — this receipt's "
+        'contents were too long for the current limit',
+      );
     }
     final content = (decoded['content'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();

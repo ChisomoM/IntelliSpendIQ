@@ -213,6 +213,42 @@ void main() {
     );
   });
 
+  test(
+    'throws a clear error when the response was truncated by max_tokens',
+    () async {
+      final client = MockClient(
+        (request) async => http.Response(
+          jsonEncode({
+            'content': [
+              {
+                'type': 'tool_use',
+                'name': 'extract_receipt',
+                'input': <String, dynamic>{},
+              },
+            ],
+            'stop_reason': 'max_tokens',
+          }),
+          200,
+        ),
+      );
+      final scanner = ClaudeReceiptScanner(
+        secureStore: secureStore,
+        httpClient: client,
+      );
+
+      await expectLater(
+        () => scanner.scanImage(photo.path),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('cut off'),
+          ),
+        ),
+      );
+    },
+  );
+
   test('throws when no API key is configured', () async {
     final scanner = ClaudeReceiptScanner(
       secureStore: FakeSecureStore(),
