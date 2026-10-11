@@ -165,8 +165,12 @@ class ReceiptItemsCubit extends Cubit<ReceiptItemsState> {
             direction: TxDirection.debit,
             source: TxSource.manual,
             transactedAt: state.transactedAt,
-            merchant: merchant.isEmpty ? null : merchant,
-            description: name.isEmpty ? null : name,
+            // The item is what should name the row in the ledger (the
+            // tile's title reads `merchant`) — the shared store name
+            // goes in the note instead, so every item from one receipt
+            // doesn't show up as an indistinguishable "Shoprite".
+            merchant: name.isEmpty ? null : name,
+            description: merchant.isEmpty ? null : merchant,
             categoryId: item.categoryId,
             receiptPath: receiptPath,
           ),
