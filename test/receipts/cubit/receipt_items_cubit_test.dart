@@ -107,8 +107,10 @@ void main() {
       expect(cubit.state.status, ReceiptItemsStatus.saved);
       final all = await services.transactions.getAllForExport();
       expect(all, hasLength(2));
-      expect(all.map((t) => t.description), containsAll(['Bread', 'Milk']));
-      expect(all.every((t) => t.merchant == 'Shoprite Mukuba'), isTrue);
+      // The item names the row (what shows as the title in Activity);
+      // the shared store name goes in the note instead.
+      expect(all.map((t) => t.merchant), containsAll(['Bread', 'Milk']));
+      expect(all.every((t) => t.description == 'Shoprite Mukuba'), isTrue);
       expect(all.every((t) => t.categoryId == null), isTrue);
       expect(all.every((t) => t.receiptPath != null), isTrue);
       // Both items point at the same copied photo, not the picker's
@@ -180,8 +182,8 @@ void main() {
       await cubit.submit();
 
       final all = await services.transactions.getAllForExport();
-      final bread = all.firstWhere((t) => t.description == 'Bread');
-      final milk = all.firstWhere((t) => t.description == 'Milk');
+      final bread = all.firstWhere((t) => t.merchant == 'Bread');
+      final milk = all.firstWhere((t) => t.merchant == 'Milk');
       expect(bread.categoryId, shopping.id);
       expect(milk.categoryId, isNull);
     });
@@ -195,7 +197,7 @@ void main() {
 
     final all = await services.transactions.getAllForExport();
     expect(all, hasLength(1));
-    expect(all.single.description, 'Milk');
+    expect(all.single.merchant, 'Milk');
   });
 
   test('submit fails fast when nothing is checked', () async {
