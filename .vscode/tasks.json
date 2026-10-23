@@ -1,0 +1,53 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Android APK (development)",
+      "type": "process",
+      "command": "flutter",
+      "args": [
+        "build",
+        "apk",
+        "--release",
+        "--flavor",
+        "development",
+        "--target",
+        "lib/main_development.dart",
+        "--dart-define-from-file=secrets.json"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Build Android APK (staging)",
+      "type": "process",
+      "command": "flutter",
+      "args": [
+        "build",
+        "apk",
+        "--release",
+        "--flavor",
+        "staging",
+        "--target",
+        "lib/main_staging.dart",
+        "--dart-define-from-file=secrets.json"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Build Android APK (production)",
+      "type": "process",
+      "command": "flutter",
+      "args": [
+        "build",
+        "apk",
+        "--release",
+        "--flavor",
+        "production",
+        "--target",
+        "lib/main_production.dart",
+        "--dart-define-from-file=secrets.json"
+      ],
+      "group": "build"
+    }
+  ]
+}

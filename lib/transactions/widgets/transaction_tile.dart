@@ -35,7 +35,7 @@ class TransactionTile extends StatelessWidget {
   /// where the extra mark is noise.
   final bool showSource;
 
-  static final _timeFormat = DateFormat('HH:mm');
+  static final _timeFormat = DateFormat('EEE, M/d-HH:mm');
 
   static CaptureSource _sourceOf(TxSource source) => switch (source) {
     TxSource.sms || TxSource.notification => CaptureSource.sms,
@@ -144,7 +144,7 @@ class TransferTile extends StatelessWidget {
   /// Activity feed leaves this null so a transfer stays a neutral move.
   final String? perspectiveAccountId;
 
-  static final _timeFormat = DateFormat('HH:mm');
+  static final _timeFormat = DateFormat('EEE, M/d-HH:mm');
 
   @override
   Widget build(BuildContext context) {

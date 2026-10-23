@@ -110,6 +110,7 @@ secrets.json
 !/dev/ci/**/Gemfile.lock
 !.vscode/extensions.json
 !.vscode/launch.json
+!.vscode/tasks.json
 !.idea/codeStyles/
 !.idea/dictionaries/
 !.idea/runConfigurations/
@@ -118,3 +119,5 @@ secrets.json
 lib/l10n/gen/
 
 .gradle-user-home
+# Widget Preview related
+.widget_preview/
