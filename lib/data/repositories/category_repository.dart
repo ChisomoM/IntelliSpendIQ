@@ -203,20 +203,37 @@ class CategoryRepository {
     return true;
   }
 
-  /// Removes a user-created category. Refuses system categories (the
-  /// day-one seeds) — those stay put so the taxonomy the rest of the
-  /// app assumes always exists. Returns false without writing anything
-  /// if [id] is a system category or doesn't exist.
+  /// Removes a category, the day-one defaults included, so the list can
+  /// be reshaped to any budgeting style. The seeds are only planted on
+  /// first launch (see [ensureSeeds]), so a deleted default stays gone.
+  ///
+  /// Nothing the app does automatically depends on a default existing:
+  /// an SMS fee, a keyword guess or a transfer fee that would have
+  /// landed in "Fees/Charges" or another removed default is just left
+  /// uncategorized.
+  ///
+  /// Transactions keep their history. Any sub categories move up to the
+  /// top level instead of being orphaned under a parent that no longer
+  /// shows. Returns false without writing anything if [id] doesn't
+  /// exist or is already deleted.
   Future<bool> delete(String id) async {
-    final row = await (_db.select(
-      _db.categories,
-    )..where((c) => c.id.equals(id))).getSingleOrNull();
-    if (row == null || row.isSystem) return false;
+    final row =
+        await (_db.select(_db.categories)
+              ..where((c) => c.id.equals(id) & c.deletedAt.isNull()))
+            .getSingleOrNull();
+    if (row == null) return false;
 
     final now = Iso.nowUtc();
-    await (_db.update(_db.categories)..where((c) => c.id.equals(id))).write(
-      CategoriesCompanion(deletedAt: Value(now), updatedAt: Value(now)),
-    );
+    await _db.transaction(() async {
+      await (_db.update(
+        _db.categories,
+      )..where((c) => c.parentId.equals(id) & c.deletedAt.isNull())).write(
+        CategoriesCompanion(parentId: const Value(null), updatedAt: Value(now)),
+      );
+      await (_db.update(_db.categories)..where((c) => c.id.equals(id))).write(
+        CategoriesCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+      );
+    });
     return true;
   }
 

@@ -17,6 +17,21 @@ void main() {
       }
     });
 
+    test('every key is unique and has a real label', () {
+      final keys = CategoryIcons.pickableKeys;
+      expect(keys.toSet(), hasLength(keys.length));
+      // 'other' is the fallback glyph, so it is the one label that is
+      // allowed to read "Other".
+      for (final key in keys.where((k) => k != CategoryIconKey.other)) {
+        expect(
+          CategoryIcons.labelFor(key),
+          isNot('Other'),
+          reason: '$key needs a label in CategoryIcons.labelFor',
+        );
+      }
+      expect(keys.length, greaterThanOrEqualTo(25));
+    });
+
     test('maps a legacy emoji already on disk onto its key', () {
       // The seeds used to write emoji straight into categories.icon.
       // Those rows are never migrated, so resolution has to keep

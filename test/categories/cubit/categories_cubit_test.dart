@@ -74,16 +74,65 @@ void main() {
       expect(cubit.state.categories, hasLength(10));
     });
 
-    test('delete() refuses a system category', () async {
+    test('delete() removes a default category, and it stays gone', () async {
       final cubit = await cubitWith();
       addTearDown(cubit.close);
       final food = cubit.state.categories.firstWhere((c) => c.name == 'Food');
+      expect(food.isSystem, isTrue);
 
       await cubit.delete(food.id);
       await Future<void>.delayed(Duration.zero);
 
+      expect(cubit.state.categories, hasLength(9));
+      expect(cubit.state.categories.map((c) => c.name), isNot(contains('Food')));
+      // The defaults are only planted on first launch.
+      await services.categories.ensureSeeds();
+      expect(await services.categories.byName('Food'), isNull);
+    });
+
+    test('delete() on a missing category reports it', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+
+      await cubit.delete('no-such-id');
+      await Future<void>.delayed(Duration.zero);
+
       expect(cubit.state.status, CategoriesStatus.invalid);
       expect(cubit.state.categories, hasLength(10));
+    });
+
+    test('delete() moves sub categories up to the top level', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      final food = cubit.state.categories.firstWhere((c) => c.name == 'Food');
+      await cubit.add(name: 'Groceries', parentId: food.id);
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.delete(food.id);
+      await Future<void>.delayed(Duration.zero);
+
+      final groceries = cubit.state.categories.firstWhere(
+        (c) => c.name == 'Groceries',
+      );
+      expect(groceries.parentId, isNull);
+      expect(cubit.state.topLevel, contains(groceries));
+    });
+
+    test('a 50/30/20 style set can replace the defaults', () async {
+      final cubit = await cubitWith();
+      addTearDown(cubit.close);
+      for (final category in [...cubit.state.categories]) {
+        await cubit.delete(category.id);
+      }
+      for (final name in ['Needs', 'Wants', 'Savings']) {
+        await cubit.add(name: name);
+      }
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        cubit.state.categories.map((c) => c.name),
+        unorderedEquals(['Needs', 'Wants', 'Savings']),
+      );
     });
 
     test('add() nests a subcategory under a parent', () async {

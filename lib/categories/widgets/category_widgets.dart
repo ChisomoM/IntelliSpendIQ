@@ -61,12 +61,11 @@ class CategoryTile extends StatelessWidget {
                   context,
                 ).push<String?>(CategoryEditorPage.route(existing: category)),
               ),
-              if (!category.isSystem)
-                IconButton(
-                  icon: AppIcon(AppIcons.delete, size: 20),
-                  tooltip: 'Delete',
-                  onPressed: () => _confirmDelete(context),
-                ),
+              IconButton(
+                icon: AppIcon(AppIcons.delete, size: 20),
+                tooltip: 'Delete',
+                onPressed: () => _confirmDelete(context),
+              ),
               if (onTap != null) AppIcon(AppIcons.chevronRight, size: 20),
             ],
           ),
@@ -82,8 +81,13 @@ class CategoryTile extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete this category?'),
         content: Text(
-          'Transactions already in "${category.name}" keep their history, '
-          'but you will not be able to pick it for new ones.',
+          _deleteMessage(
+            name: category.name,
+            hasSubCategories: cubit.state
+                .childrenOf(category.id)
+                .isNotEmpty,
+            isDefault: category.isSystem,
+          ),
         ),
         actions: [
           TextButton(
@@ -270,8 +274,13 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
               : 'Delete this category?',
         ),
         content: Text(
-          'Transactions already in "${existing.name}" keep their history, '
-          'but you will not be able to pick it for new ones.',
+          _deleteMessage(
+            name: existing.name,
+            hasSubCategories: cubit.state
+                .childrenOf(existing.id)
+                .isNotEmpty,
+            isDefault: existing.isSystem,
+          ),
         ),
         actions: [
           TextButton(
@@ -308,7 +317,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
                     : 'Add category'),
         ),
         actions: [
-          if (isEditing && !widget.existing!.isSystem)
+          if (isEditing)
             IconButton(
               icon: AppIcon(AppIcons.delete, size: 20),
               tooltip: 'Delete',
@@ -505,4 +514,23 @@ class _IconPicker extends StatelessWidget {
       ],
     );
   }
+}
+
+/// What the delete dialog tells the user, shared by the list row and the
+/// editor so both say the same thing.
+String _deleteMessage({
+  required String name,
+  required bool hasSubCategories,
+  required bool isDefault,
+}) {
+  final parts = [
+    'Transactions already in "$name" keep their history, but you will not '
+        'be able to pick it for new ones.',
+    if (hasSubCategories) 'Its sub categories move up to the top level.',
+    if (isDefault)
+      'This is one of the default categories. It will not come back on '
+          'its own, and anything the app would have filed under it is left '
+          'uncategorized.',
+  ];
+  return parts.join('\n\n');
 }

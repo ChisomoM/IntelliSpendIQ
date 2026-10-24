@@ -286,7 +286,7 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       emit(
         state.copyWith(
           status: CategoriesStatus.invalid,
-          errorMessage: "Default categories can't be deleted",
+          errorMessage: 'That category no longer exists',
         ),
       );
     }

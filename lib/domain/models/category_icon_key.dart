@@ -21,5 +21,23 @@ abstract final class CategoryIconKey {
   static const subscription = 'subscription';
   static const transfer = 'transfer';
   static const entertainment = 'entertainment';
+  static const home = 'home';
+  static const health = 'health';
+  static const education = 'education';
+  static const travel = 'travel';
+  static const gift = 'gift';
+  static const savings = 'savings';
+  static const family = 'family';
+  static const pets = 'pets';
+  static const fitness = 'fitness';
+  static const utilities = 'utilities';
+  static const coffee = 'coffee';
+  static const fuel = 'fuel';
+  static const work = 'work';
+  static const personalCare = 'personalCare';
+  static const clothing = 'clothing';
+  static const insurance = 'insurance';
+  static const internet = 'internet';
+  static const giving = 'giving';
   static const other = 'other';
 }
