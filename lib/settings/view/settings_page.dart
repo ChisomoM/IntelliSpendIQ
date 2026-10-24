@@ -13,6 +13,7 @@ import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
+import 'package:intellispendiq/domain/services/budget_import_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/licensing/cubit/cubit.dart';
@@ -588,6 +589,14 @@ class _DataSectionState extends State<_DataSection> {
               onTap: _busy ? null : () => _exportCsv(context),
             ),
             AppListRow(
+              leading: const _RowIcon(icon: AppIcons.restore),
+              title: const Text('Import budget (CSV)'),
+              subtitle: const Text(
+                'Add many planned or paid expenses from a spreadsheet',
+              ),
+              onTap: _busy ? null : () => _importBudget(context),
+            ),
+            AppListRow(
               leading: const _RowIcon(icon: AppIcons.backup),
               title: const Text('Back up all data (JSON)'),
               subtitle: const Text(
@@ -664,6 +673,99 @@ class _DataSectionState extends State<_DataSection> {
     } on Exception catch (error) {
       messenger.showSnackBar(
         SnackBar(content: Text('Could not export: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _importBudget(BuildContext context) async {
+    final importer = context.read<BudgetImportService>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Import budget'),
+        content: const Text(
+          'Each line of the file is something you are budgeting for: a '
+          'date, category, optional sub category, amount, and whether it '
+          'is already paid. Unpaid lines are saved as planned expenses. '
+          'Categories that do not exist yet are created. Lines you have '
+          'already imported are skipped.\n\n'
+          'Columns: Date, Category, Sub category, Amount, Paid, Account, '
+          'Note. Account and Note are optional; a blank account uses '
+          'your default one.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('cancel'),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('template'),
+            child: const Text('Get template'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('file'),
+            child: const Text('Choose file'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+
+    if (choice == 'template') {
+      setState(() => _busy = true);
+      try {
+        final file = await importer.writeTemplate();
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path)],
+            text: 'IntelliSpendIQ budget template',
+          ),
+        );
+      } on Exception catch (error) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not create the template: $error')),
+        );
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+      return;
+    }
+    if (choice != 'file') return;
+
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    final path = result?.files.single.path;
+    if (path == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final plan = await importer.parse(await File(path).readAsString());
+      if (!mounted) return;
+      setState(() => _busy = false);
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => _BudgetImportPreview(plan: plan),
+      );
+      if (confirmed != true || !mounted) return;
+
+      setState(() => _busy = true);
+      final saved = await importer.apply(plan);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Added $saved budget item(s).')),
+      );
+    } on FormatException catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not read that file: ${error.message}')),
+      );
+    } on Exception catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not import: $error')),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -805,5 +907,57 @@ class _DataSectionState extends State<_DataSection> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+/// Shows what an import would do before anything is saved.
+class _BudgetImportPreview extends StatelessWidget {
+  const _BudgetImportPreview({required this.plan});
+
+  final BudgetImportPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final errors = plan.errors;
+    return AlertDialog(
+      title: const Text('Review import'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${plan.rows.length} to add: ${plan.paidCount} paid, '
+              '${plan.plannedCount} planned',
+            ),
+            if (plan.alreadyPresent > 0)
+              Text('${plan.alreadyPresent} already imported, skipped'),
+            if (plan.newCategories.isNotEmpty) ...[
+              const SizedBox(height: Space.x1),
+              Text('New categories: ${plan.newCategories.join(', ')}'),
+            ],
+            if (errors.isNotEmpty) ...[
+              const SizedBox(height: Space.x1),
+              Text(
+                '${errors.length} line(s) have problems and will be left out:',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              for (final error in errors.take(10)) Text('$error'),
+              if (errors.length > 10) Text('and ${errors.length - 10} more'),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: plan.hasWork ? () => Navigator.of(context).pop(true) : null,
+          child: const Text('Add to budget'),
+        ),
+      ],
+    );
   }
 }

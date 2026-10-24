@@ -29,6 +29,7 @@ import 'package:intellispendiq/domain/ai/anthropic_claude_provider.dart';
 import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
+import 'package:intellispendiq/domain/services/budget_import_service.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
@@ -78,6 +79,7 @@ class AppServices {
     required this.chatProvider,
     required this.financeChat,
     required this.backupService,
+    required this.budgetImportService,
     required this.dataResetService,
     required this.captureBridge,
     required this.deepLinkSource,
@@ -257,6 +259,13 @@ class AppServices {
       savingsGoals: savingsGoals,
       wishlist: wishlist,
     );
+    final budgetImportService = BudgetImportService(
+      db: db,
+      transactions: transactions,
+      categories: categories,
+      accounts: accounts,
+      budgetPeriods: budgetPeriods,
+    );
     final dataResetService = DataResetService(
       db: db,
       settings: settings,
@@ -315,6 +324,7 @@ class AppServices {
       chatProvider: chat,
       financeChat: financeChatService,
       backupService: backupService,
+      budgetImportService: budgetImportService,
       dataResetService: dataResetService,
       captureBridge: bridge,
       deepLinkSource: CompositeDeepLinkSource([
@@ -357,6 +367,7 @@ class AppServices {
   final ChatProvider chatProvider;
   final FinanceChatService financeChat;
   final BackupService backupService;
+  final BudgetImportService budgetImportService;
   final DataResetService dataResetService;
   final CaptureBridge captureBridge;
   final DeepLinkSource deepLinkSource;

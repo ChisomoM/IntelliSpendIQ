@@ -27,6 +27,7 @@ import 'package:intellispendiq/data/secure/secure_store.dart';
 import 'package:intellispendiq/design/theme/app_theme.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
+import 'package:intellispendiq/domain/services/budget_import_service.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
@@ -99,6 +100,9 @@ class App extends StatelessWidget {
           value: services.financeChat,
         ),
         RepositoryProvider<BackupService>.value(value: services.backupService),
+        RepositoryProvider<BudgetImportService>.value(
+          value: services.budgetImportService,
+        ),
         RepositoryProvider<DataResetService>.value(
           value: services.dataResetService,
         ),
