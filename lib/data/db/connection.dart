@@ -27,6 +27,13 @@ QueryExecutor openEncryptedConnection({required String passphrase}) {
             'SQLCipher is not available — refusing to open unencrypted DB',
           );
         }
+        // The SMS receiver can start a second engine that writes to this
+        // same file while the app is open. WAL lets readers and a writer
+        // coexist, and the timeout makes a second writer wait its turn
+        // instead of failing with "database is locked".
+        db
+          ..execute('PRAGMA journal_mode = WAL;')
+          ..execute('PRAGMA busy_timeout = 5000;');
       },
     );
   });

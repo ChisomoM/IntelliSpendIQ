@@ -27,6 +27,9 @@ The raw message is written to `raw_captures` **before** anything tries to parse
 it. If every downstream step fails, the original text is still on disk and shows
 up in the Review Inbox. A capture is never dropped, only routed.
 
+- **Capture works with the app closed** — the SMS receiver starts a headless
+  engine that runs the same pipeline and can nudge you to categorize what it
+  could not place. See [docs/BACKGROUND_CAPTURE.md](docs/BACKGROUND_CAPTURE.md).
 - **SMS parsing is deterministic** — regex and token rules per provider, no LLM.
   Airtel Money covers six message families; Standard Chartered covers outbound
   transfers so far. Anything unrecognized fails loudly into the inbox rather than

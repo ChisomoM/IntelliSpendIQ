@@ -13,6 +13,7 @@ import 'package:intellispendiq/data/repositories/identity_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/license_repository.dart';
 import 'package:intellispendiq/data/repositories/merchant_category_rule_repository.dart';
+import 'package:intellispendiq/data/repositories/nudge_settings_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -30,9 +31,10 @@ import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/budget_import_service.dart';
+import 'package:intellispendiq/domain/services/capture_core.dart';
+import 'package:intellispendiq/domain/services/capture_nudger.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
-import 'package:intellispendiq/domain/services/dedupe_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
 import 'package:intellispendiq/domain/services/reminder_scheduler.dart';
@@ -41,6 +43,7 @@ import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/platform/biometric_authenticator.dart';
 import 'package:intellispendiq/platform/capture_bridge.dart';
 import 'package:intellispendiq/platform/deep_link_source.dart';
+import 'package:intellispendiq/platform/flutter_nudge_notifier.dart';
 
 /// Composition root: builds the encrypted database and every repository
 /// and service the app needs, wired together once at startup.
@@ -62,6 +65,8 @@ class AppServices {
     required this.settings,
     required this.reminderSettings,
     required this.reminderScheduler,
+    required this.nudgeSettings,
+    required this.captureNudger,
     required this.customSenders,
     required this.merchantCategoryRules,
     required this.savingsGoals,
@@ -105,6 +110,7 @@ class AppServices {
       identity: FirebaseIdentityRepository(),
       license: FirestoreLicenseRepository(secureStore: store),
       fees: FirestoreFeeScheduleRepository(secureStore: store),
+      nudgeNotifier: FlutterNudgeNotifier(),
     );
   }
 
@@ -123,6 +129,7 @@ class AppServices {
     LicenseRepository? license,
     FeeScheduleRepository? fees,
     ReminderService? reminderScheduler,
+    NudgeNotifier? nudgeNotifier,
     AppFlavor flavor = AppFlavor.development,
   }) => _wire(
     db: db,
@@ -137,6 +144,7 @@ class AppServices {
     license: license,
     fees: fees,
     reminderScheduler: reminderScheduler,
+    nudgeNotifier: nudgeNotifier,
     flavor: flavor,
   );
 
@@ -154,17 +162,23 @@ class AppServices {
     LicenseRepository? license,
     FeeScheduleRepository? fees,
     ReminderService? reminderScheduler,
+    NudgeNotifier? nudgeNotifier,
   }) async {
-    final accounts = AccountRepository(db, userId: userId);
-    final categories = CategoryRepository(db, userId: userId);
-    final transactions = TransactionRepository(db, userId: userId);
-    final rawCaptures = RawCaptureRepository(db, userId: userId);
-    final overallBudgets = OverallBudgetRepository(db, userId: userId);
-    final budgetPeriods = BudgetPeriodRepository(
-      db,
+    // The capture pipeline is built by `CaptureCore`, the same wiring
+    // the background entrypoint uses, so the two cannot drift apart.
+    final feeRepo = fees ?? MemoryFeeScheduleRepository();
+    final core = await CaptureCore.create(
+      db: db,
       userId: userId,
-      transactions: transactions,
+      fees: feeRepo,
+      nudgeNotifier: nudgeNotifier,
     );
+    final accounts = core.accounts;
+    final categories = core.categories;
+    final transactions = core.transactions;
+    final rawCaptures = core.rawCaptures;
+    final budgetPeriods = core.budgetPeriods;
+    final overallBudgets = OverallBudgetRepository(db, userId: userId);
     final transfers = TransferRepository(
       db,
       userId: userId,
@@ -172,7 +186,7 @@ class AppServices {
     );
     final payees = PayeeRepository(db, userId: userId);
     final labels = LabelRepository(db, userId: userId);
-    final settings = SettingsRepository(db);
+    final settings = core.settings;
     final reminderSettings = ReminderSettingsRepository(settings);
     final reminders =
         reminderScheduler ??
@@ -185,11 +199,10 @@ class AppServices {
       unawaited(reminders.onActivityLogged());
     };
     unawaited(reminders.reschedule(await reminderSettings.load()));
-    final customSenders = CustomSenderRepository(db, userId: userId);
-    final merchantCategoryRules = MerchantCategoryRuleRepository(
-      db,
-      userId: userId,
-    );
+    final nudgeSettings = core.nudgeSettings;
+    final captureNudger = core.captureNudger;
+    final customSenders = core.customSenders;
+    final merchantCategoryRules = core.merchantCategoryRules;
     final savingsGoals = SavingsGoalRepository(
       db,
       userId: userId,
@@ -213,31 +226,12 @@ class AppServices {
     await budgetPeriods.ensureSchedule();
     await budgetPeriods.ensurePeriodContaining(DateTime.now());
 
-    final registry = ParserRegistry()
-      ..setCustomSenders({
-        for (final sender in await customSenders.getAll())
-          sender.senderId: sender.providerKey,
-      });
-    final merchantCategorizer = MerchantCategorizer(
-      rules: merchantCategoryRules,
-      categories: categories,
-    );
+    final registry = core.registry;
+    final merchantCategorizer = core.merchantCategorizer;
     final identityRepo = identity ?? FirebaseIdentityRepository();
     final licenseRepo =
         license ?? FirestoreLicenseRepository(secureStore: store);
-    final feeRepo = fees ?? MemoryFeeScheduleRepository();
-
-    final captureService = CaptureService(
-      registry: registry,
-      rawCaptures: rawCaptures,
-      transactions: transactions,
-      accounts: accounts,
-      categories: categories,
-      budgetPeriods: budgetPeriods,
-      dedupe: DedupeService(transactions),
-      categorizer: merchantCategorizer,
-      fees: feeRepo,
-    );
+    final captureService = core.captureService;
     final bridge = captureBridge ?? CaptureBridge();
     final ai = aiProvider ?? AnthropicClaudeProvider(secureStore: store);
     final chat = chatProvider ?? AnthropicChatProvider(secureStore: store);
@@ -291,6 +285,8 @@ class AppServices {
       settings: settings,
       reminderSettings: reminderSettings,
       reminderScheduler: reminders,
+      nudgeSettings: nudgeSettings,
+      captureNudger: captureNudger,
       customSenders: customSenders,
       merchantCategoryRules: merchantCategoryRules,
       savingsGoals: savingsGoals,
@@ -350,6 +346,8 @@ class AppServices {
   final SettingsRepository settings;
   final ReminderSettingsRepository reminderSettings;
   final ReminderService reminderScheduler;
+  final NudgeSettingsRepository nudgeSettings;
+  final CaptureNudger captureNudger;
   final CustomSenderRepository customSenders;
   final MerchantCategoryRuleRepository merchantCategoryRules;
   final SavingsGoalRepository savingsGoals;
@@ -377,6 +375,7 @@ class AppServices {
     await appLock.dispose();
     await identity.dispose();
     await reminderScheduler.dispose();
+    await captureNudger.dispose();
     await db.close();
   }
 }

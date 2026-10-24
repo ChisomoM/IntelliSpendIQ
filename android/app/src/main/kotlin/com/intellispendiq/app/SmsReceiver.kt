@@ -8,7 +8,9 @@ import android.provider.Telephony
 /**
  * Forwards incoming SMS to the Dart event sink while the app is running.
  *
- * This is a convenience path only: the launch-time inbox diff in
+ * When the app is not running this also starts a headless engine
+ * ([BackgroundCapture]) so the message is processed immediately. Either
+ * way it is a convenience path only: the launch-time inbox diff in
  * [SmsInboxBridge] remains the source of truth, because OEM ROMs drop
  * or delay these broadcasts (plan risk #10). Messages missed here are
  * picked up by the next backfill.
@@ -29,16 +31,33 @@ class SmsReceiver : BroadcastReceiver() {
             timestamp = message.timestampMillis
         }
 
-        for ((address, body) in bodies) {
-            CaptureEventStreamHandler.emit(
-                mapOf(
-                    "channel" to "sms",
-                    "id" to null,
-                    "address" to address,
-                    "body" to body.toString(),
-                    "date" to timestamp,
-                ),
+        val payloads = bodies.map { (address, body) ->
+            mapOf(
+                "channel" to "sms",
+                "id" to null,
+                "address" to address,
+                "body" to body.toString(),
+                "date" to timestamp,
             )
+        }
+
+        // Whether the app is running decides who handles the message.
+        // Sampled before emitting, because emit() buffers when nobody is
+        // listening and that must not look like a listener.
+        val appIsRunning = CaptureEventStreamHandler.hasListener()
+        for (payload in payloads) CaptureEventStreamHandler.emit(payload)
+
+        // App closed: emit() only buffered the messages in memory, which
+        // the process may not outlive. Run them through Dart now, in a
+        // headless engine, so the transaction is saved and the user is
+        // nudged while they still remember. Ingest is idempotent, so the
+        // buffered copy, a later backfill, or both arriving too is harmless.
+        val worthProcessing = payloads.filter {
+            context != null && KnownSenders.isKnown(context, it["address"] as String)
+        }
+        if (!appIsRunning && context != null && worthProcessing.isNotEmpty()) {
+            val pending = goAsync()
+            BackgroundCapture.run(context, worthProcessing) { pending.finish() }
         }
     }
 }

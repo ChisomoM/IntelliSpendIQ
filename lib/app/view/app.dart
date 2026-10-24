@@ -15,6 +15,7 @@ import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/license_repository.dart';
 import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
+import 'package:intellispendiq/data/repositories/nudge_settings_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/reminder_settings_repository.dart';
@@ -28,6 +29,7 @@ import 'package:intellispendiq/design/theme/app_theme.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/budget_import_service.dart';
+import 'package:intellispendiq/domain/services/capture_nudger.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
@@ -37,6 +39,7 @@ import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/home/home.dart';
 import 'package:intellispendiq/licensing/licensing.dart';
+import 'package:intellispendiq/platform/capture_bridge.dart';
 
 /// Root widget. Repositories and services are exposed with
 /// [RepositoryProvider] so cubits resolve them from the tree rather
@@ -88,6 +91,10 @@ class App extends StatelessWidget {
         RepositoryProvider<ReminderService>.value(
           value: services.reminderScheduler,
         ),
+        RepositoryProvider<NudgeSettingsRepository>.value(
+          value: services.nudgeSettings,
+        ),
+        RepositoryProvider<CaptureNudger>.value(value: services.captureNudger),
         RepositoryProvider<CaptureService>.value(
           value: services.captureService,
         ),
@@ -95,6 +102,7 @@ class App extends StatelessWidget {
           value: services.merchantCategorizer,
         ),
         RepositoryProvider<SmsSyncService>.value(value: services.smsSync),
+        RepositoryProvider<CaptureBridge>.value(value: services.captureBridge),
         RepositoryProvider<VoicePipeline>.value(value: services.voicePipeline),
         RepositoryProvider<FinanceChatService>.value(
           value: services.financeChat,
@@ -140,6 +148,8 @@ class App extends StatelessWidget {
           ),
         ],
         child: _ReminderRescheduler(
+          onResumed: services.db.refreshAfterExternalWrites,
+          onPaused: () => unawaited(services.smsSync.publishKnownSenders()),
           child: BlocBuilder<ThemeCubit, ThemeMode>(
             builder: (context, themeMode) {
               return MaterialApp(
@@ -165,9 +175,21 @@ class App extends StatelessWidget {
 /// foreground, so a device timezone or clock change is picked up
 /// promptly rather than only the next time settings are edited.
 class _ReminderRescheduler extends StatefulWidget {
-  const _ReminderRescheduler({required this.child});
+  const _ReminderRescheduler({
+    required this.child,
+    this.onResumed,
+    this.onPaused,
+  });
 
   final Widget child;
+
+  /// Also run on every return to the foreground, e.g. to refresh data a
+  /// background engine wrote while the app was closed.
+  final VoidCallback? onResumed;
+
+  /// Run when the app leaves the foreground, e.g. to republish anything
+  /// the background engine needs to know about.
+  final VoidCallback? onPaused;
 
   @override
   State<_ReminderRescheduler> createState() => _ReminderReschedulerState();
@@ -189,7 +211,10 @@ class _ReminderReschedulerState extends State<_ReminderRescheduler>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_reschedule());
+    if (state == AppLifecycleState.paused) widget.onPaused?.call();
+    if (state != AppLifecycleState.resumed) return;
+    widget.onResumed?.call();
+    unawaited(_reschedule());
   }
 
   Future<void> _reschedule() async {

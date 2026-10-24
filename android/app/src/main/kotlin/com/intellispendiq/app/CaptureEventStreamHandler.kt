@@ -33,6 +33,9 @@ object CaptureEventStreamHandler : EventChannel.StreamHandler {
         synchronized(this) { sink = null }
     }
 
+    /** True while a Dart listener (a running app engine) is attached. */
+    fun hasListener(): Boolean = synchronized(this) { sink != null }
+
     fun emit(event: Map<String, Any?>) {
         synchronized(this) {
             val target = sink

@@ -37,6 +37,20 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 14;
 
+  /// Tells live queries to re-run after another engine wrote to the
+  /// file.
+  ///
+  /// Drift only notices writes made through this instance. The engine the
+  /// SMS receiver starts while the app is closed has its own connection,
+  /// so anything it saved is invisible to open screens until they are told
+  /// to look again. Call this when the app returns to the foreground.
+  void refreshAfterExternalWrites() => markTablesUpdated([
+    transactions,
+    rawCaptures,
+    accounts,
+    budgetPeriods,
+  ]);
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),

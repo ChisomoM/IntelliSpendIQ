@@ -178,6 +178,7 @@ class FakeCaptureBridge implements CaptureBridge {
   final List<CaptureInput> inbox;
   final bool permission;
   final readCalls = <int>[];
+  Iterable<String> knownSenders = const [];
   final _events = StreamController<CaptureInput>.broadcast();
 
   @override
@@ -185,6 +186,16 @@ class FakeCaptureBridge implements CaptureBridge {
 
   @override
   Future<bool> requestSmsPermission() async => permission;
+
+  @override
+  Future<void> setKnownSenders(Iterable<String> senders) async =>
+      knownSenders = senders.toList();
+
+  @override
+  Future<bool> isIgnoringBatteryOptimizations() async => true;
+
+  @override
+  Future<void> openBatterySettings() async {}
 
   @override
   Future<bool> isNotificationAccessGranted() async => false;

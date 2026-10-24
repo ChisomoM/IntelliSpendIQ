@@ -61,6 +61,20 @@ class SmsSyncService {
     return ingested;
   }
 
+  /// Publishes the recognized sender IDs to native, which uses them to
+  /// decide whether an SMS arriving while the app is closed is worth
+  /// starting the pipeline for. Call at startup and whenever the app
+  /// goes to the background, so a sender the user just added is in
+  /// effect by the time it matters.
+  Future<void> publishKnownSenders() async {
+    try {
+      await _bridge.setKnownSenders(_registry.knownSenderIds);
+    } on Object {
+      // Native keeps its previous list, or none, and then accepts every
+      // sender, which only costs a wasted wake-up.
+    }
+  }
+
   /// Starts listening to live capture events. Every event goes through
   /// the same ingest pipeline as the backfill (idempotent by content
   /// hash / SMS id, so overlap with backfill is harmless).

@@ -30,6 +30,22 @@ class MemoryFeeScheduleRepository implements FeeScheduleRepository {
   Future<FeeSchedule> refreshIfOnline() async => _schedule;
 }
 
+/// The on-disk tariff cache and nothing else: no Firebase, no network.
+/// For the background capture path, where no Firebase app exists.
+class CachedFeeScheduleRepository implements FeeScheduleRepository {
+  CachedFeeScheduleRepository({required SecureStore secureStore})
+    : _store = secureStore;
+
+  final SecureStore _store;
+
+  @override
+  Future<FeeSchedule> current() async =>
+      await _store.readFeeScheduleCache() ?? FeeSchedule.empty;
+
+  @override
+  Future<FeeSchedule> refreshIfOnline() => current();
+}
+
 /// Firestore `config/feeSchedule`, mirrored into [SecureStore].
 class FirestoreFeeScheduleRepository implements FeeScheduleRepository {
   FirestoreFeeScheduleRepository({

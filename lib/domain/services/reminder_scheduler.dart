@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:intellispendiq/background/nudge_actions.dart';
 import 'package:intellispendiq/core/deep_link.dart';
 import 'package:intellispendiq/core/time.dart';
 import 'package:intellispendiq/data/repositories/reminder_settings_repository.dart';
@@ -96,6 +97,8 @@ class ReminderScheduler implements ReminderService {
         iOS: DarwinInitializationSettings(),
       ),
       onDidReceiveNotificationResponse: _handleResponse,
+      // Buttons on a capture nudge run without opening the app.
+      onDidReceiveBackgroundNotificationResponse: nudgeActionBackground,
     );
 
     final launchDetails = await _plugin.getNotificationAppLaunchDetails();
@@ -206,7 +209,14 @@ class ReminderScheduler implements ReminderService {
       await _snoozeOnce();
       return;
     }
-    final uri = Uri.parse(_addTransactionUri);
+    // Reminders carry no payload and open the add screen. Capture
+    // nudges (posted by `FlutterNudgeNotifier` through this same
+    // plugin) carry the deep link they should open.
+    final payload = response.payload;
+    final payloadUri = payload == null ? null : Uri.tryParse(payload);
+    final uri = payloadUri != null && payloadUri.scheme == DeepLink.scheme
+        ? payloadUri
+        : Uri.parse(_addTransactionUri);
     if (isColdStart) {
       _pendingLaunchUri = uri;
     } else {
