@@ -72,7 +72,7 @@ void main() {
     });
 
     test('stays silent when the nudge setting is off', () async {
-      await core.nudgeSettings.save(const NudgeSettings());
+      await core.nudgeSettings.save(const NudgeSettings(enabled: false));
 
       final status = await handler.ingest(sms(Corpus.paymentTillNamed));
 

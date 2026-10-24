@@ -18,6 +18,12 @@ import 'package:timezone/timezone.dart' as tz;
 abstract interface class ReminderService implements DeepLinkSource {
   Future<void> init();
   Future<bool> requestPermission();
+
+  /// Whether the OS will actually show this app's notifications right
+  /// now. False when the permission was denied or notifications were
+  /// switched off for the app in system settings.
+  Future<bool> areNotificationsEnabled();
+
   Future<void> reschedule(ReminderSettings settings);
   Future<void> onActivityLogged();
   Future<void> cancelAll();
@@ -133,6 +139,20 @@ class ReminderScheduler implements ReminderService {
           ) ??
           false;
     }
+    return true;
+  }
+
+  @override
+  Future<bool> areNotificationsEnabled() async {
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android != null) {
+      return await android.areNotificationsEnabled() ?? false;
+    }
+    // iOS has no cheap equivalent here; the answer to
+    // [requestPermission] is what matters there.
     return true;
   }
 

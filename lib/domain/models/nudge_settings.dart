@@ -3,11 +3,13 @@ import 'package:equatable/equatable.dart';
 /// Whether, and when, a freshly captured transaction that nobody could
 /// categorize should prompt the user to sort it straight away.
 ///
-/// Off by default: the notification permission prompt belongs next to
-/// the switch that asks for it, same as expense reminders.
+/// On by default, because a prompt nobody switched on is a prompt nobody
+/// sees. The notification permission is asked for once, when the app
+/// first opens (`NudgePermission`), and the switch lives in Reminders
+/// settings.
 class NudgeSettings extends Equatable {
   const NudgeSettings({
-    this.enabled = false,
+    this.enabled = true,
     this.quietStartHour = defaultQuietStartHour,
     this.quietEndHour = defaultQuietEndHour,
   });
@@ -55,7 +57,7 @@ class NudgeSettings extends Equatable {
     int hourOr(Object? value, int fallback) =>
         value is int && value >= 0 && value <= 23 ? value : fallback;
     return NudgeSettings(
-      enabled: json['enabled'] == true,
+      enabled: json['enabled'] != false,
       quietStartHour: hourOr(json['quietStartHour'], defaultQuietStartHour),
       quietEndHour: hourOr(json['quietEndHour'], defaultQuietEndHour),
     );

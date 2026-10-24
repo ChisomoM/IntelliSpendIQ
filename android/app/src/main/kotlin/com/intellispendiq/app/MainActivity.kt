@@ -55,6 +55,14 @@ class MainActivity : FlutterActivity() {
                         result.success(power.isIgnoringBatteryOptimizations(packageName))
                     }
 
+                    "openNotificationSettings" -> {
+                        startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
+                        )
+                        result.success(null)
+                    }
+
                     "openBatterySettings" -> {
                         // The list screen, not the one-tap exemption prompt:
                         // that prompt needs an extra permission, and on many

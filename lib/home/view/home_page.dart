@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intellispendiq/app/cubit/cubit.dart';
@@ -10,6 +12,7 @@ import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/services/capture_nudger.dart';
+import 'package:intellispendiq/domain/services/nudge_permission.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/home/cubit/cubit.dart';
 import 'package:intellispendiq/reports/reports.dart';
@@ -24,15 +27,26 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          HomeCubit(
-              transactions: context.read<TransactionRepository>(),
-              rawCaptures: context.read<RawCaptureRepository>(),
-              smsSync: context.read<SmsSyncService>(),
-              nudger: context.read<CaptureNudger>(),
-            )
-            ..watchPendingCount()
-            ..startCaptureUnawaited(),
+      create: (context) {
+        // Asked once, the first time the app is open with nudging on. A
+        // short delay keeps it from landing on top of another system
+        // prompt in the same moment.
+        final permission = context.read<NudgePermission>();
+        unawaited(
+          Future<void>.delayed(
+            const Duration(seconds: 2),
+            permission.requestOnce,
+          ),
+        );
+        return HomeCubit(
+            transactions: context.read<TransactionRepository>(),
+            rawCaptures: context.read<RawCaptureRepository>(),
+            smsSync: context.read<SmsSyncService>(),
+            nudger: context.read<CaptureNudger>(),
+          )
+          ..watchPendingCount()
+          ..startCaptureUnawaited();
+      },
       child: const HomeView(),
     );
   }

@@ -108,6 +108,12 @@ void main() {
       expect(settings.isQuiet(DateTime(2026, 7, 28, 9)), isFalse);
     });
 
+    test('is on unless the user turned it off', () {
+      expect(const NudgeSettings().enabled, isTrue);
+      expect(NudgeSettings.fromJson(const {}).enabled, isTrue);
+      expect(NudgeSettings.fromJson(const {'enabled': false}).enabled, isFalse);
+    });
+
     test('round-trips through JSON and survives bad values', () {
       const settings = NudgeSettings(enabled: true, quietStartHour: 21);
       expect(NudgeSettings.fromJson(settings.toJson()), settings);
@@ -143,7 +149,8 @@ void main() {
     Future<void> enable() =>
         services.nudgeSettings.save(const NudgeSettings(enabled: true));
 
-    test('stays silent until the user switches it on', () async {
+    test('stays silent when the user has switched it off', () async {
+      await services.nudgeSettings.save(const NudgeSettings(enabled: false));
       await nudger.onIngest(saved());
       await nudger.flush();
 

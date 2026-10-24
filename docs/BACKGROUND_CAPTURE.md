@@ -25,6 +25,17 @@ plugin's own isolate: it opens the DB, categorizes the transaction, teaches
 the merchant rule (so the next payment there is categorized on arrival) and
 the notification clears. The app is never opened.
 
+## Notification permission
+
+Nudging is on by default. On Android 13 and later the app needs the
+notification permission, and `NudgePermission.requestOnce()` shows the system
+prompt once, about two seconds after the home screen first opens. Android
+will not show that prompt a second time after a refusal, so Settings →
+Reminders shows a "Notifications are turned off" row whenever the OS is
+blocking the app. Tapping it asks again and, if the system will not, opens
+the app's notification settings, which is the only place to give the
+permission back. The row clears itself when you return to the app.
+
 ## Reliability
 
 This is best effort, and nothing depends on it:
@@ -74,8 +85,9 @@ app returns to the foreground.
 Dart tests cover the policy, batching, handler and button logic. The Kotlin
 and engine path needs a device or emulator:
 
-1. Turn on **Settings → Reminders → Ask me what new spending was** and allow
-   notifications. Open the app once so the known senders are published.
+1. Open the app once (it asks for notification permission and publishes the
+   known senders). Check **Settings → Reminders → Ask me what new spending
+   was** is on and that no "Notifications are turned off" row shows.
 2. Force-stop the app: `adb shell am force-stop com.intellispendiq.app`
    (use the flavor's application id if it differs).
 3. Send a message from a recognized sender, e.g. on an emulator:
