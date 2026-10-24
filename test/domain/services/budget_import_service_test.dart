@@ -27,6 +27,8 @@ void main() {
   tearDown(() async => services.dispose());
 
   const header = 'Date,Category,Sub category,Amount,Paid,Account,Note\n';
+  const headerWithMerchant =
+      'Date,Category,Sub category,Amount,Paid,Account,Merchant,Note\n';
 
   test('requires the Date, Category and Amount columns', () {
     expect(
@@ -156,5 +158,51 @@ void main() {
     );
     expect(plan.alreadyPresent, 1);
     expect(plan.rows.single.amountMinor, 2000);
+  });
+
+  test('saves the merchant or person on each entry', () async {
+    final plan = await importer.parse(
+      '${headerWithMerchant}2026-10-05,Food,,10,no,,Shoprite,Weekly shop\n'
+      '2026-10-06,Rent,,20,no,,Mr Banda,\n'
+      '2026-10-07,Food,,30,no,,,\n',
+    );
+    await importer.apply(plan);
+
+    final all = await services.transactions.getAllForExport();
+    final shop = all.firstWhere((tx) => tx.amountMinor == 1000);
+    expect(shop.merchant, 'Shoprite');
+    expect(shop.description, 'Weekly shop');
+    expect(all.firstWhere((tx) => tx.amountMinor == 2000).merchant, 'Mr Banda');
+    expect(all.firstWhere((tx) => tx.amountMinor == 3000).merchant, isNull);
+  });
+
+  test('also reads the merchant from a Payee or Person column', () async {
+    final plan = await importer.parse(
+      'Date,Category,Amount,Payee\n2026-10-05,Food,10,Shoprite\n',
+    );
+    expect(plan.rows.single.merchant, 'Shoprite');
+  });
+
+  test('re-importing fills a blank merchant but never overwrites one', () async {
+    await importer.apply(
+      await importer.parse(
+        '${headerWithMerchant}2026-10-05,Food,,10,no,,,\n'
+        '2026-10-06,Food,,20,no,,Kept,\n',
+      ),
+    );
+
+    final plan = await importer.parse(
+      '${headerWithMerchant}2026-10-05,Food,,10,no,,Shoprite,\n'
+      '2026-10-06,Food,,20,no,,Changed,\n',
+    );
+    expect(plan.rows, isEmpty);
+    expect(plan.backfills, hasLength(1));
+    expect(plan.alreadyPresent, 1);
+
+    await importer.apply(plan);
+    final all = await services.transactions.getAllForExport();
+    expect(all.firstWhere((tx) => tx.amountMinor == 1000).merchant, 'Shoprite');
+    expect(all.firstWhere((tx) => tx.amountMinor == 2000).merchant, 'Kept');
+    expect(all, hasLength(2));
   });
 }

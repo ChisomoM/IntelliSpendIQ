@@ -694,8 +694,8 @@ class _DataSectionState extends State<_DataSection> {
           'Categories that do not exist yet are created. Lines you have '
           'already imported are skipped.\n\n'
           'Columns: Date, Category, Sub category, Amount, Paid, Account, '
-          'Note. Account and Note are optional; a blank account uses '
-          'your default one.',
+          'Merchant, Note. Account, Merchant and Note are optional; a '
+          'blank account uses your default one.',
         ),
         actions: [
           TextButton(
@@ -932,6 +932,11 @@ class _BudgetImportPreview extends StatelessWidget {
             ),
             if (plan.alreadyPresent > 0)
               Text('${plan.alreadyPresent} already imported, skipped'),
+            if (plan.backfills.isNotEmpty)
+              Text(
+                '${plan.backfills.length} earlier import(s) get a merchant '
+                'or person name',
+              ),
             if (plan.newCategories.isNotEmpty) ...[
               const SizedBox(height: Space.x1),
               Text('New categories: ${plan.newCategories.join(', ')}'),

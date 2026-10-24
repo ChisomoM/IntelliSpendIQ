@@ -24,6 +24,7 @@ class BudgetImportRow {
     required this.key,
     this.subCategory,
     this.accountId,
+    this.merchant,
     this.note,
   });
 
@@ -43,11 +44,22 @@ class BudgetImportRow {
 
   /// Null means the default account.
   final String? accountId;
+
+  /// The merchant or person, as in the form's "Merchant or person" field.
+  final String? merchant;
   final String? note;
 
   /// Idempotency key: the same line imported twice is recognised and
   /// skipped the second time.
   final String key;
+}
+
+/// A line imported earlier without a merchant, now given one in the file.
+class BudgetImportBackfill {
+  const BudgetImportBackfill({required this.transactionId, required this.merchant});
+
+  final String transactionId;
+  final String merchant;
 }
 
 class BudgetImportError {
@@ -67,6 +79,7 @@ class BudgetImportPlan {
     required this.errors,
     required this.alreadyPresent,
     required this.newCategories,
+    this.backfills = const [],
   });
 
   /// Lines that will be saved.
@@ -80,9 +93,13 @@ class BudgetImportPlan {
   /// order.
   final List<String> newCategories;
 
+  /// Earlier imports that have no merchant yet and get one from this
+  /// file. Counted apart from [alreadyPresent].
+  final List<BudgetImportBackfill> backfills;
+
   int get paidCount => rows.where((row) => row.isPaid).length;
   int get plannedCount => rows.length - paidCount;
-  bool get hasWork => rows.isNotEmpty;
+  bool get hasWork => rows.isNotEmpty || backfills.isNotEmpty;
 }
 
 /// Bulk-creates budget lines from a CSV: each line is something the
@@ -120,6 +137,7 @@ class BudgetImportService {
     'Amount',
     'Paid',
     'Account',
+    'Merchant',
     'Note',
   ];
 
@@ -133,6 +151,13 @@ class BudgetImportService {
     'paid': 'paid',
     'already paid': 'paid',
     'account': 'account',
+    'merchant': 'merchant',
+    'payee': 'merchant',
+    'person': 'merchant',
+    'merchant/person': 'merchant',
+    'merchant or person': 'merchant',
+    'name': 'merchant',
+    'vendor': 'merchant',
     'note': 'note',
     'notes': 'note',
     'description': 'note',
@@ -144,8 +169,8 @@ class BudgetImportService {
     final file = File(p.join(dir.path, 'intellispendiq_budget_template.csv'));
     await file.writeAsString(
       '${templateColumns.join(',')}\n'
-      '2026-10-05,Food,Snacks,400.00,yes,,Kiosk\n'
-      '2026-10-28,Rent,,6500.00,no,,October rent\n',
+      '2026-10-05,Food,Snacks,400.00,yes,,Kiosk,Lunch\n'
+      '2026-10-28,Rent,,6500.00,no,,Mr Banda,October rent\n',
     );
     return file;
   }
@@ -188,6 +213,7 @@ class BudgetImportService {
     final rows = <BudgetImportRow>[];
     final errors = <BudgetImportError>[];
     final newCategories = <String>[];
+    final backfills = <BudgetImportBackfill>[];
     final occurrences = <String, int>{};
     var alreadyPresent = 0;
 
@@ -273,8 +299,22 @@ class BudgetImportService {
       final nth = occurrences.update(base, (n) => n + 1, ifAbsent: () => 1);
       final key = 'budget-import:$base|$nth';
 
-      if (await _transactions.byIdempotencyKey(key) != null) {
-        alreadyPresent++;
+      final merchant = cell(row, 'merchant');
+      final existing = await _transactions.byIdempotencyKey(key);
+      if (existing != null) {
+        // Fill empty: an earlier import that left the merchant blank
+        // picks it up now, but a merchant already there is never
+        // overwritten.
+        if (merchant.isNotEmpty && (existing.merchant ?? '').trim().isEmpty) {
+          backfills.add(
+            BudgetImportBackfill(
+              transactionId: existing.id,
+              merchant: merchant,
+            ),
+          );
+        } else {
+          alreadyPresent++;
+        }
         continue;
       }
       final note = cell(row, 'note');
@@ -287,6 +327,7 @@ class BudgetImportService {
           amountMinor: amountMinor,
           isPaid: paid,
           accountId: accountId,
+          merchant: merchant.isEmpty ? null : merchant,
           note: note.isEmpty ? null : note,
           key: key,
         ),
@@ -298,12 +339,13 @@ class BudgetImportService {
       errors: errors,
       alreadyPresent: alreadyPresent,
       newCategories: newCategories,
+      backfills: backfills,
     );
   }
 
   /// Creates the missing categories and saves every line of [plan] in
   /// one database transaction, so a failure leaves nothing half done.
-  /// Returns how many entries were saved.
+  /// Returns how many entries were saved or filled in.
   Future<int> apply(BudgetImportPlan plan) {
     return _db.transaction(() async {
       final categories = await _categories.getAll();
@@ -329,6 +371,7 @@ class BudgetImportService {
             direction: TxDirection.debit,
             source: TxSource.manual,
             transactedAt: row.date,
+            merchant: row.merchant,
             description: row.note,
             categoryId: category.id,
             confidence: 1,
@@ -339,7 +382,13 @@ class BudgetImportService {
           periodId: period.id,
         );
       }
-      return plan.rows.length;
+      for (final backfill in plan.backfills) {
+        await _transactions.updateFields(
+          backfill.transactionId,
+          merchant: backfill.merchant,
+        );
+      }
+      return plan.rows.length + plan.backfills.length;
     });
   }
 
