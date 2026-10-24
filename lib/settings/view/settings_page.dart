@@ -10,6 +10,7 @@ import 'package:intellispendiq/categories/categories.dart';
 import 'package:intellispendiq/data/repositories/app_lock_repository.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
+import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
@@ -21,6 +22,7 @@ import 'package:intellispendiq/senders/senders.dart';
 import 'package:intellispendiq/settings/budget_cadence_labels.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
 import 'package:intellispendiq/settings/view/budget_cycle_page.dart';
+import 'package:intellispendiq/settings/view/export_range_sheet.dart';
 import 'package:intellispendiq/settings/view/reminder_settings_page.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -580,7 +582,9 @@ class _DataSectionState extends State<_DataSection> {
             AppListRow(
               leading: const _RowIcon(icon: AppIcons.exportData),
               title: const Text('Export transactions (CSV)'),
-              subtitle: const Text('For your own records or a spreadsheet'),
+              subtitle: const Text(
+                'Pick all time, a date range, or a budget cycle',
+              ),
               onTap: _busy ? null : () => _exportCsv(context),
             ),
             AppListRow(
@@ -642,13 +646,19 @@ class _DataSectionState extends State<_DataSection> {
   Future<void> _exportCsv(BuildContext context) async {
     final backup = context.read<BackupService>();
     final messenger = ScaffoldMessenger.of(context);
+    final range = await pickExportRange(
+      context,
+      budgetPeriods: context.read<BudgetPeriodRepository>(),
+      transactions: context.read<TransactionRepository>(),
+    );
+    if (range == null || !mounted) return;
     setState(() => _busy = true);
     try {
-      final file = await backup.exportTransactionsCsv();
+      final file = await backup.exportTransactionsCsv(range: range);
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          text: 'IntelliSpendIQ transactions export',
+          text: 'IntelliSpendIQ transactions export (${range.label})',
         ),
       );
     } on Exception catch (error) {

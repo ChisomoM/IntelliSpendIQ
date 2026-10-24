@@ -67,10 +67,25 @@ class TransferRepository {
     return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
-  /// Every transfer, unbounded — for backups.
-  Future<List<Transfer>> getAllForExport() async {
+  /// Every transfer, unbounded — for backups. [from] (inclusive) and
+  /// [toExclusive] optionally narrow it to one window.
+  Future<List<Transfer>> getAllForExport({
+    DateTime? from,
+    DateTime? toExclusive,
+  }) async {
     final query = _db.select(_db.transfers)
-      ..where((t) => t.userId.equals(userId) & t.deletedAt.isNull())
+      ..where((t) {
+        var filter = t.userId.equals(userId) & t.deletedAt.isNull();
+        if (from != null) {
+          filter &= t.transactedAt.isBiggerOrEqualValue(Iso.fromDateTime(from));
+        }
+        if (toExclusive != null) {
+          filter &= t.transactedAt.isSmallerThanValue(
+            Iso.fromDateTime(toExclusive),
+          );
+        }
+        return filter;
+      })
       ..orderBy([(t) => OrderingTerm.desc(t.transactedAt)]);
     return (await query.get()).map(_fromRow).toList();
   }

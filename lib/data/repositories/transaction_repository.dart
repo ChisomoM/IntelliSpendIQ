@@ -271,11 +271,39 @@ class TransactionRepository {
 
   /// Every transaction, unbounded — for CSV export and backups, where
   /// truncating at a display-friendly limit would silently drop rows.
-  Future<List<Transaction>> getAllForExport() async {
+  ///
+  /// [from] (inclusive) and [toExclusive] narrow it to one window, both
+  /// optional; leave both null for everything.
+  Future<List<Transaction>> getAllForExport({
+    DateTime? from,
+    DateTime? toExclusive,
+  }) async {
     final query = _db.select(_db.transactions)
-      ..where((t) => t.userId.equals(userId) & t.deletedAt.isNull())
+      ..where((t) {
+        var filter = t.userId.equals(userId) & t.deletedAt.isNull();
+        if (from != null) {
+          filter &= t.transactedAt.isBiggerOrEqualValue(Iso.fromDateTime(from));
+        }
+        if (toExclusive != null) {
+          filter &= t.transactedAt.isSmallerThanValue(
+            Iso.fromDateTime(toExclusive),
+          );
+        }
+        return filter;
+      })
       ..orderBy([(t) => OrderingTerm.desc(t.transactedAt)]);
     return (await query.get()).map(_fromRow).toList();
+  }
+
+  /// When the oldest live transaction happened, or null if there are
+  /// none — bounds how far back the export's cycle list needs to go.
+  Future<DateTime?> earliestTransactionAt() async {
+    final query = _db.select(_db.transactions)
+      ..where((t) => t.userId.equals(userId) & t.deletedAt.isNull())
+      ..orderBy([(t) => OrderingTerm.asc(t.transactedAt)])
+      ..limit(1);
+    final row = await query.getSingleOrNull();
+    return row == null ? null : Iso.toDateTime(row.transactedAt).toLocal();
   }
 
   /// Re-inserts a transaction from a backup, preserving its original id

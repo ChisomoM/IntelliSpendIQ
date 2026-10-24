@@ -159,6 +159,30 @@ class BudgetPeriodRepository {
     return _ensurePeriod(schedule, bounds);
   }
 
+  /// Every cycle from the one containing [now] back to the one
+  /// containing [earliest], newest first. Computed from the schedule
+  /// rather than read from storage, because a cycle only gets a row once
+  /// someone opens it; nothing is created here. Capped at [maxCycles].
+  Future<List<LocalPeriodBounds>> cyclesBetween({
+    required DateTime earliest,
+    required DateTime now,
+    int maxCycles = 120,
+  }) async {
+    final schedule = await ensureSchedule();
+    var bounds = BudgetPeriodGenerator.boundsContaining(schedule, now);
+    final cycles = <LocalPeriodBounds>[bounds];
+    while (bounds.start.isAfter(earliest) && cycles.length < maxCycles) {
+      bounds = BudgetPeriodGenerator.shift(
+        schedule,
+        bounds.start,
+        bounds.endExclusive,
+        -1,
+      );
+      cycles.add(bounds);
+    }
+    return cycles;
+  }
+
   Future<BudgetPeriod?> getPeriod(String id) async {
     final row = await (_db.select(
       _db.budgetPeriods,

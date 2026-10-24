@@ -90,6 +90,33 @@ class RestoreSummary {
       wishlistItemPhotosImported;
 }
 
+/// The window an export covers: [from] inclusive, [toExclusive]
+/// exclusive, either open-ended. [label] is what the picker shows.
+class ExportRange {
+  const ExportRange({this.from, this.toExclusive, this.label = 'All time'});
+
+  static const allTime = ExportRange();
+
+  final DateTime? from;
+  final DateTime? toExclusive;
+  final String label;
+
+  /// Tags the exported file's name with the window, e.g.
+  /// `_20261001_20261031`. Empty for all time.
+  String get fileSuffix {
+    if (from == null && toExclusive == null) return '';
+    String day(DateTime d) =>
+        '${d.year.toString().padLeft(4, '0')}'
+        '${d.month.toString().padLeft(2, '0')}'
+        '${d.day.toString().padLeft(2, '0')}';
+    final start = from == null ? 'start' : day(from!);
+    final end = toExclusive == null
+        ? 'now'
+        : day(toExclusive!.subtract(const Duration(days: 1)));
+    return '_${start}_$end';
+  }
+}
+
 /// Exports the user's data for their own records and for moving it to
 /// a new device — CSV for spreadsheets, JSON for a full restorable
 /// backup. Restoring writes through the normal repositories with each
@@ -138,7 +165,9 @@ class BackupService {
     'Merchant',
     'Description',
     'Category',
+    'Sub category',
     'Account',
+    'To account',
     'Direction',
     'Amount',
     'Currency',
@@ -146,36 +175,92 @@ class BackupService {
     'Source',
   ];
 
-  Future<File> exportTransactionsCsv() async {
-    final transactions = await _transactions.getAllForExport();
-    final categoryNames = {
-      for (final category in await _categories.getAll())
-        category.id: category.name,
+  /// Writes the transactions and transfers inside [range] (everything,
+  /// by default) as one CSV, newest first.
+  ///
+  /// A sub category is split across two columns: `Category` holds its
+  /// parent and `Sub category` its own name, so the sheet can be grouped
+  /// by parent. A top-level category fills `Category` alone.
+  ///
+  /// A transfer is one row with `Direction` set to `transfer`, the
+  /// source account in `Account` and the destination in `To account`.
+  /// The two transactions a transfer links are still listed as their
+  /// own rows, so filter `transfer` out when summing money in and out.
+  Future<File> exportTransactionsCsv({
+    ExportRange range = ExportRange.allTime,
+  }) async {
+    final transactions = await _transactions.getAllForExport(
+      from: range.from,
+      toExclusive: range.toExclusive,
+    );
+    final transfers = await _transfers.getAllForExport(
+      from: range.from,
+      toExclusive: range.toExclusive,
+    );
+    final categories = {
+      for (final category in await _categories.getAll()) category.id: category,
     };
     final accountNames = {
       for (final account in await _accounts.getAll()) account.id: account.name,
     };
 
-    final buffer = StringBuffer()
-      ..writeln(_csvColumns.map(_csvField).join(','));
+    // (when, row) so transactions and transfers interleave by date.
+    final rows = <(DateTime, List<String>)>[];
     for (final tx in transactions) {
-      buffer.writeln(
+      final category = categories[tx.categoryId];
+      final parent = categories[category?.parentId];
+      rows.add((
+        tx.transactedAt,
         [
           tx.transactedAt.toLocal().toIso8601String(),
           tx.merchant ?? '',
           tx.description ?? '',
-          categoryNames[tx.categoryId] ?? '',
+          // A parent that no longer exists leaves the child alone in
+          // `Category` rather than dropping it.
+          parent?.name ?? category?.name ?? '',
+          parent == null ? '' : category?.name ?? '',
           accountNames[tx.accountId] ?? '',
+          '',
           tx.direction.name,
           (tx.amountMinor / 100).toStringAsFixed(2),
           tx.currency,
           tx.status.dbName,
           tx.source.name,
-        ].map(_csvField).join(','),
-      );
+        ],
+      ));
+    }
+    for (final transfer in transfers) {
+      rows.add((
+        transfer.transactedAt,
+        [
+          transfer.transactedAt.toLocal().toIso8601String(),
+          '',
+          transfer.note ?? '',
+          '',
+          '',
+          accountNames[transfer.fromAccountId] ?? '',
+          accountNames[transfer.toAccountId] ?? '',
+          'transfer',
+          (transfer.amountMinor / 100).toStringAsFixed(2),
+          '',
+          '',
+          'transfer',
+        ],
+      ));
+    }
+    rows.sort((a, b) => b.$1.compareTo(a.$1));
+
+    final buffer = StringBuffer()
+      ..writeln(_csvColumns.map(_csvField).join(','));
+    for (final row in rows) {
+      buffer.writeln(row.$2.map(_csvField).join(','));
     }
 
-    return _writeTempFile('transactions', 'csv', buffer.toString());
+    return _writeTempFile(
+      'transactions${range.fileSuffix}',
+      'csv',
+      buffer.toString(),
+    );
   }
 
   Future<File> exportBackupJson() async {

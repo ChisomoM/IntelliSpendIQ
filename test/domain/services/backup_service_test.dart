@@ -34,6 +34,7 @@ void main() {
     required String merchant,
     int amountMinor = 5000,
     String? categoryId,
+    DateTime? on,
   }) async {
     final foodCategoryId =
         categoryId ?? (await source.categories.byName('Food'))!.id;
@@ -43,7 +44,7 @@ void main() {
         amountMinor: amountMinor,
         direction: TxDirection.debit,
         source: TxSource.manual,
-        transactedAt: DateTime(2026, 7, 10),
+        transactedAt: on ?? DateTime(2026, 7, 10),
         categoryId: foodCategoryId,
         merchant: merchant,
       ),
@@ -73,6 +74,104 @@ void main() {
       expect(lines[1], contains('Food'));
       expect(lines[1], contains('Airtel Money'));
       expect(lines[1], contains('50.00'));
+    });
+
+    test('splits a sub category into Category and Sub category', () async {
+      final food = (await source.categories.byName('Food'))!;
+      final snacks = await source.categories.create(
+        'Snacks',
+        parentId: food.id,
+      );
+      await addSpend(merchant: 'Kiosk', categoryId: snacks.id);
+      await addSpend(merchant: 'Shoprite');
+
+      final file = await _testBackupService(source).exportTransactionsCsv();
+      addTearDown(file.delete);
+      final lines = (await file.readAsString()).trim().split('\n');
+      final header = lines.first.split(',');
+      final categoryAt = header.indexOf('Category');
+      final subAt = header.indexOf('Sub category');
+      final byMerchant = {
+        for (final line in lines.skip(1)) line.split(',')[1]: line.split(','),
+      };
+
+      expect(subAt, categoryAt + 1);
+      expect(byMerchant['Kiosk']![categoryAt], 'Food');
+      expect(byMerchant['Kiosk']![subAt], 'Snacks');
+      expect(byMerchant['Shoprite']![categoryAt], 'Food');
+      expect(byMerchant['Shoprite']![subAt], isEmpty);
+    });
+
+    test('only includes rows inside the range, end exclusive', () async {
+      await addSpend(merchant: 'Before', on: DateTime(2026, 6, 30, 23));
+      await addSpend(merchant: 'First day', on: DateTime(2026, 7));
+      await addSpend(merchant: 'Last day', on: DateTime(2026, 7, 31, 23));
+      await addSpend(merchant: 'After', on: DateTime(2026, 8));
+
+      final file = await _testBackupService(source).exportTransactionsCsv(
+        range: ExportRange(
+          from: DateTime(2026, 7),
+          toExclusive: DateTime(2026, 8),
+        ),
+      );
+      addTearDown(file.delete);
+      final contents = await file.readAsString();
+
+      expect(contents, contains('First day'));
+      expect(contents, contains('Last day'));
+      expect(contents, isNot(contains('Before')));
+      expect(contents, isNot(contains('After')));
+      expect(file.path, contains('_20260701_20260731'));
+    });
+
+    test('records a transfer as one row with both accounts', () async {
+      final cash = await source.accounts.create(
+        name: 'Cash',
+        type: AccountType.cash,
+      );
+      final bank = await source.accounts.create(
+        name: 'Bank',
+        type: AccountType.bank,
+      );
+      final debitLeg = await source.transactions.insertDraft(
+        TransactionDraft(
+          amountMinor: 15000,
+          direction: TxDirection.debit,
+          source: TxSource.manual,
+          transactedAt: DateTime(2026, 7, 15, 9),
+        ),
+        accountId: bank.id,
+        idempotencyKey: 'test:${Ids.newId()}',
+        status: TxStatus.confirmed,
+      );
+      final creditLeg = await source.transactions.insertDraft(
+        TransactionDraft(
+          amountMinor: 15000,
+          direction: TxDirection.credit,
+          source: TxSource.manual,
+          transactedAt: DateTime(2026, 7, 15, 9, 5),
+        ),
+        accountId: cash.id,
+        idempotencyKey: 'test:${Ids.newId()}',
+        status: TxStatus.confirmed,
+      );
+      await source.transfers.linkTransfer(
+        fromTransaction: debitLeg,
+        toTransaction: creditLeg,
+        note: 'ATM',
+      );
+
+      final file = await _testBackupService(source).exportTransactionsCsv();
+      addTearDown(file.delete);
+      final lines = (await file.readAsString()).trim().split('\n');
+      final transferRows = lines
+          .skip(1)
+          .where((line) => line.split(',')[7] == 'transfer')
+          .toList();
+
+      expect(transferRows, hasLength(1));
+      expect(transferRows.single, contains('ATM'));
+      expect(transferRows.single, contains('Bank,Cash,transfer,150.00'));
     });
   });
 
