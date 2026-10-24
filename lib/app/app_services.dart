@@ -13,6 +13,7 @@ import 'package:intellispendiq/data/repositories/identity_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/license_repository.dart';
 import 'package:intellispendiq/data/repositories/merchant_category_rule_repository.dart';
+import 'package:intellispendiq/data/repositories/nudge_settings_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
@@ -30,6 +31,7 @@ import 'package:intellispendiq/domain/ai/chat_provider.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/budget_import_service.dart';
+import 'package:intellispendiq/domain/services/capture_nudger.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/dedupe_service.dart';
@@ -41,6 +43,7 @@ import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
 import 'package:intellispendiq/platform/biometric_authenticator.dart';
 import 'package:intellispendiq/platform/capture_bridge.dart';
 import 'package:intellispendiq/platform/deep_link_source.dart';
+import 'package:intellispendiq/platform/flutter_nudge_notifier.dart';
 
 /// Composition root: builds the encrypted database and every repository
 /// and service the app needs, wired together once at startup.
@@ -62,6 +65,8 @@ class AppServices {
     required this.settings,
     required this.reminderSettings,
     required this.reminderScheduler,
+    required this.nudgeSettings,
+    required this.captureNudger,
     required this.customSenders,
     required this.merchantCategoryRules,
     required this.savingsGoals,
@@ -105,6 +110,7 @@ class AppServices {
       identity: FirebaseIdentityRepository(),
       license: FirestoreLicenseRepository(secureStore: store),
       fees: FirestoreFeeScheduleRepository(secureStore: store),
+      nudgeNotifier: FlutterNudgeNotifier(),
     );
   }
 
@@ -123,6 +129,7 @@ class AppServices {
     LicenseRepository? license,
     FeeScheduleRepository? fees,
     ReminderService? reminderScheduler,
+    NudgeNotifier? nudgeNotifier,
     AppFlavor flavor = AppFlavor.development,
   }) => _wire(
     db: db,
@@ -137,6 +144,7 @@ class AppServices {
     license: license,
     fees: fees,
     reminderScheduler: reminderScheduler,
+    nudgeNotifier: nudgeNotifier,
     flavor: flavor,
   );
 
@@ -154,6 +162,7 @@ class AppServices {
     LicenseRepository? license,
     FeeScheduleRepository? fees,
     ReminderService? reminderScheduler,
+    NudgeNotifier? nudgeNotifier,
   }) async {
     final accounts = AccountRepository(db, userId: userId);
     final categories = CategoryRepository(db, userId: userId);
@@ -185,6 +194,15 @@ class AppServices {
       unawaited(reminders.onActivityLogged());
     };
     unawaited(reminders.reschedule(await reminderSettings.load()));
+    final nudgeSettings = NudgeSettingsRepository(settings);
+    // No notifier means no plugin to post through (tests): nudging is
+    // simply off rather than failing on a missing platform channel.
+    final CaptureNudger captureNudger = nudgeNotifier == null
+        ? NoopCaptureNudger()
+        : BatchingCaptureNudger(
+            settings: nudgeSettings,
+            notifier: nudgeNotifier,
+          );
     final customSenders = CustomSenderRepository(db, userId: userId);
     final merchantCategoryRules = MerchantCategoryRuleRepository(
       db,
@@ -291,6 +309,8 @@ class AppServices {
       settings: settings,
       reminderSettings: reminderSettings,
       reminderScheduler: reminders,
+      nudgeSettings: nudgeSettings,
+      captureNudger: captureNudger,
       customSenders: customSenders,
       merchantCategoryRules: merchantCategoryRules,
       savingsGoals: savingsGoals,
@@ -350,6 +370,8 @@ class AppServices {
   final SettingsRepository settings;
   final ReminderSettingsRepository reminderSettings;
   final ReminderService reminderScheduler;
+  final NudgeSettingsRepository nudgeSettings;
+  final CaptureNudger captureNudger;
   final CustomSenderRepository customSenders;
   final MerchantCategoryRuleRepository merchantCategoryRules;
   final SavingsGoalRepository savingsGoals;
@@ -377,6 +399,7 @@ class AppServices {
     await appLock.dispose();
     await identity.dispose();
     await reminderScheduler.dispose();
+    await captureNudger.dispose();
     await db.close();
   }
 }

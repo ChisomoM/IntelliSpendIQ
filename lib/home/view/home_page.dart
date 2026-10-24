@@ -9,6 +9,7 @@ import 'package:intellispendiq/dashboard/dashboard.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/design/design.dart';
+import 'package:intellispendiq/domain/services/capture_nudger.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/home/cubit/cubit.dart';
 import 'package:intellispendiq/reports/reports.dart';
@@ -28,6 +29,7 @@ class HomePage extends StatelessWidget {
               transactions: context.read<TransactionRepository>(),
               rawCaptures: context.read<RawCaptureRepository>(),
               smsSync: context.read<SmsSyncService>(),
+              nudger: context.read<CaptureNudger>(),
             )
             ..watchPendingCount()
             ..startCaptureUnawaited(),

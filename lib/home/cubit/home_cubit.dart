@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
+import 'package:intellispendiq/domain/services/capture_nudger.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 
 part 'home_state.dart';
@@ -18,14 +19,17 @@ class HomeCubit extends Cubit<HomeState> {
     required TransactionRepository transactions,
     required RawCaptureRepository rawCaptures,
     required SmsSyncService smsSync,
+    CaptureNudger? nudger,
   }) : _transactions = transactions,
        _rawCaptures = rawCaptures,
        _smsSync = smsSync,
+       _nudger = nudger,
        super(const HomeState());
 
   final TransactionRepository _transactions;
   final RawCaptureRepository _rawCaptures;
   final SmsSyncService _smsSync;
+  final CaptureNudger? _nudger;
   final _subscriptions = <StreamSubscription<void>>[];
 
   void tabSelected(int index) => emit(state.copyWith(tabIndex: index));
@@ -54,7 +58,14 @@ class HomeCubit extends Cubit<HomeState> {
   /// the app — manual and voice entry still work, and the next launch
   /// retries from the stored watermark.
   Future<void> startCapture() async {
-    _smsSync.startListening();
+    final nudger = _nudger;
+    _smsSync.startListening(
+      // Live events only: a backfill is old news, and the moment to ask
+      // "what was this?" has passed.
+      onIngest: nudger == null
+          ? null
+          : (result) => unawaited(nudger.onIngest(result)),
+    );
     try {
       final ingested = await _smsSync.backfill();
       if (isClosed) return;

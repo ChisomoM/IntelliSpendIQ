@@ -206,7 +206,14 @@ class ReminderScheduler implements ReminderService {
       await _snoozeOnce();
       return;
     }
-    final uri = Uri.parse(_addTransactionUri);
+    // Reminders carry no payload and open the add screen. Capture
+    // nudges (posted by `FlutterNudgeNotifier` through this same
+    // plugin) carry the deep link they should open.
+    final payload = response.payload;
+    final payloadUri = payload == null ? null : Uri.tryParse(payload);
+    final uri = payloadUri != null && payloadUri.scheme == DeepLink.scheme
+        ? payloadUri
+        : Uri.parse(_addTransactionUri);
     if (isColdStart) {
       _pendingLaunchUri = uri;
     } else {

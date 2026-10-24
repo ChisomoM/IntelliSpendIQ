@@ -15,6 +15,7 @@ import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/license_repository.dart';
 import 'package:intellispendiq/data/repositories/fee_schedule_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
+import 'package:intellispendiq/data/repositories/nudge_settings_repository.dart';
 import 'package:intellispendiq/data/repositories/payee_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/reminder_settings_repository.dart';
@@ -28,6 +29,7 @@ import 'package:intellispendiq/design/theme/app_theme.dart';
 import 'package:intellispendiq/domain/parsers/parser_registry.dart';
 import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/budget_import_service.dart';
+import 'package:intellispendiq/domain/services/capture_nudger.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
@@ -88,6 +90,10 @@ class App extends StatelessWidget {
         RepositoryProvider<ReminderService>.value(
           value: services.reminderScheduler,
         ),
+        RepositoryProvider<NudgeSettingsRepository>.value(
+          value: services.nudgeSettings,
+        ),
+        RepositoryProvider<CaptureNudger>.value(value: services.captureNudger),
         RepositoryProvider<CaptureService>.value(
           value: services.captureService,
         ),

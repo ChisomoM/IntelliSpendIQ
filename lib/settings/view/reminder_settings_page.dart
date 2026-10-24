@@ -5,6 +5,7 @@ import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/reminder_settings.dart';
 import 'package:intellispendiq/domain/services/reminder_scheduler.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
+import 'package:intellispendiq/settings/view/nudge_settings_card.dart';
 
 const _weekdayShort = {
   DateTime.monday: 'Mon',
@@ -170,6 +171,8 @@ class ReminderSettingsView extends StatelessWidget {
                   ),
                 ],
               ],
+              const SizedBox(height: Space.sectionGap),
+              const NudgeSettingsCard(),
             ],
           );
         },
