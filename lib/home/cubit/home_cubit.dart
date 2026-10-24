@@ -58,6 +58,7 @@ class HomeCubit extends Cubit<HomeState> {
   /// the app — manual and voice entry still work, and the next launch
   /// retries from the stored watermark.
   Future<void> startCapture() async {
+    unawaited(_smsSync.publishKnownSenders());
     final nudger = _nudger;
     _smsSync.startListening(
       // Live events only: a backfill is old news, and the moment to ask

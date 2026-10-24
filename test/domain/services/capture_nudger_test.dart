@@ -209,6 +209,61 @@ void main() {
       expect(notifier.shown, isEmpty);
     });
 
+    test('offers the suggested categories on a single nudge', () async {
+      await enable();
+      nudger = BatchingCaptureNudger(
+        settings: services.nudgeSettings,
+        notifier: notifier,
+        clock: () => clock,
+        suggestions: () async => const [
+          NudgeAction(categoryId: 'food', label: 'Food'),
+          NudgeAction(categoryId: 'transport', label: 'Transport'),
+        ],
+      );
+
+      await nudger.onIngest(saved());
+      await nudger.flush();
+
+      expect(notifier.shown.single.actions.map((a) => a.id), [
+        'cat:food',
+        'cat:transport',
+      ]);
+    });
+
+    test('still nudges when suggestions fail', () async {
+      await enable();
+      nudger = BatchingCaptureNudger(
+        settings: services.nudgeSettings,
+        notifier: notifier,
+        clock: () => clock,
+        suggestions: () async => throw StateError('no history yet'),
+      );
+
+      await nudger.onIngest(saved());
+      await nudger.flush();
+
+      expect(notifier.shown, hasLength(1));
+      expect(notifier.shown.single.actions, isEmpty);
+    });
+
+    test('offers no buttons on a batched nudge', () async {
+      await enable();
+      nudger = BatchingCaptureNudger(
+        settings: services.nudgeSettings,
+        notifier: notifier,
+        clock: () => clock,
+        suggestions: () async => const [
+          NudgeAction(categoryId: 'food', label: 'Food'),
+        ],
+      );
+
+      await nudger.onIngest(saved(id: 'a'));
+      await nudger.onIngest(saved(id: 'b'));
+      await nudger.flush();
+
+      expect(notifier.shown.single.actions, isEmpty);
+    });
+
     test('ignores ineligible captures', () async {
       await enable();
 
@@ -217,6 +272,28 @@ void main() {
       await nudger.flush();
 
       expect(notifier.shown, isEmpty);
+    });
+  });
+  group('NudgeAction', () {
+    test('round-trips a category id through the action id', () {
+      const action = NudgeAction(categoryId: 'c-1', label: 'Food');
+
+      expect(NudgeAction.categoryIdOf(action.id), 'c-1');
+    });
+
+    test('ignores action ids that are not category buttons', () {
+      expect(NudgeAction.categoryIdOf(null), isNull);
+      expect(NudgeAction.categoryIdOf('snooze_1h'), isNull);
+      expect(NudgeAction.categoryIdOf('cat:'), isNull);
+    });
+
+    test('reads the transaction a payload points at', () {
+      expect(
+        NudgeAction.transactionIdOf('intellispendiq://transaction/tx-9'),
+        'tx-9',
+      );
+      expect(NudgeAction.transactionIdOf('intellispendiq://review'), isNull);
+      expect(NudgeAction.transactionIdOf(null), isNull);
     });
   });
 }

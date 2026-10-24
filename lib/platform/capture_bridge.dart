@@ -25,6 +25,24 @@ class CaptureBridge {
   Future<bool> requestSmsPermission() async =>
       await _methods.invokeMethod<bool>('requestSmsPermission') ?? false;
 
+  /// Tells native which sender IDs the parsers recognize, so the SMS
+  /// receiver can ignore everything else without starting the pipeline.
+  /// [senders] must already be normalized (`ParserRegistry.knownSenderIds`).
+  Future<void> setKnownSenders(Iterable<String> senders) => _methods
+      .invokeMethod<void>('setKnownSenders', {'senders': senders.toList()});
+
+  /// Whether Android lets the app run in the background without battery
+  /// restrictions. The SMS receiver can still start the pipeline when it
+  /// is not, but phone makers' battery managers are more likely to kill
+  /// the work.
+  Future<bool> isIgnoringBatteryOptimizations() async =>
+      await _methods.invokeMethod<bool>('isIgnoringBatteryOptimizations') ??
+      false;
+
+  /// Opens the system battery-optimization screen.
+  Future<void> openBatterySettings() =>
+      _methods.invokeMethod<void>('openBatterySettings');
+
   Future<bool> isNotificationAccessGranted() async =>
       await _methods.invokeMethod<bool>('isNotificationAccessGranted') ?? false;
 
@@ -47,23 +65,28 @@ class CaptureBridge {
   /// runs. Payloads carry a `channel` discriminator.
   Stream<CaptureInput> events() {
     return _events.receiveBroadcastStream().map((event) {
-      final payload = (event as Map).cast<Object?, Object?>();
-      if (payload['channel'] == 'notification') {
-        return CaptureInput(
-          channel: CaptureChannel.notification,
-          sender: payload['title'] as String?,
-          packageName: payload['packageName'] as String?,
-          body: payload['body']! as String,
-          receivedAt: DateTime.fromMillisecondsSinceEpoch(
-            (payload['date']! as num).toInt(),
-          ),
-        );
-      }
-      return _smsFromPayload(payload);
+      return inputFromPayload((event as Map).cast<Object?, Object?>());
     });
   }
 
-  CaptureInput _smsFromPayload(Map<Object?, Object?> payload) {
+  /// Decodes one native capture payload — the shape the live event
+  /// stream and the background (app closed) path both send.
+  static CaptureInput inputFromPayload(Map<Object?, Object?> payload) {
+    if (payload['channel'] == 'notification') {
+      return CaptureInput(
+        channel: CaptureChannel.notification,
+        sender: payload['title'] as String?,
+        packageName: payload['packageName'] as String?,
+        body: payload['body']! as String,
+        receivedAt: DateTime.fromMillisecondsSinceEpoch(
+          (payload['date']! as num).toInt(),
+        ),
+      );
+    }
+    return _smsFromPayload(payload);
+  }
+
+  static CaptureInput _smsFromPayload(Map<Object?, Object?> payload) {
     return CaptureInput(
       channel: CaptureChannel.smsInbox,
       sender: payload['address'] as String?,

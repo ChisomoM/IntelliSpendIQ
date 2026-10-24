@@ -464,6 +464,32 @@ class TransactionRepository {
     return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
+  /// Category ids the user has spent in most since [since], most-used
+  /// first. Counts confirmed, categorized debits only, so it reflects
+  /// choices the user (or a rule they taught) actually made.
+  Future<List<String>> mostUsedExpenseCategoryIds({
+    required DateTime since,
+    int limit = 6,
+  }) async {
+    final t = _db.transactions;
+    final uses = t.id.count();
+    final query = _db.selectOnly(t)
+      ..addColumns([t.categoryId, uses])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.status.equals(TxStatus.confirmed.dbName) &
+            t.direction.equals(TxDirection.debit.name) &
+            t.categoryId.isNotNull() &
+            t.transactedAt.isBiggerOrEqualValue(Iso.fromDateTime(since)),
+      )
+      ..groupBy([t.categoryId])
+      ..orderBy([OrderingTerm.desc(uses)])
+      ..limit(limit);
+    final rows = await query.get();
+    return [for (final row in rows) row.read(t.categoryId)!];
+  }
+
   Future<void> updateFields(
     String id, {
     String? categoryId,

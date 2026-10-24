@@ -12,6 +12,12 @@ import 'package:intl/intl.dart';
 /// remember it, what an uncategorized transaction was.
 abstract interface class CaptureNudger {
   Future<void> onIngest(IngestResult result);
+
+  /// Posts anything still being held back. The running app lets a short
+  /// window collect a burst; the background path calls this so it can
+  /// finish before its engine is torn down.
+  Future<void> flush();
+
   Future<void> dispose();
 }
 
@@ -19,6 +25,9 @@ abstract interface class CaptureNudger {
 class NoopCaptureNudger implements CaptureNudger {
   @override
   Future<void> onIngest(IngestResult result) async {}
+
+  @override
+  Future<void> flush() async {}
 
   @override
   Future<void> dispose() async {}
@@ -32,6 +41,7 @@ class NudgeMessage {
     required this.title,
     required this.body,
     required this.link,
+    this.actions = const [],
   });
 
   /// Stable per message, so re-posting replaces rather than stacks.
@@ -41,7 +51,45 @@ class NudgeMessage {
 
   /// Deep link opened when the notification is tapped.
   final Uri link;
+
+  /// One-tap answers shown on the notification itself.
+  final List<NudgeAction> actions;
 }
+
+/// A button on a nudge that files the transaction under a category
+/// without opening the app.
+class NudgeAction {
+  const NudgeAction({required this.categoryId, required this.label});
+
+  /// Prefix of an action id; the rest is the category id.
+  static const idPrefix = 'cat:';
+
+  final String categoryId;
+  final String label;
+
+  String get id => '$idPrefix$categoryId';
+
+  /// The category a tapped action id stands for, or null for any other
+  /// action (reminders have their own).
+  static String? categoryIdOf(String? actionId) {
+    if (actionId == null || !actionId.startsWith(idPrefix)) return null;
+    final categoryId = actionId.substring(idPrefix.length);
+    return categoryId.isEmpty ? null : categoryId;
+  }
+
+  /// The transaction a nudge's payload (its deep link) points at.
+  static String? transactionIdOf(String? payload) {
+    final uri = payload == null ? null : Uri.tryParse(payload);
+    if (uri == null) return null;
+    return switch (DeepLink.parse(uri)) {
+      TransactionLink(:final id) => id,
+      _ => null,
+    };
+  }
+}
+
+/// Supplies the buttons for a single-transaction nudge.
+typedef NudgeSuggestions = Future<List<NudgeAction>> Function();
 
 /// Shows a [NudgeMessage] to the user.
 abstract interface class NudgeNotifier {
@@ -76,10 +124,12 @@ class BatchingCaptureNudger implements CaptureNudger {
   BatchingCaptureNudger({
     required NudgeSettingsRepository settings,
     required NudgeNotifier notifier,
+    NudgeSuggestions? suggestions,
     Duration window = const Duration(seconds: 3),
     DateTime Function()? clock,
   }) : _settings = settings,
        _notifier = notifier,
+       _suggestions = suggestions,
        _window = window,
        _clock = clock ?? DateTime.now;
 
@@ -88,6 +138,7 @@ class BatchingCaptureNudger implements CaptureNudger {
 
   final NudgeSettingsRepository _settings;
   final NudgeNotifier _notifier;
+  final NudgeSuggestions? _suggestions;
   final Duration _window;
   final DateTime Function() _clock;
 
@@ -105,18 +156,19 @@ class BatchingCaptureNudger implements CaptureNudger {
     _timer ??= Timer(_window, () => unawaited(flush()));
   }
 
-  /// Posts whatever has been collected. Called by the window timer;
-  /// public so tests do not have to wait for it.
+  /// Posts whatever has been collected. Called by the window timer, and
+  /// directly by the background path and by tests.
+  @override
   Future<void> flush() async {
     _timer?.cancel();
     _timer = null;
     if (_pending.isEmpty) return;
     final batch = List<Transaction>.of(_pending);
     _pending.clear();
-    await _notifier.show(_messageFor(batch));
+    await _notifier.show(await _messageFor(batch));
   }
 
-  NudgeMessage _messageFor(List<Transaction> batch) {
+  Future<NudgeMessage> _messageFor(List<Transaction> batch) async {
     if (batch.length > 1) {
       return NudgeMessage(
         id: batchNotificationId,
@@ -126,6 +178,7 @@ class BatchingCaptureNudger implements CaptureNudger {
       );
     }
     final transaction = batch.single;
+    final actions = await _actions();
     final merchant = transaction.merchant?.trim();
     final local = transaction.transactedAt.toLocal();
     final time = DateFormat('h:mm a').format(local);
@@ -138,7 +191,17 @@ class BatchingCaptureNudger implements CaptureNudger {
         time,
       ].join(' · '),
       link: Uri.parse('${DeepLink.scheme}://transaction/${transaction.id}'),
+      actions: actions,
     );
+  }
+
+  /// A failure to suggest must never cost the user the nudge itself.
+  Future<List<NudgeAction>> _actions() async {
+    try {
+      return await _suggestions?.call() ?? const [];
+    } on Object {
+      return const [];
+    }
   }
 
   @override

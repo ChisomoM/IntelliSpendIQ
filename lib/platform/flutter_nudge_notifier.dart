@@ -21,15 +21,22 @@ class FlutterNudgeNotifier implements NudgeNotifier {
       message.id,
       message.title,
       message.body,
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
           _channelName,
           channelDescription: _channelDescription,
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
+          actions: [
+            // No user interface: the tap is answered by a background
+            // isolate (`handleNudgeAction`) and the notification clears,
+            // so the whole job is one tap from the shade.
+            for (final action in message.actions)
+              AndroidNotificationAction(action.id, action.label),
+          ],
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       ),
       payload: message.link.toString(),
     );
