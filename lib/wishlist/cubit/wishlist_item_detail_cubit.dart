@@ -46,9 +46,11 @@ class WishlistItemDetailCubit extends Cubit<WishlistItemDetailState> {
     emit(state.copyWith(categories: await _categories.getAll()));
 
     _itemsSubscription = _wishlist.watchAll().listen(_onItems);
-    _photosSubscription = _wishlist.watchPhotos(state.itemId).listen(
-      (photos) => emit(state.copyWith(photos: photos)),
-    );
+    _photosSubscription = _wishlist
+        .watchPhotos(state.itemId)
+        .listen(
+          (photos) => emit(state.copyWith(photos: photos)),
+        );
     _accountsSubscription = _accounts.watchAll().listen(
       (accounts) => emit(state.copyWith(accounts: accounts)),
     );

@@ -108,7 +108,10 @@ class SavingsGoalDetailView extends StatelessWidget {
                   Expanded(
                     child: StatTile(
                       label: 'Remaining',
-                      value: MoneyText(state.remainingMinor, size: MoneySize.meta),
+                      value: MoneyText(
+                        state.remainingMinor,
+                        size: MoneySize.meta,
+                      ),
                     ),
                   ),
                   const SizedBox(width: Space.x1),
@@ -117,7 +120,9 @@ class SavingsGoalDetailView extends StatelessWidget {
                       label: 'Progress',
                       value: Text(
                         '${(state.progress.clamp(0, 1) * 100).round()}%',
-                        style: AppTypography.metaAmount(color: colors.onSurface),
+                        style: AppTypography.metaAmount(
+                          color: colors.onSurface,
+                        ),
                       ),
                     ),
                   ),
@@ -149,7 +154,10 @@ class SavingsGoalDetailView extends StatelessWidget {
                 onPressed: () => SpendGoalSheet.show(context),
               ),
               const SizedBox(height: Space.sectionGap),
-              Text('History', style: AppTypography.sectionHeader(color: colors.onSurface)),
+              Text(
+                'History',
+                style: AppTypography.sectionHeader(color: colors.onSurface),
+              ),
               const SizedBox(height: Space.x1),
               if (state.entries.isEmpty)
                 Padding(

@@ -44,10 +44,16 @@ void main() {
         checkedAt: base,
       );
       expect(
-        EntitlementEvaluator.evaluate(license, now: base.add(const Duration(days: 2))),
+        EntitlementEvaluator.evaluate(
+          license,
+          now: base.add(const Duration(days: 2)),
+        ),
         EntitlementStatus.trial,
       );
-      expect(EntitlementEvaluator.allowsAppAccess(EntitlementStatus.trial), isTrue);
+      expect(
+        EntitlementEvaluator.allowsAppAccess(EntitlementStatus.trial),
+        isTrue,
+      );
     });
 
     test('grace for 2 days after trial ends', () {
@@ -61,11 +67,20 @@ void main() {
         EntitlementStatus.grace,
       );
       expect(
-        EntitlementEvaluator.evaluate(license, now: trialEnds.add(const Duration(days: 2))),
+        EntitlementEvaluator.evaluate(
+          license,
+          now: trialEnds.add(const Duration(days: 2)),
+        ),
         EntitlementStatus.grace,
       );
-      expect(EntitlementEvaluator.shouldShowPaywall(EntitlementStatus.grace), isTrue);
-      expect(EntitlementEvaluator.canDismissPaywall(EntitlementStatus.grace), isTrue);
+      expect(
+        EntitlementEvaluator.shouldShowPaywall(EntitlementStatus.grace),
+        isTrue,
+      );
+      expect(
+        EntitlementEvaluator.canDismissPaywall(EntitlementStatus.grace),
+        isTrue,
+      );
     });
 
     test('blocked after grace ends', () {

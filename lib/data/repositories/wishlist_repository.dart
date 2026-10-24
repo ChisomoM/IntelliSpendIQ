@@ -35,7 +35,8 @@ class WishlistRepository {
   }) : _transactions = transactions,
        _savingsGoals = savingsGoals,
        _budgetPeriods = budgetPeriods,
-       _documentsDirectory = documentsDirectory ?? getApplicationDocumentsDirectory;
+       _documentsDirectory =
+           documentsDirectory ?? getApplicationDocumentsDirectory;
 
   final AppDatabase _db;
   final String userId;
@@ -58,7 +59,9 @@ class WishlistRepository {
     note: row.note,
     linkedGoalId: row.linkedGoalId,
     linkedTransactionId: row.linkedTransactionId,
-    purchasedAt: row.purchasedAt == null ? null : Iso.toDateTime(row.purchasedAt!),
+    purchasedAt: row.purchasedAt == null
+        ? null
+        : Iso.toDateTime(row.purchasedAt!),
   );
 
   static WishlistItemPhoto _photoFromRow(WishlistItemPhotoRow row) =>
@@ -188,7 +191,8 @@ class WishlistRepository {
     )..where((ph) => ph.wishlistItemId.equals(itemId))).get();
     final sortOrder = existing.isEmpty
         ? 0
-        : existing.map((ph) => ph.sortOrder).reduce((a, b) => a > b ? a : b) + 1;
+        : existing.map((ph) => ph.sortOrder).reduce((a, b) => a > b ? a : b) +
+              1;
 
     await _db
         .into(_db.wishlistItemPhotos)
@@ -238,13 +242,14 @@ class WishlistRepository {
       targetDate: targetDate,
       defaultAccountId: defaultAccountId,
     );
-    await (_db.update(_db.wishlistItems)..where((w) => w.id.equals(itemId)))
-        .write(
-          WishlistItemsCompanion(
-            linkedGoalId: Value(goal.id),
-            updatedAt: Value(Iso.nowUtc()),
-          ),
-        );
+    await (_db.update(
+      _db.wishlistItems,
+    )..where((w) => w.id.equals(itemId))).write(
+      WishlistItemsCompanion(
+        linkedGoalId: Value(goal.id),
+        updatedAt: Value(Iso.nowUtc()),
+      ),
+    );
     return goal;
   }
 
@@ -293,15 +298,16 @@ class WishlistRepository {
       );
     }
 
-    await (_db.update(_db.wishlistItems)..where((w) => w.id.equals(itemId)))
-        .write(
-          WishlistItemsCompanion(
-            actualPriceMinor: Value(amountMinor),
-            linkedTransactionId: Value(tx.id),
-            purchasedAt: Value(Iso.fromDateTime(transactedAt)),
-            updatedAt: Value(Iso.nowUtc()),
-          ),
-        );
+    await (_db.update(
+      _db.wishlistItems,
+    )..where((w) => w.id.equals(itemId))).write(
+      WishlistItemsCompanion(
+        actualPriceMinor: Value(amountMinor),
+        linkedTransactionId: Value(tx.id),
+        purchasedAt: Value(Iso.fromDateTime(transactedAt)),
+        updatedAt: Value(Iso.nowUtc()),
+      ),
+    );
     return tx;
   }
 
@@ -389,7 +395,9 @@ class WishlistRepository {
             linkedGoalId: Value(item.linkedGoalId),
             linkedTransactionId: Value(item.linkedTransactionId),
             purchasedAt: Value(
-              item.purchasedAt == null ? null : Iso.fromDateTime(item.purchasedAt!),
+              item.purchasedAt == null
+                  ? null
+                  : Iso.fromDateTime(item.purchasedAt!),
             ),
           ),
         );

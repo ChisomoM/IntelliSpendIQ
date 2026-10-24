@@ -88,10 +88,13 @@ class AccountRepository {
 
   /// The hidden account backing [goalId]'s real balance, if it has one.
   Future<Account?> getForGoal(String goalId) async {
-    final row = await (_db.select(
-      _db.accounts,
-    )..where((a) => a.linkedGoalId.equals(goalId) & a.deletedAt.isNull()))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(
+              _db.accounts,
+            )..where(
+              (a) => a.linkedGoalId.equals(goalId) & a.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
     return row == null ? null : _fromRow(row);
   }
 

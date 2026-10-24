@@ -150,7 +150,8 @@ class DashboardState extends Equatable {
   /// a user who had set a real budget saw it ignored here while
   /// Budgets showed it.
   PlanSource get planSource {
-    if (budgetPeriod?.hasOverallBudget ?? false) return PlanSource.overallBudget;
+    if (budgetPeriod?.hasOverallBudget ?? false)
+      return PlanSource.overallBudget;
     if (hasIncome && totalIncomeMinor > 0) return PlanSource.income;
     return PlanSource.none;
   }

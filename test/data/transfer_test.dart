@@ -388,62 +388,72 @@ void main() {
   });
 
   group('TransferRepository.updateFields and softDelete', () {
-    test('updates amount and note, then soft-delete removes it from watchAll',
-        () async {
-      final transfer = await services.transfers.create(
-        fromAccountId: bankId,
-        toAccountId: cashId,
-        amountMinor: 10000,
-        transactedAt: DateTime(2026, 7, 30, 15),
-        note: 'Original',
-      );
+    test(
+      'updates amount and note, then soft-delete removes it from watchAll',
+      () async {
+        final transfer = await services.transfers.create(
+          fromAccountId: bankId,
+          toAccountId: cashId,
+          amountMinor: 10000,
+          transactedAt: DateTime(2026, 7, 30, 15),
+          note: 'Original',
+        );
 
-      await services.transfers.updateFields(
-        transfer.id,
-        amountMinor: 12000,
-        note: 'Updated',
-      );
+        await services.transfers.updateFields(
+          transfer.id,
+          amountMinor: 12000,
+          note: 'Updated',
+        );
 
-      final updated = await services.transfers.watchAll().first;
-      expect(updated, hasLength(1));
-      expect(updated.single.amountMinor, 12000);
-      expect(updated.single.note, 'Updated');
+        final updated = await services.transfers.watchAll().first;
+        expect(updated, hasLength(1));
+        expect(updated.single.amountMinor, 12000);
+        expect(updated.single.note, 'Updated');
 
-      await services.transfers.softDelete(transfer.id);
-      expect(await services.transfers.watchAll().first, isEmpty);
+        await services.transfers.softDelete(transfer.id);
+        expect(await services.transfers.watchAll().first, isEmpty);
 
-      await services.transfers.undelete(transfer.id);
-      final restored = await services.transfers.watchAll().first;
-      expect(restored, hasLength(1));
-      expect(restored.single.id, transfer.id);
-      expect(restored.single.amountMinor, 12000);
-    });
+        await services.transfers.undelete(transfer.id);
+        final restored = await services.transfers.watchAll().first;
+        expect(restored, hasLength(1));
+        expect(restored.single.id, transfer.id);
+        expect(restored.single.amountMinor, 12000);
+      },
+    );
 
-    test('soft-delete cascades to the linked fee; undelete restores both',
-        () async {
-      final transfer = await services.transfers.create(
-        fromAccountId: bankId,
-        toAccountId: cashId,
-        amountMinor: 10000,
-        transactedAt: DateTime(2026, 7, 30, 15),
-        feeMinor: 100,
-      );
+    test(
+      'soft-delete cascades to the linked fee; undelete restores both',
+      () async {
+        final transfer = await services.transfers.create(
+          fromAccountId: bankId,
+          toAccountId: cashId,
+          amountMinor: 10000,
+          transactedAt: DateTime(2026, 7, 30, 15),
+          feeMinor: 100,
+        );
 
-      expect(await services.transfers.findFeeForTransfer(transfer.id), isNotNull);
+        expect(
+          await services.transfers.findFeeForTransfer(transfer.id),
+          isNotNull,
+        );
 
-      await services.transfers.softDelete(transfer.id);
-      expect(await services.transfers.findFeeForTransfer(transfer.id), isNull);
-      expect(await services.transactions.getAllForExport(), isEmpty);
+        await services.transfers.softDelete(transfer.id);
+        expect(
+          await services.transfers.findFeeForTransfer(transfer.id),
+          isNull,
+        );
+        expect(await services.transactions.getAllForExport(), isEmpty);
 
-      await services.transfers.undelete(transfer.id);
-      final fee = await services.transfers.findFeeForTransfer(transfer.id);
-      expect(fee, isNotNull);
-      expect(fee!.amountMinor, 100);
+        await services.transfers.undelete(transfer.id);
+        final fee = await services.transfers.findFeeForTransfer(transfer.id);
+        expect(fee, isNotNull);
+        expect(fee!.amountMinor, 100);
 
-      final balances = await services.accounts.watchComputedBalances().first;
-      expect(balances[bankId], -10100);
-      expect(balances[cashId], 10000);
-    });
+        final balances = await services.accounts.watchComputedBalances().first;
+        expect(balances[bankId], -10100);
+        expect(balances[cashId], 10000);
+      },
+    );
 
     test('updateFields can add, change, and clear a fee', () async {
       final transfer = await services.transfers.create(

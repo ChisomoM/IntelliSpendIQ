@@ -388,36 +388,42 @@ void main() {
   });
 
   group('tariff list', () {
-    test('records a cash-out fee from the schedule when SMS has none', () async {
-      await services.dispose();
-      services = await createTestServices(
-        fees: MemoryFeeScheduleRepository(
-          schedule: const FeeSchedule(
-            bands: [
-              FeeBand(
-                id: 'airtel-cash-0-500',
-                providerKey: 'airtel_money',
-                operation: FeeOperation.cashOut,
-                minAmountMinor: 0,
-                maxAmountMinor: 50000,
-                feeMinor: 250,
-              ),
-            ],
+    test(
+      'records a cash-out fee from the schedule when SMS has none',
+      () async {
+        await services.dispose();
+        services = await createTestServices(
+          fees: MemoryFeeScheduleRepository(
+            schedule: const FeeSchedule(
+              bands: [
+                FeeBand(
+                  id: 'airtel-cash-0-500',
+                  providerKey: 'airtel_money',
+                  operation: FeeOperation.cashOut,
+                  minAmountMinor: 0,
+                  maxAmountMinor: 50000,
+                  feeMinor: 250,
+                ),
+              ],
+            ),
           ),
-        ),
-      );
+        );
 
-      final result = await services.captureService.ingest(
-        Corpus.capture(Corpus.withdrawal),
-      );
-      expect(result.status, IngestStatus.saved);
+        final result = await services.captureService.ingest(
+          Corpus.capture(Corpus.withdrawal),
+        );
+        expect(result.status, IngestStatus.saved);
 
-      final rows = await services.transactions.getAllForExport();
-      final fees = rows.where((t) => t.metadata['family'] == 'fee').toList();
-      expect(fees, hasLength(1));
-      expect(fees.single.amountMinor, 250);
-      expect(fees.single.metadata['source'], 'schedule');
-      expect(fees.single.metadata['parentTransactionId'], result.transaction!.id);
-    });
+        final rows = await services.transactions.getAllForExport();
+        final fees = rows.where((t) => t.metadata['family'] == 'fee').toList();
+        expect(fees, hasLength(1));
+        expect(fees.single.amountMinor, 250);
+        expect(fees.single.metadata['source'], 'schedule');
+        expect(
+          fees.single.metadata['parentTransactionId'],
+          result.transaction!.id,
+        );
+      },
+    );
   });
 }

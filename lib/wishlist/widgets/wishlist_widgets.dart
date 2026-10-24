@@ -135,7 +135,12 @@ class _TotalTile extends StatelessWidget {
 /// A wishlist item's card in the list: cover photo (or a placeholder),
 /// name, estimated price, and a small status label.
 class WishlistItemCard extends StatelessWidget {
-  const WishlistItemCard({required this.item, this.coverPath, this.onTap, super.key});
+  const WishlistItemCard({
+    required this.item,
+    this.coverPath,
+    this.onTap,
+    super.key,
+  });
 
   final WishlistItem item;
 
@@ -351,7 +356,11 @@ class WishlistPhotoStrip extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: colors.outlineVariant),
                 ),
-                child: AppIcon(AppIcons.add, size: 22, color: colors.onSurfaceVariant),
+                child: AppIcon(
+                  AppIcons.add,
+                  size: 22,
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ),
         ],
@@ -401,7 +410,11 @@ class StagedPhotoStrip extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              AppIcon(AppIcons.scanReceipt, size: 26, color: AppColors.nightText),
+              AppIcon(
+                AppIcons.scanReceipt,
+                size: 26,
+                color: AppColors.nightText,
+              ),
               const SizedBox(height: 6),
               Text(
                 'Add a photo',
@@ -474,7 +487,11 @@ class StagedPhotoStrip extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: colors.outlineVariant),
                 ),
-                child: AppIcon(AppIcons.add, size: 24, color: colors.onSurfaceVariant),
+                child: AppIcon(
+                  AppIcons.add,
+                  size: 24,
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ),
         ],

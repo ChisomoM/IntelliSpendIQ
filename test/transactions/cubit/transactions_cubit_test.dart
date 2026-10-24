@@ -244,7 +244,11 @@ void main() {
 
       await addTransaction(merchant: 'Shoprite', amountMinor: 5000, at: today);
       await addTransaction(merchant: 'Bus', amountMinor: 2000, at: today);
-      await addTransaction(merchant: 'Airtime', amountMinor: 1000, at: yesterday);
+      await addTransaction(
+        merchant: 'Airtime',
+        amountMinor: 1000,
+        at: yesterday,
+      );
 
       await cubit.subscribe();
       await Future<void>.delayed(Duration.zero);

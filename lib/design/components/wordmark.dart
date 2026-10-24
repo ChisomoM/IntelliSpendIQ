@@ -39,7 +39,10 @@ class Wordmark extends StatelessWidget {
         style: base,
         children: [
           const TextSpan(text: 'IntelliSpend'),
-          TextSpan(text: 'IQ', style: TextStyle(color: colors.primary)),
+          TextSpan(
+            text: 'IQ',
+            style: TextStyle(color: colors.primary),
+          ),
         ],
       ),
     );

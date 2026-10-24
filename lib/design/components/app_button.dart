@@ -38,19 +38,22 @@ class AppButton extends StatelessWidget {
     final child = Text(label);
 
     return switch (_kind) {
-      _AppButtonKind.primary => icon == null
-          ? FilledButton(onPressed: onPressed, child: child)
-          : FilledButton.icon(onPressed: onPressed, icon: icon, label: child),
-      _AppButtonKind.secondary => icon == null
-          ? OutlinedButton(onPressed: onPressed, child: child)
-          : OutlinedButton.icon(
-              onPressed: onPressed,
-              icon: icon,
-              label: child,
-            ),
-      _AppButtonKind.tertiary => icon == null
-          ? TextButton(onPressed: onPressed, child: child)
-          : TextButton.icon(onPressed: onPressed, icon: icon, label: child),
+      _AppButtonKind.primary =>
+        icon == null
+            ? FilledButton(onPressed: onPressed, child: child)
+            : FilledButton.icon(onPressed: onPressed, icon: icon, label: child),
+      _AppButtonKind.secondary =>
+        icon == null
+            ? OutlinedButton(onPressed: onPressed, child: child)
+            : OutlinedButton.icon(
+                onPressed: onPressed,
+                icon: icon,
+                label: child,
+              ),
+      _AppButtonKind.tertiary =>
+        icon == null
+            ? TextButton(onPressed: onPressed, child: child)
+            : TextButton.icon(onPressed: onPressed, icon: icon, label: child),
     };
   }
 }

@@ -50,9 +50,11 @@ class SavingsGoalDetailCubit extends Cubit<SavingsGoalDetailState> {
     _savedSubscription = _goals.watchSaved().listen(
       (saved) => emit(state.copyWith(savedMinor: saved[state.goalId] ?? 0)),
     );
-    _entriesSubscription = _goals.watchEntries(state.goalId).listen(
-      (entries) => emit(state.copyWith(entries: entries)),
-    );
+    _entriesSubscription = _goals
+        .watchEntries(state.goalId)
+        .listen(
+          (entries) => emit(state.copyWith(entries: entries)),
+        );
     _accountsSubscription = _accounts.watchAll().listen(
       (accounts) => emit(state.copyWith(accounts: accounts)),
     );

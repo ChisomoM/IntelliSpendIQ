@@ -59,8 +59,7 @@ void main() {
           'of K250.00 at SHOPRITE.';
       const incoming =
           'Dear Client, K500.00 has been credited to your account.';
-      const atmWithdrawal =
-          'Your ATM withdrawal of K1000.00 was successful.';
+      const atmWithdrawal = 'Your ATM withdrawal of K1000.00 was successful.';
       final unknownTemplates = [posPurchase, incoming, atmWithdrawal];
 
       for (final body in unknownTemplates) {

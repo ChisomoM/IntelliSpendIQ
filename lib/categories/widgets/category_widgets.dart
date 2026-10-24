@@ -83,9 +83,7 @@ class CategoryTile extends StatelessWidget {
         content: Text(
           _deleteMessage(
             name: category.name,
-            hasSubCategories: cubit.state
-                .childrenOf(category.id)
-                .isNotEmpty,
+            hasSubCategories: cubit.state.childrenOf(category.id).isNotEmpty,
             isDefault: category.isSystem,
           ),
         ),
@@ -276,9 +274,7 @@ class _CategoryEditorViewState extends State<_CategoryEditorView> {
         content: Text(
           _deleteMessage(
             name: existing.name,
-            hasSubCategories: cubit.state
-                .childrenOf(existing.id)
-                .isNotEmpty,
+            hasSubCategories: cubit.state.childrenOf(existing.id).isNotEmpty,
             isDefault: existing.isSystem,
           ),
         ),

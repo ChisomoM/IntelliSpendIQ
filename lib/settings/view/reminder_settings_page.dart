@@ -93,10 +93,9 @@ class ReminderSettingsView extends StatelessWidget {
                       SwitchListTile(
                         title: const Text('Same time every day'),
                         value: settings.sameTimeForAllDays,
-                        onChanged: (sameTime) =>
-                            context
-                                .read<ReminderSettingsCubit>()
-                                .setSameTimeForAllDays(sameTime: sameTime),
+                        onChanged: (sameTime) => context
+                            .read<ReminderSettingsCubit>()
+                            .setSameTimeForAllDays(sameTime: sameTime),
                       ),
                       if (settings.sameTimeForAllDays)
                         Divider(
@@ -106,7 +105,9 @@ class ReminderSettingsView extends StatelessWidget {
                       if (settings.sameTimeForAllDays)
                         ListTile(
                           title: const Text('Time'),
-                          trailing: Text(_formatTime(context, settings.uniformTime)),
+                          trailing: Text(
+                            _formatTime(context, settings.uniformTime),
+                          ),
                           onTap: () => _pickUniformTime(context, settings),
                         ),
                     ],

@@ -194,7 +194,8 @@ class _TransferEntryViewState extends State<TransferEntryView> {
                 const SizedBox(height: Space.x2),
                 if (accounts.length >= 2) ...[
                   DropdownButtonFormField<String>(
-                    initialValue: accounts.any((a) => a.id == state.fromAccountId)
+                    initialValue:
+                        accounts.any((a) => a.id == state.fromAccountId)
                         ? state.fromAccountId
                         : null,
                     decoration: const InputDecoration(labelText: 'From'),

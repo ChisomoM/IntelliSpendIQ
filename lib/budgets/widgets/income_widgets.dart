@@ -122,8 +122,7 @@ class IncomeSummaryCard extends StatelessWidget {
                 category: category,
                 periodId: periodId,
                 status: statusByCategory[category.id],
-                onTap: () =>
-                    onTapRow(category, statusByCategory[category.id]),
+                onTap: () => onTapRow(category, statusByCategory[category.id]),
               ),
             if (planned.isNotEmpty) ...[
               Divider(height: 1, color: colors.outlineVariant),

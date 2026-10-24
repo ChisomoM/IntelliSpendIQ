@@ -183,26 +183,32 @@ void main() {
     expect(plan.rows.single.merchant, 'Shoprite');
   });
 
-  test('re-importing fills a blank merchant but never overwrites one', () async {
-    await importer.apply(
-      await importer.parse(
-        '${headerWithMerchant}2026-10-05,Food,,10,no,,,\n'
-        '2026-10-06,Food,,20,no,,Kept,\n',
-      ),
-    );
+  test(
+    're-importing fills a blank merchant but never overwrites one',
+    () async {
+      await importer.apply(
+        await importer.parse(
+          '${headerWithMerchant}2026-10-05,Food,,10,no,,,\n'
+          '2026-10-06,Food,,20,no,,Kept,\n',
+        ),
+      );
 
-    final plan = await importer.parse(
-      '${headerWithMerchant}2026-10-05,Food,,10,no,,Shoprite,\n'
-      '2026-10-06,Food,,20,no,,Changed,\n',
-    );
-    expect(plan.rows, isEmpty);
-    expect(plan.backfills, hasLength(1));
-    expect(plan.alreadyPresent, 1);
+      final plan = await importer.parse(
+        '${headerWithMerchant}2026-10-05,Food,,10,no,,Shoprite,\n'
+        '2026-10-06,Food,,20,no,,Changed,\n',
+      );
+      expect(plan.rows, isEmpty);
+      expect(plan.backfills, hasLength(1));
+      expect(plan.alreadyPresent, 1);
 
-    await importer.apply(plan);
-    final all = await services.transactions.getAllForExport();
-    expect(all.firstWhere((tx) => tx.amountMinor == 1000).merchant, 'Shoprite');
-    expect(all.firstWhere((tx) => tx.amountMinor == 2000).merchant, 'Kept');
-    expect(all, hasLength(2));
-  });
+      await importer.apply(plan);
+      final all = await services.transactions.getAllForExport();
+      expect(
+        all.firstWhere((tx) => tx.amountMinor == 1000).merchant,
+        'Shoprite',
+      );
+      expect(all.firstWhere((tx) => tx.amountMinor == 2000).merchant, 'Kept');
+      expect(all, hasLength(2));
+    },
+  );
 }

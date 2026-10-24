@@ -55,7 +55,8 @@ class MoneyText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final moneyColors = Theme.of(context).extension<MoneyColors>();
-    final resolvedColor = color ??
+    final resolvedColor =
+        color ??
         (isInflow == null
             ? null
             : (isInflow! ? moneyColors?.inflow : moneyColors?.outflow));

@@ -18,7 +18,10 @@ abstract final class BudgetPeriodGenerator {
     return switch (schedule.cadence) {
       BudgetCadence.calendarMonth => _calendarMonth(day),
       BudgetCadence.payday => _payday(day, schedule.anchorDay ?? 1),
-      BudgetCadence.weekly => _weekly(day, schedule.startWeekday ?? DateTime.monday),
+      BudgetCadence.weekly => _weekly(
+        day,
+        schedule.startWeekday ?? DateTime.monday,
+      ),
       BudgetCadence.biweekly => _fixedLength(
         day,
         schedule.anchorDate,
@@ -90,7 +93,8 @@ abstract final class BudgetPeriodGenerator {
     String? anchorDate, {
     required int days,
   }) {
-    final anchor = _parseAnchor(anchorDate) ?? DateTime(day.year, day.month, day.day);
+    final anchor =
+        _parseAnchor(anchorDate) ?? DateTime(day.year, day.month, day.day);
     final anchorDay = DateTime(anchor.year, anchor.month, anchor.day);
     final diff = day.difference(anchorDay).inDays;
     final index = diff >= 0 ? diff ~/ days : -(((-diff - 1) ~/ days) + 1);

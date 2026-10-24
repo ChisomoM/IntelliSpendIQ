@@ -222,7 +222,9 @@ class _ThemeSelector extends StatelessWidget {
               for (final option in ThemeMode.values) ...[
                 if (option != ThemeMode.values.first)
                   const SizedBox(width: Space.x1),
-                Expanded(child: _ThemeOption(option: option, selected: option == mode)),
+                Expanded(
+                  child: _ThemeOption(option: option, selected: option == mode),
+                ),
               ],
             ],
           ),
@@ -248,7 +250,9 @@ class _ThemeOption extends StatelessWidget {
     };
 
     return Material(
-      color: selected ? colors.primary.withValues(alpha: 0.10) : Colors.transparent,
+      color: selected
+          ? colors.primary.withValues(alpha: 0.10)
+          : Colors.transparent,
       borderRadius: Radii.inputRadius,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -501,7 +505,10 @@ class _AppLockSection extends StatelessWidget {
             ),
             AppListRow(
               leading: _RowIcon(icon: AppIcons.close, color: colors.error),
-              title: Text('Turn off app lock', style: TextStyle(color: colors.error)),
+              title: Text(
+                'Turn off app lock',
+                style: TextStyle(color: colors.error),
+              ),
               onTap: () => _confirmDisable(context),
             ),
           ],
@@ -959,7 +966,9 @@ class _BudgetImportPreview extends StatelessWidget {
           child: const Text('Cancel'),
         ),
         TextButton(
-          onPressed: plan.hasWork ? () => Navigator.of(context).pop(true) : null,
+          onPressed: plan.hasWork
+              ? () => Navigator.of(context).pop(true)
+              : null,
           child: const Text('Add to budget'),
         ),
       ],

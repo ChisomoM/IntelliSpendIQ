@@ -354,8 +354,7 @@ void main() {
         reason: 'the goal\'s own hidden account must resolve after restore',
       );
       expect(
-        (await target.accounts.getAllForExport())
-            .map((a) => a.id),
+        (await target.accounts.getAllForExport()).map((a) => a.id),
         contains(targetGoals.single.accountId),
       );
 

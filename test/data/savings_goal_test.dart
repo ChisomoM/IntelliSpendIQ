@@ -67,9 +67,8 @@ void main() {
         reason: 'a contribution is a transfer, never a transaction',
       );
 
-      final goalAccountId = (await services.savingsGoals.watchAll().first)
-          .single
-          .accountId!;
+      final goalAccountId =
+          (await services.savingsGoals.watchAll().first).single.accountId!;
       final balances = await services.accounts.watchComputedBalances().first;
       expect(
         balances[bankId],
@@ -217,50 +216,53 @@ void main() {
       },
     );
 
-    test('spending more than saved charges the shortfall as ordinary spend', () async {
-      final goal = await services.savingsGoals.create(
-        name: 'New Phone',
-        targetMinor: 300000,
-      );
-      await services.savingsGoals.contribute(
-        goalId: goal.id,
-        accountId: bankId,
-        amountMinor: 100000,
-        transactedAt: DateTime(2026, 7, 1),
-      );
+    test(
+      'spending more than saved charges the shortfall as ordinary spend',
+      () async {
+        final goal = await services.savingsGoals.create(
+          name: 'New Phone',
+          targetMinor: 300000,
+        );
+        await services.savingsGoals.contribute(
+          goalId: goal.id,
+          accountId: bankId,
+          amountMinor: 100000,
+          transactedAt: DateTime(2026, 7, 1),
+        );
 
-      final tx = await services.savingsGoals.spend(
-        goalId: goal.id,
-        accountId: bankId,
-        amountMinor: 150000,
-        transactedAt: DateTime(2026, 7, 10),
-        merchant: 'Phone Shop',
-      );
+        final tx = await services.savingsGoals.spend(
+          goalId: goal.id,
+          accountId: bankId,
+          amountMinor: 150000,
+          transactedAt: DateTime(2026, 7, 10),
+          merchant: 'Phone Shop',
+        );
 
-      expect(
-        tx.amountMinor,
-        50000,
-        reason:
-            'the returned transaction is the shortfall leg charged to '
-            'the real account; the other 1000 was already drawn from '
-            'the goal\'s own account',
-      );
-      final totalSpent = await services.transactions.totalSpentInRange(
-        from: Iso.fromDateTime(DateTime(2026, 7, 1)),
-        to: Iso.fromDateTime(DateTime(2026, 8, 1)),
-      );
-      expect(
-        totalSpent,
-        150000,
-        reason: 'the two legs together still add up to the full price paid',
-      );
+        expect(
+          tx.amountMinor,
+          50000,
+          reason:
+              'the returned transaction is the shortfall leg charged to '
+              'the real account; the other 1000 was already drawn from '
+              'the goal\'s own account',
+        );
+        final totalSpent = await services.transactions.totalSpentInRange(
+          from: Iso.fromDateTime(DateTime(2026, 7, 1)),
+          to: Iso.fromDateTime(DateTime(2026, 8, 1)),
+        );
+        expect(
+          totalSpent,
+          150000,
+          reason: 'the two legs together still add up to the full price paid',
+        );
 
-      final saved = await services.savingsGoals.watchSaved().first;
-      expect(saved[goal.id], 0);
+        final saved = await services.savingsGoals.watchSaved().first;
+        expect(saved[goal.id], 0);
 
-      final balances = await services.accounts.watchComputedBalances().first;
-      expect(balances[bankId], -150000);
-    });
+        final balances = await services.accounts.watchComputedBalances().first;
+        expect(balances[bankId], -150000);
+      },
+    );
 
     test('spending less than saved leaves the surplus saved', () async {
       final goal = await services.savingsGoals.create(

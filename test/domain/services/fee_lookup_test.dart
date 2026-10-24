@@ -184,8 +184,14 @@ void main() {
         FeeLookup.networkProviderKeyFromPhone('260769953282'),
         'mtn_momo',
       );
-      expect(FeeLookup.networkProviderKeyFromPhone('0979142832'), 'airtel_money');
-      expect(FeeLookup.networkProviderKeyFromPhone('979142832'), 'airtel_money');
+      expect(
+        FeeLookup.networkProviderKeyFromPhone('0979142832'),
+        'airtel_money',
+      );
+      expect(
+        FeeLookup.networkProviderKeyFromPhone('979142832'),
+        'airtel_money',
+      );
     });
   });
 }

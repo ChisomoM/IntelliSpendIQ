@@ -18,12 +18,12 @@ class HardBlockScreen extends StatelessWidget {
     final message = switch (status) {
       EntitlementStatus.disabled =>
         'Your account has been disabled. Contact support via WhatsApp '
-        'if you believe this is a mistake.',
+            'if you believe this is a mistake.',
       EntitlementStatus.unknown =>
         'We need a network connection once to verify your license.',
       _ =>
         'Your trial has ended. Activate a subscription to keep using '
-        'IntelliSpendIQ. Your local data is safe on this device.',
+            'IntelliSpendIQ. Your local data is safe on this device.',
     };
 
     return Scaffold(

@@ -215,8 +215,7 @@ class BudgetPeriods extends SyncedTable {
   /// `manual` | `income_actual` | `income_provisional`. When not
   /// `manual`, [overallAmountMinor] is derived from this period's income
   /// categories (paid-only, or paid+unpaid) instead of being set by hand.
-  TextColumn get budgetSource =>
-      text().withDefault(const Constant('manual'))();
+  TextColumn get budgetSource => text().withDefault(const Constant('manual'))();
 
   @override
   List<Set<Column<Object>>> get uniqueKeys => [

@@ -108,7 +108,10 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
 
-      expect(cubit.state.topLevelIncomeCategories, hasLength(greaterThanOrEqualTo(2)));
+      expect(
+        cubit.state.topLevelIncomeCategories,
+        hasLength(greaterThanOrEqualTo(2)),
+      );
       expect(cubit.state.budgetedIncomeCategories, hasLength(2));
       expect(cubit.state.totalIncomeMinor, 50000);
     });
@@ -436,8 +439,7 @@ void main() {
       addTearDown(cubit.close);
       await cubit.load();
 
-      final transportId =
-          (await services.categories.byName('Transport'))!.id;
+      final transportId = (await services.categories.byName('Transport'))!.id;
       final period = cubit.state.budgetPeriod!;
       await services.budgetPeriods.upsertCategoryBudget(
         periodId: period.id,

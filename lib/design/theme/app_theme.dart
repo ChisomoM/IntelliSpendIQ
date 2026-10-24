@@ -49,9 +49,11 @@ abstract final class AppTheme {
     outlineVariant: AppColors.nightLine,
   );
 
-  static ThemeData get light => _build(_lightScheme, [MoneyColors.light, CaptureColors.light]);
+  static ThemeData get light =>
+      _build(_lightScheme, [MoneyColors.light, CaptureColors.light]);
 
-  static ThemeData get dark => _build(_darkScheme, [MoneyColors.dark, CaptureColors.dark]);
+  static ThemeData get dark =>
+      _build(_darkScheme, [MoneyColors.dark, CaptureColors.dark]);
 
   static ThemeData _build(
     ColorScheme scheme,
@@ -190,7 +192,9 @@ abstract final class AppTheme {
         backgroundColor: isDark ? scheme.surfaceContainerLow : scheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        indicatorColor: scheme.secondary.withValues(alpha: isDark ? 0.24 : 0.12),
+        indicatorColor: scheme.secondary.withValues(
+          alpha: isDark ? 0.24 : 0.12,
+        ),
         labelTextStyle: WidgetStatePropertyAll(
           AppTypography.metadata(color: scheme.onSurface),
         ),

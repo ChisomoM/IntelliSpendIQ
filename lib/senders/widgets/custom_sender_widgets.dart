@@ -39,7 +39,11 @@ class CustomSenderTile extends StatelessWidget {
           title: Text(sender.senderId),
           subtitle: Text('Routes to $providerName'),
           trailing: IconButton(
-            icon: AppIcon(AppIcons.delete, size: 20, color: colors.onSurfaceVariant),
+            icon: AppIcon(
+              AppIcons.delete,
+              size: 20,
+              color: colors.onSurfaceVariant,
+            ),
             tooltip: 'Remove',
             onPressed: () => context.read<CustomSendersCubit>().delete(sender),
           ),
@@ -156,7 +160,8 @@ class NoCustomSendersYet extends StatelessWidget {
     return EmptyState(
       icon: AppIcons.senders,
       title: 'No extra senders added',
-      message: 'Airtel Money, MTN MoMo, and Standard Chartered are '
+      message:
+          'Airtel Money, MTN MoMo, and Standard Chartered are '
           'recognized automatically. Add a sender ID here if another bank '
           "or wallet's alerts aren't being captured.",
       actionLabel: 'Add a sender',

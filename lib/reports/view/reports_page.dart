@@ -60,16 +60,14 @@ class ReportsView extends StatelessWidget {
                     ],
                     selected: {state.mode},
                     showSelectedIcon: false,
-                    onSelectionChanged: (values) =>
-                        cubit.setMode(values.first),
+                    onSelectionChanged: (values) => cubit.setMode(values.first),
                   ),
                 ),
               PeriodSelector(
                 // Was printing the raw `YYYY-MM` key to the screen.
                 label: state.periodLabel,
-                onPrevious: () => isCycleMode
-                    ? cubit.shiftCycle(-1)
-                    : cubit.shiftMonth(-1),
+                onPrevious: () =>
+                    isCycleMode ? cubit.shiftCycle(-1) : cubit.shiftMonth(-1),
                 onNext: () =>
                     isCycleMode ? cubit.shiftCycle(1) : cubit.shiftMonth(1),
               ),
@@ -79,7 +77,8 @@ class ReportsView extends StatelessWidget {
                         icon: AppIcons.insights,
                         title:
                             'Nothing to show for this ${isCycleMode ? 'cycle' : 'month'}',
-                        message: 'Once spending is captured, the breakdown '
+                        message:
+                            'Once spending is captured, the breakdown '
                             'and trends appear here.',
                       )
                     : ListView(

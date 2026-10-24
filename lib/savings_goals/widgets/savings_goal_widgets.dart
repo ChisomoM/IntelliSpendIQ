@@ -25,7 +25,9 @@ class SavingsGoalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final progress = goal.targetMinor <= 0 ? 0.0 : savedMinor / goal.targetMinor;
+    final progress = goal.targetMinor <= 0
+        ? 0.0
+        : savedMinor / goal.targetMinor;
     final remaining = goal.targetMinor - savedMinor;
 
     return Padding(
@@ -119,7 +121,10 @@ class SavingsGoalEntryTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTypography.rowTitle(color: colors.onSurface)),
+                  Text(
+                    title,
+                    style: AppTypography.rowTitle(color: colors.onSurface),
+                  ),
                   if (entry.note != null && entry.note!.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
@@ -298,7 +303,8 @@ class _ContributeToGoalSheetState extends State<ContributeToGoalSheet> {
   void initState() {
     super.initState();
     final state = context.read<SavingsGoalDetailCubit>().state;
-    _accountId = state.goal?.defaultAccountId ??
+    _accountId =
+        state.goal?.defaultAccountId ??
         (state.accounts.isEmpty ? null : state.accounts.first.id);
   }
 
@@ -391,7 +397,8 @@ class _WithdrawFromGoalSheetState extends State<WithdrawFromGoalSheet> {
   void initState() {
     super.initState();
     final state = context.read<SavingsGoalDetailCubit>().state;
-    _accountId = state.goal?.defaultAccountId ??
+    _accountId =
+        state.goal?.defaultAccountId ??
         (state.accounts.isEmpty ? null : state.accounts.first.id);
   }
 
@@ -489,7 +496,8 @@ class _SpendGoalSheetState extends State<SpendGoalSheet> {
   void initState() {
     super.initState();
     final state = context.read<SavingsGoalDetailCubit>().state;
-    _accountId = state.goal?.defaultAccountId ??
+    _accountId =
+        state.goal?.defaultAccountId ??
         (state.accounts.isEmpty ? null : state.accounts.first.id);
     _amountController.text = (state.savedMinor / 100).toStringAsFixed(2);
   }

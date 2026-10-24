@@ -138,8 +138,12 @@ class ReviewInboxCubit extends Cubit<ReviewInboxState> {
     final fees = _fees;
     if (accounts != null && fees != null) {
       final all = await accounts.getAll();
-      final from = all.where((a) => a.id == candidate.debit.accountId).firstOrNull;
-      final to = all.where((a) => a.id == candidate.credit.accountId).firstOrNull;
+      final from = all
+          .where((a) => a.id == candidate.debit.accountId)
+          .firstOrNull;
+      final to = all
+          .where((a) => a.id == candidate.credit.accountId)
+          .firstOrNull;
       if (from != null && to != null) {
         final schedule = await fees.current();
         feeMinor = FeeLookup.forTransfer(

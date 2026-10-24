@@ -61,8 +61,7 @@ class ProgressMeter extends StatelessWidget {
     final overFill = onDarkSurface ? AppColors.outflowD : money.outflow;
     final fill = isOver
         ? overFill
-        : (fillColor ??
-              (onDarkSurface ? AppColors.violet300 : colors.primary));
+        : (fillColor ?? (onDarkSurface ? AppColors.violet300 : colors.primary));
     final track = onDarkSurface
         ? Colors.white.withValues(alpha: 0.16)
         : colors.surfaceContainerHigh;

@@ -26,7 +26,9 @@ void main() {
     });
 
     test('matches shopping merchants', () async {
-      final categoryId = await categorizer.categorize(merchant: 'Shoprite Mukuba');
+      final categoryId = await categorizer.categorize(
+        merchant: 'Shoprite Mukuba',
+      );
       final category = (await services.categories.getAll()).firstWhere(
         (c) => c.id == categoryId,
       );
@@ -53,16 +55,19 @@ void main() {
       expect(category.name, 'Transport');
     });
 
-    test('falls through to the message body when the merchant is blank', () async {
-      final categoryId = await categorizer.categorize(
-        merchant: null,
-        messageBody: 'You bought a data bundle for K50',
-      );
-      final category = (await services.categories.getAll()).firstWhere(
-        (c) => c.id == categoryId,
-      );
-      expect(category.name, 'Airtime/Data');
-    });
+    test(
+      'falls through to the message body when the merchant is blank',
+      () async {
+        final categoryId = await categorizer.categorize(
+          merchant: null,
+          messageBody: 'You bought a data bundle for K50',
+        );
+        final category = (await services.categories.getAll()).firstWhere(
+          (c) => c.id == categoryId,
+        );
+        expect(category.name, 'Airtime/Data');
+      },
+    );
 
     test('returns null when nothing matches', () async {
       final categoryId = await categorizer.categorize(

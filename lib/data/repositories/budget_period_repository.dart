@@ -14,7 +14,10 @@ import 'package:intellispendiq/domain/services/budget_period_generator.dart';
 /// [provisionalMinor] adds unpaid ones on top. [actualMinor] is the
 /// figure used everywhere else — [provisionalMinor] is expectation-only.
 class IncomeTotals {
-  const IncomeTotals({required this.actualMinor, required this.provisionalMinor});
+  const IncomeTotals({
+    required this.actualMinor,
+    required this.provisionalMinor,
+  });
 
   final int actualMinor;
   final int provisionalMinor;
@@ -74,10 +77,11 @@ class BudgetPeriodRepository {
 
   /// Active schedule, creating a calendar-month default if missing.
   Future<BudgetSchedule> ensureSchedule() async {
-    final existing = await (_db.select(
-      _db.budgetSchedules,
-    )..where((s) => s.userId.equals(userId) & s.deletedAt.isNull()))
-        .getSingleOrNull();
+    final existing =
+        await (_db.select(
+              _db.budgetSchedules,
+            )..where((s) => s.userId.equals(userId) & s.deletedAt.isNull()))
+            .getSingleOrNull();
     if (existing != null) return _scheduleFromRow(existing);
 
     final now = Iso.nowUtc();
@@ -97,10 +101,11 @@ class BudgetPeriodRepository {
   }
 
   Future<BudgetSchedule?> getSchedule() async {
-    final row = await (_db.select(
-      _db.budgetSchedules,
-    )..where((s) => s.userId.equals(userId) & s.deletedAt.isNull()))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(
+              _db.budgetSchedules,
+            )..where((s) => s.userId.equals(userId) & s.deletedAt.isNull()))
+            .getSingleOrNull();
     return row == null ? null : _scheduleFromRow(row);
   }
 
@@ -217,8 +222,8 @@ class BudgetPeriodRepository {
       await carryForwardInto(_periodFromRow(existing));
       return _periodFromRow(
         (await (_db.select(
-              _db.budgetPeriods,
-            )..where((p) => p.id.equals(existing.id))).getSingle()),
+          _db.budgetPeriods,
+        )..where((p) => p.id.equals(existing.id))).getSingle()),
       );
     }
 
@@ -332,7 +337,9 @@ class BudgetPeriodRepository {
             b.periodId.equals(periodId) &
             b.deletedAt.isNull(),
       );
-    return query.watch().map((rows) => rows.map(_categoryBudgetFromRow).toList());
+    return query.watch().map(
+      (rows) => rows.map(_categoryBudgetFromRow).toList(),
+    );
   }
 
   Future<void> upsertCategoryBudget({
@@ -502,8 +509,8 @@ class BudgetPeriodRepository {
   }) async {
     final now = Iso.nowUtc();
     await (_db.update(
-      _db.categoryBudgets,
-    )..where(
+          _db.categoryBudgets,
+        )..where(
           (b) =>
               b.userId.equals(userId) &
               b.periodId.equals(periodId) &
@@ -543,7 +550,9 @@ class BudgetPeriodRepository {
   }) async {
     if (amountMinor <= 0) return false;
     final budgets = await categoryBudgetsFor(periodId);
-    final from = budgets.where((b) => b.categoryId == fromCategoryId).firstOrNull;
+    final from = budgets
+        .where((b) => b.categoryId == fromCategoryId)
+        .firstOrNull;
     final toAmount = budgets
         .where((b) => b.categoryId == toCategoryId)
         .map((b) => b.amountMinor)

@@ -105,8 +105,7 @@ void main() {
       expect(File(photo.path).existsSync(), isFalse);
     });
 
-    test('watchCovers reports each item\'s lowest-sort-order photo',
-        () async {
+    test('watchCovers reports each item\'s lowest-sort-order photo', () async {
       final item = await wishlist.create(name: 'New Cooking Pots');
       final first = await wishlist.addPhoto(item.id, sourceImage.path);
       await wishlist.addPhoto(item.id, sourceImage.path);
@@ -118,26 +117,28 @@ void main() {
   });
 
   group('convertToGoal', () {
-    test('funds the item without deleting it — status becomes saving',
-        () async {
-      final item = await wishlist.create(
-        name: 'New Cooking Pots',
-        estimatedPriceMinor: 150000,
-      );
+    test(
+      'funds the item without deleting it — status becomes saving',
+      () async {
+        final item = await wishlist.create(
+          name: 'New Cooking Pots',
+          estimatedPriceMinor: 150000,
+        );
 
-      final goal = await wishlist.convertToGoal(
-        item.id,
-        targetMinor: 150000,
-        targetDate: DateTime(2026, 12, 1),
-      );
+        final goal = await wishlist.convertToGoal(
+          item.id,
+          targetMinor: 150000,
+          targetDate: DateTime(2026, 12, 1),
+        );
 
-      expect(goal.name, 'New Cooking Pots');
-      expect(goal.targetMinor, 150000);
+        expect(goal.name, 'New Cooking Pots');
+        expect(goal.targetMinor, 150000);
 
-      final updated = (await wishlist.watchAll().first).single;
-      expect(updated.linkedGoalId, goal.id);
-      expect(updated.status, WishlistItemStatus.saving);
-    });
+        final updated = (await wishlist.watchAll().first).single;
+        expect(updated.linkedGoalId, goal.id);
+        expect(updated.status, WishlistItemStatus.saving);
+      },
+    );
   });
 
   group('convertToExpense', () {

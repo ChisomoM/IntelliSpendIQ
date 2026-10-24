@@ -217,10 +217,9 @@ class CategoryRepository {
   /// shows. Returns false without writing anything if [id] doesn't
   /// exist or is already deleted.
   Future<bool> delete(String id) async {
-    final row =
-        await (_db.select(_db.categories)
-              ..where((c) => c.id.equals(id) & c.deletedAt.isNull()))
-            .getSingleOrNull();
+    final row = await (_db.select(
+      _db.categories,
+    )..where((c) => c.id.equals(id) & c.deletedAt.isNull())).getSingleOrNull();
     if (row == null) return false;
 
     final now = Iso.nowUtc();

@@ -288,12 +288,14 @@ class _PlanInsightBanner extends StatelessWidget {
     final Color tone;
     final List<List<dynamic>> icon;
     if (plannedIncomeMinor == 0) {
-      message = 'No income planned for this period yet — add an income '
+      message =
+          'No income planned for this period yet — add an income '
           'envelope on Budgets to see how the plan balances.';
       tone = colors.primary;
       icon = AppIcons.insights;
     } else if (isShortfall) {
-      message = 'Categories are planned to spend '
+      message =
+          'Categories are planned to spend '
           '${Money.display(differenceMinor.abs())} more than the income '
           'planned in — worth trimming a category or two.';
       tone = money.outflow;
@@ -303,7 +305,8 @@ class _PlanInsightBanner extends StatelessWidget {
       tone = colors.primary;
       icon = AppIcons.check;
     } else {
-      message = '${Money.display(differenceMinor)} of planned income is '
+      message =
+          '${Money.display(differenceMinor)} of planned income is '
           'not yet assigned to a category.';
       tone = money.inflow;
       icon = AppIcons.moneyIn;
@@ -321,7 +324,10 @@ class _PlanInsightBanner extends StatelessWidget {
             AppIcon(icon, size: 20, color: tone),
             const SizedBox(width: Space.x2),
             Expanded(
-              child: Text(message, style: AppTypography.body(color: colors.onSurface)),
+              child: Text(
+                message,
+                style: AppTypography.body(color: colors.onSurface),
+              ),
             ),
           ],
         ),

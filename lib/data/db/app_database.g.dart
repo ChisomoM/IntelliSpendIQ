@@ -518,9 +518,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     providerKey: providerKey.present ? providerKey.value : this.providerKey,
     balanceMinor: balanceMinor.present ? balanceMinor.value : this.balanceMinor,
     balanceAsOf: balanceAsOf.present ? balanceAsOf.value : this.balanceAsOf,
-    linkedGoalId: linkedGoalId.present
-        ? linkedGoalId.value
-        : this.linkedGoalId,
+    linkedGoalId: linkedGoalId.present ? linkedGoalId.value : this.linkedGoalId,
   );
   AccountRow copyWithCompanion(AccountsCompanion data) {
     return AccountRow(
@@ -9899,9 +9897,7 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
           ? data.defaultAccountId.value
           : this.defaultAccountId,
       status: data.status.present ? data.status.value : this.status,
-      accountId: data.accountId.present
-          ? data.accountId.value
-          : this.accountId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
     );
   }
 

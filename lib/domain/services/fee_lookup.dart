@@ -169,8 +169,7 @@ abstract final class FeeLookup {
       FeeOperation.sendSameNetwork ||
       FeeOperation.sendOtherNetwork ||
       FeeOperation.walletToBank => from.providerKey,
-      FeeOperation.bankToWallet ||
-      FeeOperation.atmWithdraw => from.providerKey,
+      FeeOperation.bankToWallet || FeeOperation.atmWithdraw => from.providerKey,
       FeeOperation.payMerchant => from.providerKey,
     };
   }

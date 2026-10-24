@@ -41,8 +41,9 @@ class ChatState extends Equatable {
       pendingActions: pendingActions ?? this.pendingActions,
       status: status ?? this.status,
       draft: draft ?? this.draft,
-      streamingText:
-          clearStreamingText ? null : (streamingText ?? this.streamingText),
+      streamingText: clearStreamingText
+          ? null
+          : (streamingText ?? this.streamingText),
       errorMessage: errorMessage,
     );
   }

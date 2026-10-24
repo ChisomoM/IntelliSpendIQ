@@ -84,7 +84,10 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(cubit.state.categories, hasLength(9));
-      expect(cubit.state.categories.map((c) => c.name), isNot(contains('Food')));
+      expect(
+        cubit.state.categories.map((c) => c.name),
+        isNot(contains('Food')),
+      );
       // The defaults are only planted on first launch.
       await services.categories.ensureSeeds();
       expect(await services.categories.byName('Food'), isNull);

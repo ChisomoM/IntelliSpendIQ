@@ -121,7 +121,9 @@ class BudgetsCubit extends Cubit<BudgetsState> {
         if (b.status != null) b.categoryId: b.status!,
     };
     if (isClosed) return;
-    emit(state.copyWith(categoryBudgets: map, incomeStatusByCategory: statusMap));
+    emit(
+      state.copyWith(categoryBudgets: map, incomeStatusByCategory: statusMap),
+    );
     await _refreshSpend(state.categories);
     await _refreshIncomeTotals();
   }

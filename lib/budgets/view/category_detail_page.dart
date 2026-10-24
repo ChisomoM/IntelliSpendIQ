@@ -193,7 +193,8 @@ class CategoryDetailView extends StatelessWidget {
                   EmptyState(
                     icon: AppIcons.emptyWallet,
                     title: 'No subcategories yet',
-                    message: 'Break this budget down to see where inside it '
+                    message:
+                        'Break this budget down to see where inside it '
                         'the money goes.',
                     actionLabel: 'Add a subcategory',
                     onAction: () => _addSubcategory(context, state),
@@ -222,7 +223,8 @@ class CategoryDetailView extends StatelessWidget {
                 EmptyState(
                   icon: AppIcons.emptyActivity,
                   title: 'No direct transactions',
-                  message: category.parentId == null && state.children.isNotEmpty
+                  message:
+                      category.parentId == null && state.children.isNotEmpty
                       ? 'Entries tagged with this category itself — rather '
                             'than one of its subcategories — will show up '
                             'here.'

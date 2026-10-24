@@ -8,7 +8,11 @@ void main() {
         'outstanding total', () {
       final state = WishlistState(
         items: [
-          const WishlistItem(id: '1', name: 'Idea A', estimatedPriceMinor: 100000),
+          const WishlistItem(
+            id: '1',
+            name: 'Idea A',
+            estimatedPriceMinor: 100000,
+          ),
           const WishlistItem(id: '2', name: 'Idea B'), // no price set
           const WishlistItem(
             id: '3',
@@ -37,7 +41,8 @@ void main() {
       expect(
         state.outstandingTotalMinor,
         300000,
-        reason: 'idea + saving only — the purchased item already turned '
+        reason:
+            'idea + saving only — the purchased item already turned '
             'into real spend elsewhere',
       );
     });

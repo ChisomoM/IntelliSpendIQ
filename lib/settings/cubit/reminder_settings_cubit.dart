@@ -49,14 +49,18 @@ class ReminderSettingsCubit extends Cubit<ReminderSettingsState> {
       _apply(state.settings.copyWith(uniformTime: time));
 
   Future<void> setDayEnabled(int weekday, {required bool enabled}) {
-    final day = state.settings.days[weekday] ?? const ReminderDaySettings(enabled: true);
+    final day =
+        state.settings.days[weekday] ??
+        const ReminderDaySettings(enabled: true);
     return _apply(
       state.settings.withDay(weekday, day.copyWith(enabled: enabled)),
     );
   }
 
   Future<void> setDayTime(int weekday, ReminderTimeOfDay time) {
-    final day = state.settings.days[weekday] ?? const ReminderDaySettings(enabled: true);
+    final day =
+        state.settings.days[weekday] ??
+        const ReminderDaySettings(enabled: true);
     return _apply(state.settings.withDay(weekday, day.copyWith(time: time)));
   }
 

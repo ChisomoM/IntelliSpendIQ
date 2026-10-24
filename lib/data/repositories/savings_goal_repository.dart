@@ -237,7 +237,9 @@ GROUP BY goal_id
     }
     final saved = await _savedFor(goalId);
     if (amountMinor > saved) {
-      throw ArgumentError('Cannot withdraw more than is saved toward this goal');
+      throw ArgumentError(
+        'Cannot withdraw more than is saved toward this goal',
+      );
     }
     final goalAccountId = await _ensureGoalAccountId(goalId);
     final transfer = await _transfers.create(
@@ -477,7 +479,9 @@ GROUP BY goal_id
             name: goal.name,
             targetMinor: goal.targetMinor,
             targetDate: Value(
-              goal.targetDate == null ? null : Iso.fromDateTime(goal.targetDate!),
+              goal.targetDate == null
+                  ? null
+                  : Iso.fromDateTime(goal.targetDate!),
             ),
             defaultAccountId: Value(goal.defaultAccountId),
             status: Value(goal.status.dbName),

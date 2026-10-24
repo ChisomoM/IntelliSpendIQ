@@ -63,7 +63,8 @@ class ReportsCubit extends Cubit<ReportsState> {
     final periods = _budgetPeriods;
     if (periods == null) return;
     final current =
-        state.cyclePeriod ?? await periods.ensurePeriodContaining(DateTime.now());
+        state.cyclePeriod ??
+        await periods.ensurePeriodContaining(DateTime.now());
     final next = await periods.shiftPeriod(current, delta);
     emit(
       state.copyWith(
@@ -95,7 +96,9 @@ class ReportsCubit extends Cubit<ReportsState> {
         ),
       );
     } else {
-      emit(state.copyWith(mode: ReportsMode.month, status: ReportsStatus.loading));
+      emit(
+        state.copyWith(mode: ReportsMode.month, status: ReportsStatus.loading),
+      );
     }
     _resubscribe();
   }

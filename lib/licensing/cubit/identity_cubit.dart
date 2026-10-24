@@ -112,8 +112,9 @@ class IdentityCubit extends Cubit<IdentityState> {
       'email-already-in-use' => 'An account already exists for that email.',
       'invalid-email' => 'Enter a valid email address.',
       'weak-password' => 'Use a password with at least 6 characters.',
-      'user-not-found' || 'wrong-password' || 'invalid-credential' =>
-        'Incorrect email or password.',
+      'user-not-found' ||
+      'wrong-password' ||
+      'invalid-credential' => 'Incorrect email or password.',
       'network-request-failed' =>
         'Check your internet connection and try again.',
       _ => e.message ?? 'Authentication failed.',

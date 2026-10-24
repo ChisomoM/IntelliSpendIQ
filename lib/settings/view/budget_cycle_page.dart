@@ -77,8 +77,9 @@ class BudgetCycleView extends StatelessWidget {
                       cadences: _selectable,
                       selected: schedule.cadence,
                       enabled: !saving,
-                      onSelected: (cadence) =>
-                          context.read<BudgetCycleCubit>().selectCadence(cadence),
+                      onSelected: (cadence) => context
+                          .read<BudgetCycleCubit>()
+                          .selectCadence(cadence),
                     ),
                     if (schedule.cadence == BudgetCadence.payday) ...[
                       const SizedBox(height: Space.sectionGap),
@@ -109,10 +110,12 @@ class BudgetCycleView extends StatelessWidget {
                       const SizedBox(height: Space.sectionGap),
                       _DetailGroup(
                         title: 'Anchor date',
-                        value: _formatAnchor(schedule.anchorDate) ??
+                        value:
+                            _formatAnchor(schedule.anchorDate) ??
                             'Pick the start of a known period',
                         enabled: !saving,
-                        onTap: () => _pickAnchorDate(context, schedule.anchorDate),
+                        onTap: () =>
+                            _pickAnchorDate(context, schedule.anchorDate),
                       ),
                     ],
                     if (saving) ...[

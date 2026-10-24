@@ -148,7 +148,8 @@ class _ChatIntro extends StatelessWidget {
     return const EmptyState(
       icon: AppIcons.chat,
       title: 'Ask about your spending',
-      message: '"How much did I spend on transport this month?" or '
+      message:
+          '"How much did I spend on transport this month?" or '
           '"Set a 500 kwacha budget for food." Anything that changes '
           'your data shows up as a card to confirm first.',
     );

@@ -448,9 +448,7 @@ class SpendCalendarHeatmap extends StatelessWidget {
                       ? (intensity > 0.6
                             ? AppColors.ink900
                             : AppColors.nightText)
-                      : (intensity > 0.5
-                            ? AppColors.paper
-                            : AppColors.ink900));
+                      : (intensity > 0.5 ? AppColors.paper : AppColors.ink900));
 
             return Padding(
               padding: const EdgeInsets.all(2),

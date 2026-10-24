@@ -73,7 +73,9 @@ class _RoundAction extends StatelessWidget {
           child: SizedBox(
             width: Space.x6,
             height: Space.x6,
-            child: Center(child: AppIcon(icon, size: 22, color: colors.primary)),
+            child: Center(
+              child: AppIcon(icon, size: 22, color: colors.primary),
+            ),
           ),
         ),
       ),
@@ -295,7 +297,9 @@ class BudgetHeroCard extends StatelessWidget {
                   value: isCurrentPeriod
                       ? (daysLeft == 1 ? '1 day' : '$daysLeft days')
                       : 'Ended',
-                  detail: isCurrentPeriod && !isOver ? '$leftPercent% left' : null,
+                  detail: isCurrentPeriod && !isOver
+                      ? '$leftPercent% left'
+                      : null,
                 ),
               ),
             ],
@@ -782,7 +786,8 @@ class NoBudgetsYet extends StatelessWidget {
     return EmptyState(
       icon: AppIcons.emptyWallet,
       title: 'No category activity yet',
-      message: 'Categories with a budget or spending in this period '
+      message:
+          'Categories with a budget or spending in this period '
           'will show up here.',
       actionLabel: 'Add a category budget',
       onAction: () => Navigator.of(context).push<String?>(

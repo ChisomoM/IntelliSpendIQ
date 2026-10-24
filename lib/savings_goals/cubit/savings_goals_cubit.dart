@@ -14,7 +14,8 @@ part 'savings_goals_state.dart';
 /// Every savings goal, its live saved total, and the accounts a
 /// contribution sheet can pick from.
 class SavingsGoalsCubit extends Cubit<SavingsGoalsState> {
-  SavingsGoalsCubit(this._goals, this._accounts) : super(const SavingsGoalsState());
+  SavingsGoalsCubit(this._goals, this._accounts)
+    : super(const SavingsGoalsState());
 
   final SavingsGoalRepository _goals;
   final AccountRepository _accounts;
