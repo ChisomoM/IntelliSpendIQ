@@ -39,6 +39,12 @@ class CaptureBridge {
       await _methods.invokeMethod<bool>('isIgnoringBatteryOptimizations') ??
       false;
 
+  /// Opens this app's notification settings in the system, where the
+  /// permission can be given back after it was denied (Android will not
+  /// show its own prompt a second time).
+  Future<void> openNotificationSettings() =>
+      _methods.invokeMethod<void>('openNotificationSettings');
+
   /// Opens the system battery-optimization screen.
   Future<void> openBatterySettings() =>
       _methods.invokeMethod<void>('openBatterySettings');

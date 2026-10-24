@@ -37,6 +37,7 @@ import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
+import 'package:intellispendiq/domain/services/nudge_permission.dart';
 import 'package:intellispendiq/domain/services/reminder_scheduler.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
@@ -67,6 +68,7 @@ class AppServices {
     required this.reminderScheduler,
     required this.nudgeSettings,
     required this.captureNudger,
+    required this.nudgePermission,
     required this.customSenders,
     required this.merchantCategoryRules,
     required this.savingsGoals,
@@ -287,6 +289,11 @@ class AppServices {
       reminderScheduler: reminders,
       nudgeSettings: nudgeSettings,
       captureNudger: captureNudger,
+      nudgePermission: NudgePermission(
+        settings: settings,
+        nudgeSettings: nudgeSettings,
+        reminders: reminders,
+      ),
       customSenders: customSenders,
       merchantCategoryRules: merchantCategoryRules,
       savingsGoals: savingsGoals,
@@ -348,6 +355,7 @@ class AppServices {
   final ReminderService reminderScheduler;
   final NudgeSettingsRepository nudgeSettings;
   final CaptureNudger captureNudger;
+  final NudgePermission nudgePermission;
   final CustomSenderRepository customSenders;
   final MerchantCategoryRuleRepository merchantCategoryRules;
   final SavingsGoalRepository savingsGoals;

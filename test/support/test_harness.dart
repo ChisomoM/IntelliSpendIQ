@@ -67,6 +67,9 @@ class NoopReminderService implements ReminderService {
   Future<bool> requestPermission() async => true;
 
   @override
+  Future<bool> areNotificationsEnabled() async => true;
+
+  @override
   Future<void> reschedule(ReminderSettings settings) async {}
 
   @override
@@ -196,6 +199,9 @@ class FakeCaptureBridge implements CaptureBridge {
 
   @override
   Future<void> openBatterySettings() async {}
+
+  @override
+  Future<void> openNotificationSettings() async {}
 
   @override
   Future<bool> isNotificationAccessGranted() async => false;

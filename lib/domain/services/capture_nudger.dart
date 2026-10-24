@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:intellispendiq/core/deep_link.dart';
 import 'package:intellispendiq/core/money.dart';
@@ -165,7 +166,18 @@ class BatchingCaptureNudger implements CaptureNudger {
     if (_pending.isEmpty) return;
     final batch = List<Transaction>.of(_pending);
     _pending.clear();
-    await _notifier.show(await _messageFor(batch));
+    try {
+      await _notifier.show(await _messageFor(batch));
+    } on Object catch (error, stackTrace) {
+      // Run from a timer with nobody awaiting it, so without this a
+      // failed post (a blocked channel, a bad icon) vanishes silently.
+      log(
+        'Could not show the categorize nudge',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'capture_nudger',
+      );
+    }
   }
 
   Future<NudgeMessage> _messageFor(List<Transaction> batch) async {

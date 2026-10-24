@@ -34,6 +34,7 @@ import 'package:intellispendiq/domain/services/capture_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
+import 'package:intellispendiq/domain/services/nudge_permission.dart';
 import 'package:intellispendiq/domain/services/reminder_scheduler.dart';
 import 'package:intellispendiq/domain/services/sms_sync_service.dart';
 import 'package:intellispendiq/domain/voice/voice_pipeline.dart';
@@ -95,6 +96,9 @@ class App extends StatelessWidget {
           value: services.nudgeSettings,
         ),
         RepositoryProvider<CaptureNudger>.value(value: services.captureNudger),
+        RepositoryProvider<NudgePermission>.value(
+          value: services.nudgePermission,
+        ),
         RepositoryProvider<CaptureService>.value(
           value: services.captureService,
         ),
