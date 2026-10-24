@@ -31,6 +31,9 @@ class _NudgeSettingsCardState extends State<NudgeSettingsCard>
   /// until checked.
   bool? _notificationsAllowed;
 
+  /// Whether "Display over other apps" is granted. Null until checked.
+  bool? _canDrawOverlays;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +53,7 @@ class _NudgeSettingsCardState extends State<NudgeSettingsCard>
     if (state == AppLifecycleState.resumed) {
       _checkBattery();
       _checkNotifications();
+      _checkOverlay();
     }
   }
 
@@ -58,6 +62,31 @@ class _NudgeSettingsCardState extends State<NudgeSettingsCard>
     if (mounted) setState(() => _settings = loaded);
     await _checkBattery();
     await _checkNotifications();
+    await _checkOverlay();
+  }
+
+  Future<void> _checkOverlay() async {
+    if (!mounted) return;
+    final bridge = context.read<CaptureBridge>();
+    try {
+      final allowed = await bridge.canDrawOverlays();
+      if (mounted) setState(() => _canDrawOverlays = allowed);
+    } on Object {
+      // Not Android: no such permission, so say nothing about it.
+    }
+  }
+
+  Future<void> _setOverlay({required bool overlay}) async {
+    final repository = context.read<NudgeSettingsRepository>();
+    final bridge = context.read<CaptureBridge>();
+    final next = _settings.copyWith(overlay: overlay);
+    setState(() => _settings = next);
+    await repository.save(next);
+    // The permission can only be granted on a system screen, so take the
+    // user there the moment they ask for the card.
+    if (overlay && _canDrawOverlays == false) {
+      await bridge.openOverlaySettings();
+    }
   }
 
   Future<void> _checkNotifications() async {
@@ -114,6 +143,7 @@ class _NudgeSettingsCardState extends State<NudgeSettingsCard>
   Widget build(BuildContext context) {
     final restricted = _unrestricted == false;
     final blocked = _notificationsAllowed == false;
+    final needsOverlayPermission = _canDrawOverlays == false;
     return AppCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -128,6 +158,38 @@ class _NudgeSettingsCardState extends State<NudgeSettingsCard>
             value: _settings.enabled,
             onChanged: (enabled) => _setEnabled(enabled: enabled),
           ),
+          if (_settings.enabled) ...[
+            Divider(
+              height: 1,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            SwitchListTile(
+              title: const Text('Floating card over other apps'),
+              subtitle: const Text(
+                'Slides down from the top, whatever app you are in, with a '
+                'dropdown of every category',
+              ),
+              value: _settings.overlay,
+              onChanged: (overlay) => _setOverlay(overlay: overlay),
+            ),
+          ],
+          if (_settings.enabled &&
+              _settings.overlay &&
+              needsOverlayPermission) ...[
+            Divider(
+              height: 1,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            ListTile(
+              leading: const Icon(Icons.layers_outlined),
+              title: const Text('Allow display over other apps'),
+              subtitle: const Text(
+                'The card cannot appear until you turn this on for '
+                'IntelliSpendIQ. Tap to open the setting',
+              ),
+              onTap: () => context.read<CaptureBridge>().openOverlaySettings(),
+            ),
+          ],
           if (_settings.enabled && blocked) ...[
             Divider(
               height: 1,

@@ -57,7 +57,9 @@ class SmsReceiver : BroadcastReceiver() {
         }
         if (!appIsRunning && context != null && worthProcessing.isNotEmpty()) {
             val pending = goAsync()
-            BackgroundCapture.run(context, worthProcessing) { pending.finish() }
+            BackgroundCapture.run(context, worthProcessing.map { "ingest" to it }) {
+                pending.finish()
+            }
         }
     }
 }

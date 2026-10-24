@@ -25,6 +25,25 @@ plugin's own isolate: it opens the DB, categorizes the transaction, teaches
 the merchant rule (so the next payment there is categorized on arrival) and
 the notification clears. The app is never opened.
 
+## The floating card
+
+Alongside the notification, a card slides down from the top of the screen
+over whatever app is open. It shows the amount, your three usual categories
+as buttons, and an "Another category" dropdown listing every expense
+category. Picking one files the transaction, teaches the merchant rule,
+clears the notification and closes the card. Tapping the amount opens the
+transaction in the app. It closes itself after 30 seconds.
+
+- It is drawn natively (`NudgeOverlay.kt`) in plain Android views, because
+  the headless engine that decides to show it is gone within seconds and the
+  card has to stay and answer a tap. A process with an overlay window is
+  kept alive by Android. Filing starts a short headless run (`categorize`).
+- It needs **Display over other apps**, which Android only lets the user
+  grant on a system screen (never a dialog). Settings → Reminders has the
+  switch, and a row that opens that screen while the permission is missing.
+  Without it the notification is all there is.
+- It is skipped while the app itself is on screen, and for batched nudges.
+
 ## Notification permission
 
 Nudging is on by default. On Android 13 and later the app needs the
@@ -55,7 +74,9 @@ This is best effort, and nothing depends on it:
 |---|---|
 | `lib/domain/services/capture_core.dart` | Wiring shared by the app and the background entrypoint |
 | `lib/background/capture_background.dart` | Headless entrypoint and per-message handler |
-| `lib/background/nudge_actions.dart` | Category button handler |
+| `lib/background/nudge_actions.dart` | Notification button handler |
+| `lib/platform/overlay_nudge_notifier.dart` | Hands the card its words and choices |
+| `android/.../NudgeOverlay.kt` | Draws the floating card, files on tap |
 | `lib/domain/services/capture_nudger.dart` | Policy, batching, message building |
 | `android/.../SmsReceiver.kt` | Chooses live path or background path |
 | `android/.../BackgroundCapture.kt` | Starts and stops the headless engine |
@@ -96,6 +117,10 @@ and engine path needs a device or emulator:
    three category buttons once there is some categorized history.
 5. Tap a button. The notification clears; open the app and the transaction
    is categorized.
+5. For the floating card: in Settings → Reminders turn on **Floating card over
+   other apps** and allow **Display over other apps** when it opens the
+   system screen. Repeat step 3 with another app (not IntelliSpendIQ) on
+   screen. A card should slide down; try a button, then the dropdown.
 6. Repeat with the app force-stopped and an unrecognized sender: nothing
    should happen, and no raw capture should be stored.
 7. `adb logcat -s BackgroundCapture capture_background nudge_actions` shows

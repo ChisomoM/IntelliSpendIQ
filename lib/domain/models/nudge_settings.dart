@@ -10,6 +10,7 @@ import 'package:equatable/equatable.dart';
 class NudgeSettings extends Equatable {
   const NudgeSettings({
     this.enabled = true,
+    this.overlay = true,
     this.quietStartHour = defaultQuietStartHour,
     this.quietEndHour = defaultQuietEndHour,
   });
@@ -18,6 +19,11 @@ class NudgeSettings extends Equatable {
   static const defaultQuietEndHour = 7;
 
   final bool enabled;
+
+  /// Also float a card over other apps with a category dropdown. Needs
+  /// the system's "Display over other apps" permission; without it the
+  /// notification is all there is.
+  final bool overlay;
 
   /// Local hour (0-23) at which quiet hours begin. May be later than
   /// [quietEndHour], in which case the window wraps past midnight.
@@ -39,16 +45,19 @@ class NudgeSettings extends Equatable {
 
   NudgeSettings copyWith({
     bool? enabled,
+    bool? overlay,
     int? quietStartHour,
     int? quietEndHour,
   }) => NudgeSettings(
     enabled: enabled ?? this.enabled,
+    overlay: overlay ?? this.overlay,
     quietStartHour: quietStartHour ?? this.quietStartHour,
     quietEndHour: quietEndHour ?? this.quietEndHour,
   );
 
   Map<String, Object?> toJson() => {
     'enabled': enabled,
+    'overlay': overlay,
     'quietStartHour': quietStartHour,
     'quietEndHour': quietEndHour,
   };
@@ -58,11 +67,17 @@ class NudgeSettings extends Equatable {
         value is int && value >= 0 && value <= 23 ? value : fallback;
     return NudgeSettings(
       enabled: json['enabled'] != false,
+      overlay: json['overlay'] != false,
       quietStartHour: hourOr(json['quietStartHour'], defaultQuietStartHour),
       quietEndHour: hourOr(json['quietEndHour'], defaultQuietEndHour),
     );
   }
 
   @override
-  List<Object?> get props => [enabled, quietStartHour, quietEndHour];
+  List<Object?> get props => [
+    enabled,
+    overlay,
+    quietStartHour,
+    quietEndHour,
+  ];
 }

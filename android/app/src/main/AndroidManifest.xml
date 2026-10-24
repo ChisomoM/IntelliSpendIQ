@@ -20,6 +20,9 @@
          on Android 13+, and re-arms it after a reboot. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- The floating "What was this?" card drawn over other apps. Granted
+         by the user in system settings, never with a dialog. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
     <application
         android:label="${appName}"

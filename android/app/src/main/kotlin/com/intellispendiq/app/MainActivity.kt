@@ -1,6 +1,7 @@
 package com.intellispendiq.app
 
 import android.content.Intent
+import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.annotation.NonNull
@@ -53,6 +54,25 @@ class MainActivity : FlutterActivity() {
                     "isIgnoringBatteryOptimizations" -> {
                         val power = getSystemService(POWER_SERVICE) as PowerManager
                         result.success(power.isIgnoringBatteryOptimizations(packageName))
+                    }
+
+                    "showOverlay" -> result.success(
+                        NudgeOverlay.show(
+                            applicationContext,
+                            call.arguments as? Map<*, *> ?: emptyMap<Any, Any>(),
+                        ),
+                    )
+
+                    "canDrawOverlays" -> result.success(NudgeOverlay.canDraw(applicationContext))
+
+                    "openOverlaySettings" -> {
+                        startActivity(
+                            Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:$packageName"),
+                            ),
+                        )
+                        result.success(null)
                     }
 
                     "openNotificationSettings" -> {

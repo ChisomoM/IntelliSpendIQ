@@ -109,6 +109,36 @@ void main() {
     });
   });
 
+  group('BackgroundCaptureHandler.categorize', () {
+    test('files a transaction under the chosen category', () async {
+      await core.categories.ensureSeeds();
+      final food = (await core.categories.byName('Food'))!;
+      await handler.ingest(sms(Corpus.paymentTillNamed));
+      final transaction = (await core.transactions.watchRecent().first).single;
+
+      final status = await handler.categorize(
+        transactionId: transaction.id,
+        categoryId: food.id,
+      );
+
+      expect(status, 'categorized');
+      final updated = (await core.transactions.byId(transaction.id))!;
+      expect(updated.categoryId, food.id);
+      expect(updated.status, TxStatus.confirmed);
+    });
+
+    test('reports an error instead of throwing', () async {
+      final failing = BackgroundCaptureHandler(
+        openCore: () async => throw StateError('cannot open the database'),
+      );
+
+      expect(
+        await failing.categorize(transactionId: 'tx', categoryId: 'cat'),
+        'error',
+      );
+    });
+  });
+
   group('handleNudgeAction', () {
     NotificationResponse tap({String? actionId, String? payload}) =>
         NotificationResponse(
