@@ -43,6 +43,8 @@ class NudgeMessage {
     required this.body,
     required this.link,
     this.actions = const [],
+    this.transactionId,
+    this.options = const [],
   });
 
   /// Stable per message, so re-posting replaces rather than stacks.
@@ -55,6 +57,13 @@ class NudgeMessage {
 
   /// One-tap answers shown on the notification itself.
   final List<NudgeAction> actions;
+
+  /// The transaction a single nudge is about; null for a batched one.
+  final String? transactionId;
+
+  /// Every category the floating card's dropdown can offer. Empty when
+  /// the card is off, which is how the card knows not to appear.
+  final List<NudgeAction> options;
 }
 
 /// A button on a nudge that files the transaction under a category
@@ -92,6 +101,9 @@ class NudgeAction {
 /// Supplies the buttons for a single-transaction nudge.
 typedef NudgeSuggestions = Future<List<NudgeAction>> Function();
 
+/// Supplies every category the floating card's dropdown lists.
+typedef NudgeCategoryOptions = Future<List<NudgeAction>> Function();
+
 /// Shows a [NudgeMessage] to the user.
 abstract interface class NudgeNotifier {
   Future<void> show(NudgeMessage message);
@@ -126,11 +138,13 @@ class BatchingCaptureNudger implements CaptureNudger {
     required NudgeSettingsRepository settings,
     required NudgeNotifier notifier,
     NudgeSuggestions? suggestions,
+    NudgeCategoryOptions? categoryOptions,
     Duration window = const Duration(seconds: 3),
     DateTime Function()? clock,
   }) : _settings = settings,
        _notifier = notifier,
        _suggestions = suggestions,
+       _categoryOptions = categoryOptions,
        _window = window,
        _clock = clock ?? DateTime.now;
 
@@ -140,6 +154,7 @@ class BatchingCaptureNudger implements CaptureNudger {
   final NudgeSettingsRepository _settings;
   final NudgeNotifier _notifier;
   final NudgeSuggestions? _suggestions;
+  final NudgeCategoryOptions? _categoryOptions;
   final Duration _window;
   final DateTime Function() _clock;
 
@@ -167,7 +182,9 @@ class BatchingCaptureNudger implements CaptureNudger {
     final batch = List<Transaction>.of(_pending);
     _pending.clear();
     try {
-      await _notifier.show(await _messageFor(batch));
+      final settings = await _settings.load();
+      final message = await _messageFor(batch, overlay: settings.overlay);
+      await _notifier.show(message);
     } on Object catch (error, stackTrace) {
       // Run from a timer with nobody awaiting it, so without this a
       // failed post (a blocked channel, a bad icon) vanishes silently.
@@ -180,7 +197,10 @@ class BatchingCaptureNudger implements CaptureNudger {
     }
   }
 
-  Future<NudgeMessage> _messageFor(List<Transaction> batch) async {
+  Future<NudgeMessage> _messageFor(
+    List<Transaction> batch, {
+    required bool overlay,
+  }) async {
     if (batch.length > 1) {
       return NudgeMessage(
         id: batchNotificationId,
@@ -190,7 +210,10 @@ class BatchingCaptureNudger implements CaptureNudger {
       );
     }
     final transaction = batch.single;
-    final actions = await _actions();
+    final actions = await _list(_suggestions);
+    final options = overlay
+        ? await _list(_categoryOptions)
+        : const <NudgeAction>[];
     final merchant = transaction.merchant?.trim();
     final local = transaction.transactedAt.toLocal();
     final time = DateFormat('h:mm a').format(local);
@@ -204,13 +227,17 @@ class BatchingCaptureNudger implements CaptureNudger {
       ].join(' · '),
       link: Uri.parse('${DeepLink.scheme}://transaction/${transaction.id}'),
       actions: actions,
+      transactionId: transaction.id,
+      options: options,
     );
   }
 
   /// A failure to suggest must never cost the user the nudge itself.
-  Future<List<NudgeAction>> _actions() async {
+  Future<List<NudgeAction>> _list(
+    Future<List<NudgeAction>> Function()? source,
+  ) async {
     try {
-      return await _suggestions?.call() ?? const [];
+      return await source?.call() ?? const [];
     } on Object {
       return const [];
     }

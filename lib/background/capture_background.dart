@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intellispendiq/domain/services/capture_core.dart';
 import 'package:intellispendiq/platform/capture_bridge.dart';
 import 'package:intellispendiq/platform/flutter_nudge_notifier.dart';
+import 'package:intellispendiq/platform/overlay_nudge_notifier.dart';
 
 /// Channel between the native receiver and the headless engine it
 /// starts. The engine calls `ready`; native answers by calling `ingest`
@@ -54,6 +55,27 @@ class BackgroundCaptureHandler {
     }
   }
 
+  /// Files a transaction under a category, for the floating card's
+  /// buttons and dropdown. Returns `categorized`, or `error`.
+  Future<String> categorize({
+    required String transactionId,
+    required String categoryId,
+  }) async {
+    try {
+      final core = _core ??= await _openCore();
+      await core.categorize(transactionId, categoryId);
+      return 'categorized';
+    } on Object catch (error, stackTrace) {
+      log(
+        'Background categorize failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'capture_background',
+      );
+      return 'error';
+    }
+  }
+
   Future<void> dispose() async {
     final core = _core;
     _core = null;
@@ -77,15 +99,29 @@ Future<void> captureBackgroundMain() async {
     ),
   );
 
-  final handler = BackgroundCaptureHandler(
-    openCore: () =>
-        CaptureCore.open(nudgeNotifier: FlutterNudgeNotifier(plugin: plugin)),
-  );
   const channel = MethodChannel(captureBackgroundChannelName);
+  final handler = BackgroundCaptureHandler(
+    openCore: () => CaptureCore.open(
+      nudgeNotifier: CompositeNudgeNotifier([
+        FlutterNudgeNotifier(plugin: plugin),
+        OverlayNudgeNotifier(channel: channel),
+      ]),
+    ),
+  );
   channel.setMethodCallHandler((call) async {
-    if (call.method != 'ingest') throw MissingPluginException();
-    final payload = (call.arguments as Map).cast<Object?, Object?>();
-    final status = await handler.ingest(payload);
+    final arguments = (call.arguments as Map).cast<Object?, Object?>();
+    final String status;
+    switch (call.method) {
+      case 'ingest':
+        status = await handler.ingest(arguments);
+      case 'categorize':
+        status = await handler.categorize(
+          transactionId: arguments['transactionId']! as String,
+          categoryId: arguments['categoryId']! as String,
+        );
+      default:
+        throw MissingPluginException();
+    }
     await handler.dispose();
     return status;
   });

@@ -39,6 +39,16 @@ class CaptureBridge {
       await _methods.invokeMethod<bool>('isIgnoringBatteryOptimizations') ??
       false;
 
+  /// Whether the "Display over other apps" permission is granted, which
+  /// the floating category card needs.
+  Future<bool> canDrawOverlays() async =>
+      await _methods.invokeMethod<bool>('canDrawOverlays') ?? false;
+
+  /// Opens the system screen where "Display over other apps" is granted.
+  /// It cannot be requested with a dialog.
+  Future<void> openOverlaySettings() =>
+      _methods.invokeMethod<void>('openOverlaySettings');
+
   /// Opens this app's notification settings in the system, where the
   /// permission can be given back after it was denied (Android will not
   /// show its own prompt a second time).

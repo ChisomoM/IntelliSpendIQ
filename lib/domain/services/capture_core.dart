@@ -98,6 +98,7 @@ class CaptureCore {
             settings: nudgeSettings,
             notifier: nudgeNotifier,
             suggestions: () => _suggestCategories(transactions, categories),
+            categoryOptions: () => _categoryOptions(categories),
           );
 
     return CaptureCore._(
@@ -164,6 +165,34 @@ class CaptureCore {
       if (actions.length == suggestionCount) break;
     }
     return actions;
+  }
+
+  /// Every expense category, for the floating card's dropdown: sub
+  /// categories are labelled with their parent so two "Other"s can be
+  /// told apart, and the fee category (filled in by the pipeline) is left
+  /// out.
+  static Future<List<NudgeAction>> _categoryOptions(
+    CategoryRepository categories,
+  ) async {
+    final all = await categories.getAll();
+    final byId = {for (final c in all) c.id: c};
+    final options = <NudgeAction>[];
+    for (final category in all) {
+      if (!category.isExpense || category.name == 'Fees/Charges') continue;
+      final parent = byId[category.parentId];
+      options.add(
+        NudgeAction(
+          categoryId: category.id,
+          label: parent == null
+              ? category.name
+              : '${parent.name} / ${category.name}',
+        ),
+      );
+    }
+    options.sort(
+      (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
+    );
+    return options;
   }
 
   /// Files [transactionId] under [categoryId], confirms it, and teaches

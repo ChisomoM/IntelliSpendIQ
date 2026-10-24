@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:intellispendiq/bootstrap.dart';
 import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/db/connection.dart';
@@ -45,6 +47,7 @@ import 'package:intellispendiq/platform/biometric_authenticator.dart';
 import 'package:intellispendiq/platform/capture_bridge.dart';
 import 'package:intellispendiq/platform/deep_link_source.dart';
 import 'package:intellispendiq/platform/flutter_nudge_notifier.dart';
+import 'package:intellispendiq/platform/overlay_nudge_notifier.dart';
 
 /// Composition root: builds the encrypted database and every repository
 /// and service the app needs, wired together once at startup.
@@ -112,7 +115,17 @@ class AppServices {
       identity: FirebaseIdentityRepository(),
       license: FirestoreLicenseRepository(secureStore: store),
       fees: FirestoreFeeScheduleRepository(secureStore: store),
-      nudgeNotifier: FlutterNudgeNotifier(),
+      nudgeNotifier: CompositeNudgeNotifier([
+        FlutterNudgeNotifier(),
+        OverlayNudgeNotifier(
+          channel: const MethodChannel(CaptureBridge.methodChannelName),
+          // The app is already in front of the user; a card over it
+          // would only get in the way.
+          isSuppressed: () =>
+              WidgetsBinding.instance.lifecycleState ==
+              AppLifecycleState.resumed,
+        ),
+      ]),
     );
   }
 

@@ -108,6 +108,12 @@ void main() {
       expect(settings.isQuiet(DateTime(2026, 7, 28, 9)), isFalse);
     });
 
+    test('shows the floating card unless the user turned it off', () {
+      expect(const NudgeSettings().overlay, isTrue);
+      expect(NudgeSettings.fromJson(const {}).overlay, isTrue);
+      expect(NudgeSettings.fromJson(const {'overlay': false}).overlay, isFalse);
+    });
+
     test('is on unless the user turned it off', () {
       expect(const NudgeSettings().enabled, isTrue);
       expect(NudgeSettings.fromJson(const {}).enabled, isTrue);
@@ -269,6 +275,55 @@ void main() {
       await nudger.flush();
 
       expect(notifier.shown.single.actions, isEmpty);
+    });
+
+    test('lists every category for the floating card', () async {
+      await enable();
+      nudger = BatchingCaptureNudger(
+        settings: services.nudgeSettings,
+        notifier: notifier,
+        clock: () => clock,
+        categoryOptions: () async => const [
+          NudgeAction(categoryId: 'food', label: 'Food'),
+          NudgeAction(categoryId: 'rent', label: 'Rent'),
+        ],
+      );
+
+      await nudger.onIngest(saved());
+      await nudger.flush();
+
+      final message = notifier.shown.single;
+      expect(message.transactionId, 'tx-1');
+      expect(message.options.map((o) => o.categoryId), ['food', 'rent']);
+    });
+
+    test('leaves the card out when the user switched it off', () async {
+      await services.nudgeSettings.save(const NudgeSettings(overlay: false));
+      nudger = BatchingCaptureNudger(
+        settings: services.nudgeSettings,
+        notifier: notifier,
+        clock: () => clock,
+        categoryOptions: () async => const [
+          NudgeAction(categoryId: 'food', label: 'Food'),
+        ],
+      );
+
+      await nudger.onIngest(saved());
+      await nudger.flush();
+
+      expect(notifier.shown.single.options, isEmpty);
+      expect(notifier.shown.single.transactionId, 'tx-1');
+    });
+
+    test('has no transaction to file on a batched nudge', () async {
+      await enable();
+
+      await nudger.onIngest(saved(id: 'a'));
+      await nudger.onIngest(saved(id: 'b'));
+      await nudger.flush();
+
+      expect(notifier.shown.single.transactionId, isNull);
+      expect(notifier.shown.single.options, isEmpty);
     });
 
     test('ignores ineligible captures', () async {

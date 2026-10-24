@@ -198,6 +198,12 @@ class FakeCaptureBridge implements CaptureBridge {
   Future<bool> isIgnoringBatteryOptimizations() async => true;
 
   @override
+  Future<bool> canDrawOverlays() async => true;
+
+  @override
+  Future<void> openOverlaySettings() async {}
+
+  @override
   Future<void> openBatterySettings() async {}
 
   @override
