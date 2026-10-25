@@ -54,21 +54,28 @@ Future<void> bootstrap(
       // user stares at a blank window while it happens.
       runApp(const SplashApp());
 
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform(flavor: flavor),
-      );
-
-      if (!kIsWeb) {
-        await GoogleSignIn.instance.initialize(
-          // Web OAuth client ID — required on Android so Google returns an
-          // ID token Firebase Auth can verify.
-          serverClientId:
-              '298945862169-1ehi9mmg4tm0pn0k3ns5ajjhqcsehh2d.apps.googleusercontent.com',
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform(flavor: flavor),
         );
-      }
 
-      final services = await AppServices.bootstrap(flavor: flavor);
-      runApp(await builder(services));
+        if (!kIsWeb) {
+          await GoogleSignIn.instance.initialize(
+            // Web OAuth client ID — required on Android so Google returns an
+            // ID token Firebase Auth can verify.
+            serverClientId:
+                '298945862169-1ehi9mmg4tm0pn0k3ns5ajjhqcsehh2d.apps.googleusercontent.com',
+          );
+        }
+
+        final services = await AppServices.bootstrap(flavor: flavor);
+        runApp(await builder(services));
+      } on Object catch (error, stackTrace) {
+        // Without this a failure here is only logged, and the splash
+        // spinner stays up forever.
+        log('Startup failed', error: error, stackTrace: stackTrace);
+        runApp(SplashApp(error: '$error'));
+      }
     },
     (error, stackTrace) {
       log('Uncaught zone error', error: error, stackTrace: stackTrace);

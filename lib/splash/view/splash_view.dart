@@ -10,9 +10,13 @@ import 'package:intellispendiq/design/tokens/icons.dart';
 /// It is a plain widget rather than a page so both callers can use it —
 /// one of them has no [Navigator] yet.
 class SplashView extends StatelessWidget {
-  const SplashView({super.key, this.message});
+  const SplashView({super.key, this.message, this.failed = false});
 
   final String? message;
+
+  /// Startup gave up: swap the spinner for the reason, so a failure
+  /// is visible instead of looking like a slow load.
+  final bool failed;
 
   @override
   Widget build(BuildContext context) {
@@ -34,20 +38,29 @@ class SplashView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colors.primary,
+            if (failed)
+              Text(
+                "IntelliSpendIQ couldn't start",
+                style: Theme.of(context).textTheme.titleMedium,
+              )
+            else
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colors.primary,
+                ),
               ),
-            ),
             if (message != null) ...[
               const SizedBox(height: 16),
-              Text(
-                message!,
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: SelectableText(
+                  message!,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ],
@@ -64,7 +77,10 @@ class SplashView extends StatelessWidget {
 /// It cannot read the user's saved theme — that lives in the database
 /// this screen is waiting on — so it follows the system brightness.
 class SplashApp extends StatelessWidget {
-  const SplashApp({super.key});
+  const SplashApp({super.key, this.error});
+
+  /// Set when startup failed; shown in place of the spinner.
+  final String? error;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +89,7 @@ class SplashApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       debugShowCheckedModeBanner: false,
-      home: const SplashView(),
+      home: SplashView(message: error, failed: error != null),
     );
   }
 }
