@@ -746,7 +746,7 @@ class _DataSectionState extends State<_DataSection> {
     setState(() => _busy = true);
     try {
       final plan = await importer.parse(await File(path).readAsString());
-      if (!mounted) return;
+      if (!context.mounted) return;
       setState(() => _busy = false);
       final confirmed = await showDialog<bool>(
         context: context,

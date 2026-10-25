@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -146,6 +146,13 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
             m,
             savingsGoalEntries,
             savingsGoalEntries.linkedTransferId,
+          );
+        }
+        if (from < 15) {
+          await _addColumnIfMissing(
+            m,
+            budgetPeriods,
+            budgetPeriods.datesAdjusted,
           );
         }
       });

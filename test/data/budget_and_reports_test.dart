@@ -338,14 +338,20 @@ void main() {
       expect(all.map((c) => c.id), isNot(contains(category.id)));
     });
 
-    test('refuses to delete a system category', () async {
+    test('deletes a default category and never re-seeds it', () async {
       final food = (await services.categories.byName('Food'))!;
 
       final removed = await services.categories.delete(food.id);
 
-      expect(removed, isFalse);
-      final all = await services.categories.getAll();
-      expect(all.map((c) => c.id), contains(food.id));
+      expect(removed, isTrue);
+      expect(
+        (await services.categories.getAll()).map((c) => c.id),
+        isNot(contains(food.id)),
+      );
+      await services.categories.ensureSeeds();
+      expect(await services.categories.byName('Food'), isNull);
+      // Deleting it again reports that there was nothing to delete.
+      expect(await services.categories.delete(food.id), isFalse);
     });
   });
 

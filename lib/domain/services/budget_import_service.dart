@@ -56,7 +56,10 @@ class BudgetImportRow {
 
 /// A line imported earlier without a merchant, now given one in the file.
 class BudgetImportBackfill {
-  const BudgetImportBackfill({required this.transactionId, required this.merchant});
+  const BudgetImportBackfill({
+    required this.transactionId,
+    required this.merchant,
+  });
 
   final String transactionId;
   final String merchant;

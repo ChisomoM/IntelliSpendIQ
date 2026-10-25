@@ -57,31 +57,36 @@ void main() {
     expect(day(next.startAt), DateTime(2026, 10, 25));
   });
 
-  test('payday on the 23rd: the next cycle starts then, with its spending', () async {
-    final before = await spend(DateTime(2026, 10, 22, 12), current);
-    final onPayday = await spend(DateTime(2026, 10, 23, 9), current);
-    final dayAfter = await spend(DateTime(2026, 10, 24, 18), current);
+  test(
+    'payday on the 23rd: the next cycle starts then, with its spending',
+    () async {
+      final before = await spend(DateTime(2026, 10, 22, 12), current);
+      final onPayday = await spend(DateTime(2026, 10, 23, 9), current);
+      final dayAfter = await spend(DateTime(2026, 10, 24, 18), current);
 
-    final preview = await services.budgetPeriods.moveBoundary(
-      earlierId: current.id,
-      laterId: next.id,
-      newBoundary: DateTime(2026, 10, 23),
-    );
+      final preview = await services.budgetPeriods.moveBoundary(
+        earlierId: current.id,
+        laterId: next.id,
+        newBoundary: DateTime(2026, 10, 23),
+      );
 
-    expect(preview.transactionsMoving, 2);
-    expect(preview.movesIntoLater, isTrue);
-    final updatedCurrent = (await services.budgetPeriods.getPeriod(current.id))!;
-    final updatedNext = (await services.budgetPeriods.getPeriod(next.id))!;
-    expect(day(updatedCurrent.endAt), DateTime(2026, 10, 23));
-    expect(day(updatedNext.startAt), DateTime(2026, 10, 23));
-    expect(day(updatedNext.endAt), DateTime(2026, 11, 25));
-    expect(updatedCurrent.label, '25/09/2026 – 22/10/2026');
-    expect(updatedNext.label, startsWith('23/10/2026'));
+      expect(preview.transactionsMoving, 2);
+      expect(preview.movesIntoLater, isTrue);
+      final updatedCurrent = (await services.budgetPeriods.getPeriod(
+        current.id,
+      ))!;
+      final updatedNext = (await services.budgetPeriods.getPeriod(next.id))!;
+      expect(day(updatedCurrent.endAt), DateTime(2026, 10, 23));
+      expect(day(updatedNext.startAt), DateTime(2026, 10, 23));
+      expect(day(updatedNext.endAt), DateTime(2026, 11, 25));
+      expect(updatedCurrent.label, '25/09/2026 – 22/10/2026');
+      expect(updatedNext.label, startsWith('23/10/2026'));
 
-    expect(await periodOf(before), current.id);
-    expect(await periodOf(onPayday), next.id);
-    expect(await periodOf(dayAfter), next.id);
-  });
+      expect(await periodOf(before), current.id);
+      expect(await periodOf(onPayday), next.id);
+      expect(await periodOf(dayAfter), next.id);
+    },
+  );
 
   test('a saved cycle keeps its dates when looked up by date', () async {
     await services.budgetPeriods.moveBoundary(
@@ -160,10 +165,22 @@ void main() {
       newBoundary: on,
     );
 
-    await expectLater(move(DateTime(2026, 9, 25)), throwsA(isA<CycleEditException>()));
-    await expectLater(move(DateTime(2026, 9, 1)), throwsA(isA<CycleEditException>()));
-    await expectLater(move(DateTime(2026, 11, 25)), throwsA(isA<CycleEditException>()));
-    await expectLater(move(DateTime(2026, 10, 25)), throwsA(isA<CycleEditException>()));
+    await expectLater(
+      move(DateTime(2026, 9, 25)),
+      throwsA(isA<CycleEditException>()),
+    );
+    await expectLater(
+      move(DateTime(2026, 9)),
+      throwsA(isA<CycleEditException>()),
+    );
+    await expectLater(
+      move(DateTime(2026, 11, 25)),
+      throwsA(isA<CycleEditException>()),
+    );
+    await expectLater(
+      move(DateTime(2026, 10, 25)),
+      throwsA(isA<CycleEditException>()),
+    );
   });
 
   test('refuses cycles that are not neighbours', () async {
@@ -173,7 +190,7 @@ void main() {
       services.budgetPeriods.moveBoundary(
         earlierId: current.id,
         laterId: afterNext.id,
-        newBoundary: DateTime(2026, 11, 1),
+        newBoundary: DateTime(2026, 11),
       ),
       throwsA(isA<CycleEditException>()),
     );
@@ -194,7 +211,9 @@ void main() {
     );
 
     expect(
-      (await services.budgetPeriods.categoryBudgetsFor(current.id)).single.amountMinor,
+      (await services.budgetPeriods.categoryBudgetsFor(
+        current.id,
+      )).single.amountMinor,
       50000,
     );
     expect(await services.budgetPeriods.categoryBudgetsFor(next.id), isEmpty);
@@ -208,7 +227,7 @@ void main() {
     );
 
     final cycles = await services.budgetPeriods.cyclesBetween(
-      earliest: DateTime(2026, 8, 1),
+      earliest: DateTime(2026, 8),
       now: DateTime(2026, 10, 24),
     );
 
@@ -216,4 +235,37 @@ void main() {
     expect(cycles[1].start, DateTime(2026, 9, 25));
     expect(cycles[1].endExclusive, DateTime(2026, 10, 23));
   });
+
+  test(
+    'an adjusted cycle survives a later change to the schedule rule',
+    () async {
+      await services.budgetPeriods.moveBoundary(
+        earlierId: current.id,
+        laterId: next.id,
+        newBoundary: DateTime(2026, 10, 23),
+      );
+
+      // Payday moves to the 28th. Cycles nobody adjusted follow it...
+      await services.budgetPeriods.updateSchedule(
+        cadence: BudgetCadence.payday,
+        anchorDay: 28,
+      );
+      final later = await services.budgetPeriods.ensurePeriodContaining(
+        DateTime(2026, 12, 10),
+      );
+      expect(day(later.startAt), DateTime(2026, 11, 28));
+
+      // ...while the one that was adjusted keeps its dates.
+      expect(
+        (await services.budgetPeriods.ensurePeriodContaining(
+          DateTime(2026, 10, 24),
+        )).id,
+        next.id,
+      );
+      expect(
+        day((await services.budgetPeriods.getPeriod(next.id))!.startAt),
+        DateTime(2026, 10, 23),
+      );
+    },
+  );
 }

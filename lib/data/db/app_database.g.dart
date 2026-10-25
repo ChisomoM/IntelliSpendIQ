@@ -375,8 +375,11 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
   /// transaction history instead.
   final String? balanceAsOf;
 
-  /// Set only on the hidden account backing a savings goal's real
-  /// balance.
+  /// Set only on the hidden account backing a [SavingsGoals] row's real
+  /// balance. Excluded from every normal account list/picker — see
+  /// `AccountRepository.getAll`/`watchAll` — so it never appears
+  /// alongside the user's own accounts; only `SavingsGoalRepository`
+  /// moves money into or out of it, via real [Transfers].
   final String? linkedGoalId;
   const AccountRow({
     required this.id,
@@ -518,9 +521,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     providerKey: providerKey.present ? providerKey.value : this.providerKey,
     balanceMinor: balanceMinor.present ? balanceMinor.value : this.balanceMinor,
     balanceAsOf: balanceAsOf.present ? balanceAsOf.value : this.balanceAsOf,
-    linkedGoalId: linkedGoalId.present
-        ? linkedGoalId.value
-        : this.linkedGoalId,
+    linkedGoalId: linkedGoalId.present ? linkedGoalId.value : this.linkedGoalId,
   );
   AccountRow copyWithCompanion(AccountsCompanion data) {
     return AccountRow(
@@ -4277,6 +4278,21 @@ class $BudgetPeriodsTable extends BudgetPeriods
     requiredDuringInsert: false,
     defaultValue: const Constant('manual'),
   );
+  static const VerificationMeta _datesAdjustedMeta = const VerificationMeta(
+    'datesAdjusted',
+  );
+  @override
+  late final GeneratedColumn<bool> datesAdjusted = GeneratedColumn<bool>(
+    'dates_adjusted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("dates_adjusted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4291,6 +4307,7 @@ class $BudgetPeriodsTable extends BudgetPeriods
     overallAmountMinor,
     carryOver,
     budgetSource,
+    datesAdjusted,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4395,6 +4412,15 @@ class $BudgetPeriodsTable extends BudgetPeriods
         ),
       );
     }
+    if (data.containsKey('dates_adjusted')) {
+      context.handle(
+        _datesAdjustedMeta,
+        datesAdjusted.isAcceptableOrUnknown(
+          data['dates_adjusted']!,
+          _datesAdjustedMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4456,6 +4482,10 @@ class $BudgetPeriodsTable extends BudgetPeriods
         DriftSqlType.string,
         data['${effectivePrefix}budget_source'],
       )!,
+      datesAdjusted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}dates_adjusted'],
+      )!,
     );
   }
 
@@ -4488,6 +4518,13 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
   /// `manual`, [overallAmountMinor] is derived from this period's income
   /// categories (paid-only, or paid+unpaid) instead of being set by hand.
   final String budgetSource;
+
+  /// True once the user has moved this period's start or end away from
+  /// where the schedule's rule put it. Only these periods override the
+  /// rule when working out which cycle holds a date; the rest are
+  /// regenerated from the rule as before, so changing the rule still
+  /// takes effect on periods nobody touched.
+  final bool datesAdjusted;
   const BudgetPeriodRow({
     required this.id,
     required this.userId,
@@ -4501,6 +4538,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
     this.overallAmountMinor,
     required this.carryOver,
     required this.budgetSource,
+    required this.datesAdjusted,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4521,6 +4559,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
     }
     map['carry_over'] = Variable<bool>(carryOver);
     map['budget_source'] = Variable<String>(budgetSource);
+    map['dates_adjusted'] = Variable<bool>(datesAdjusted);
     return map;
   }
 
@@ -4542,6 +4581,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
           : Value(overallAmountMinor),
       carryOver: Value(carryOver),
       budgetSource: Value(budgetSource),
+      datesAdjusted: Value(datesAdjusted),
     );
   }
 
@@ -4563,6 +4603,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
       overallAmountMinor: serializer.fromJson<int?>(json['overallAmountMinor']),
       carryOver: serializer.fromJson<bool>(json['carryOver']),
       budgetSource: serializer.fromJson<String>(json['budgetSource']),
+      datesAdjusted: serializer.fromJson<bool>(json['datesAdjusted']),
     );
   }
   @override
@@ -4581,6 +4622,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
       'overallAmountMinor': serializer.toJson<int?>(overallAmountMinor),
       'carryOver': serializer.toJson<bool>(carryOver),
       'budgetSource': serializer.toJson<String>(budgetSource),
+      'datesAdjusted': serializer.toJson<bool>(datesAdjusted),
     };
   }
 
@@ -4597,6 +4639,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
     Value<int?> overallAmountMinor = const Value.absent(),
     bool? carryOver,
     String? budgetSource,
+    bool? datesAdjusted,
   }) => BudgetPeriodRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -4612,6 +4655,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
         : this.overallAmountMinor,
     carryOver: carryOver ?? this.carryOver,
     budgetSource: budgetSource ?? this.budgetSource,
+    datesAdjusted: datesAdjusted ?? this.datesAdjusted,
   );
   BudgetPeriodRow copyWithCompanion(BudgetPeriodsCompanion data) {
     return BudgetPeriodRow(
@@ -4633,6 +4677,9 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
       budgetSource: data.budgetSource.present
           ? data.budgetSource.value
           : this.budgetSource,
+      datesAdjusted: data.datesAdjusted.present
+          ? data.datesAdjusted.value
+          : this.datesAdjusted,
     );
   }
 
@@ -4650,7 +4697,8 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
           ..write('label: $label, ')
           ..write('overallAmountMinor: $overallAmountMinor, ')
           ..write('carryOver: $carryOver, ')
-          ..write('budgetSource: $budgetSource')
+          ..write('budgetSource: $budgetSource, ')
+          ..write('datesAdjusted: $datesAdjusted')
           ..write(')'))
         .toString();
   }
@@ -4669,6 +4717,7 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
     overallAmountMinor,
     carryOver,
     budgetSource,
+    datesAdjusted,
   );
   @override
   bool operator ==(Object other) =>
@@ -4685,7 +4734,8 @@ class BudgetPeriodRow extends DataClass implements Insertable<BudgetPeriodRow> {
           other.label == this.label &&
           other.overallAmountMinor == this.overallAmountMinor &&
           other.carryOver == this.carryOver &&
-          other.budgetSource == this.budgetSource);
+          other.budgetSource == this.budgetSource &&
+          other.datesAdjusted == this.datesAdjusted);
 }
 
 class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
@@ -4701,6 +4751,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
   final Value<int?> overallAmountMinor;
   final Value<bool> carryOver;
   final Value<String> budgetSource;
+  final Value<bool> datesAdjusted;
   final Value<int> rowid;
   const BudgetPeriodsCompanion({
     this.id = const Value.absent(),
@@ -4715,6 +4766,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     this.overallAmountMinor = const Value.absent(),
     this.carryOver = const Value.absent(),
     this.budgetSource = const Value.absent(),
+    this.datesAdjusted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BudgetPeriodsCompanion.insert({
@@ -4730,6 +4782,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     this.overallAmountMinor = const Value.absent(),
     this.carryOver = const Value.absent(),
     this.budgetSource = const Value.absent(),
+    this.datesAdjusted = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -4752,6 +4805,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     Expression<int>? overallAmountMinor,
     Expression<bool>? carryOver,
     Expression<String>? budgetSource,
+    Expression<bool>? datesAdjusted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4768,6 +4822,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
         'overall_amount_minor': overallAmountMinor,
       if (carryOver != null) 'carry_over': carryOver,
       if (budgetSource != null) 'budget_source': budgetSource,
+      if (datesAdjusted != null) 'dates_adjusted': datesAdjusted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4785,6 +4840,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     Value<int?>? overallAmountMinor,
     Value<bool>? carryOver,
     Value<String>? budgetSource,
+    Value<bool>? datesAdjusted,
     Value<int>? rowid,
   }) {
     return BudgetPeriodsCompanion(
@@ -4800,6 +4856,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
       overallAmountMinor: overallAmountMinor ?? this.overallAmountMinor,
       carryOver: carryOver ?? this.carryOver,
       budgetSource: budgetSource ?? this.budgetSource,
+      datesAdjusted: datesAdjusted ?? this.datesAdjusted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4843,6 +4900,9 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
     if (budgetSource.present) {
       map['budget_source'] = Variable<String>(budgetSource.value);
     }
+    if (datesAdjusted.present) {
+      map['dates_adjusted'] = Variable<bool>(datesAdjusted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4864,6 +4924,7 @@ class BudgetPeriodsCompanion extends UpdateCompanion<BudgetPeriodRow> {
           ..write('overallAmountMinor: $overallAmountMinor, ')
           ..write('carryOver: $carryOver, ')
           ..write('budgetSource: $budgetSource, ')
+          ..write('datesAdjusted: $datesAdjusted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9753,7 +9814,9 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
   final String status;
 
   /// The hidden [Accounts] row that actually holds this goal's saved
-  /// money.
+  /// money — see [Accounts.linkedGoalId]. Nullable only for rows
+  /// created before this existed; `SavingsGoalRepository` creates one
+  /// lazily on first use for those.
   final String? accountId;
   const SavingsGoalRow({
     required this.id,
@@ -9899,9 +9962,7 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
           ? data.defaultAccountId.value
           : this.defaultAccountId,
       status: data.status.present ? data.status.value : this.status,
-      accountId: data.accountId.present
-          ? data.accountId.value
-          : this.accountId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
     );
   }
 
@@ -10487,7 +10548,11 @@ class SavingsGoalEntryRow extends DataClass
   /// take-back.
   final String? linkedTransactionId;
 
-  /// The real [Transfers] row that actually moved this entry's money.
+  /// The real [Transfers] row that actually moved this contribution's
+  /// (or plain withdrawal's) money between [accountId] and the goal's
+  /// hidden account. Null for the goal-funded portion of a purchase —
+  /// that leg moves no money of its own, [linkedTransactionId] already
+  /// covers it.
   final String? linkedTransferId;
   const SavingsGoalEntryRow({
     required this.id,
@@ -10575,9 +10640,7 @@ class SavingsGoalEntryRow extends DataClass
       linkedTransactionId: serializer.fromJson<String?>(
         json['linkedTransactionId'],
       ),
-      linkedTransferId: serializer.fromJson<String?>(
-        json['linkedTransferId'],
-      ),
+      linkedTransferId: serializer.fromJson<String?>(json['linkedTransferId']),
     );
   }
   @override
@@ -12245,6 +12308,7 @@ typedef $$AccountsTableCreateCompanionBuilder =
       Value<String?> providerKey,
       Value<int?> balanceMinor,
       Value<String?> balanceAsOf,
+      Value<String?> linkedGoalId,
       Value<int> rowid,
     });
 typedef $$AccountsTableUpdateCompanionBuilder =
@@ -12261,6 +12325,7 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<String?> providerKey,
       Value<int?> balanceMinor,
       Value<String?> balanceAsOf,
+      Value<String?> linkedGoalId,
       Value<int> rowid,
     });
 
@@ -12330,6 +12395,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<String> get balanceAsOf => $composableBuilder(
     column: $table.balanceAsOf,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedGoalId => $composableBuilder(
+    column: $table.linkedGoalId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -12402,6 +12472,11 @@ class $$AccountsTableOrderingComposer
     column: $table.balanceAsOf,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get linkedGoalId => $composableBuilder(
+    column: $table.linkedGoalId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -12454,6 +12529,11 @@ class $$AccountsTableAnnotationComposer
     column: $table.balanceAsOf,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get linkedGoalId => $composableBuilder(
+    column: $table.linkedGoalId,
+    builder: (column) => column,
+  );
 }
 
 class $$AccountsTableTableManager
@@ -12499,6 +12579,7 @@ class $$AccountsTableTableManager
                 Value<String?> providerKey = const Value.absent(),
                 Value<int?> balanceMinor = const Value.absent(),
                 Value<String?> balanceAsOf = const Value.absent(),
+                Value<String?> linkedGoalId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
@@ -12513,6 +12594,7 @@ class $$AccountsTableTableManager
                 providerKey: providerKey,
                 balanceMinor: balanceMinor,
                 balanceAsOf: balanceAsOf,
+                linkedGoalId: linkedGoalId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -12529,6 +12611,7 @@ class $$AccountsTableTableManager
                 Value<String?> providerKey = const Value.absent(),
                 Value<int?> balanceMinor = const Value.absent(),
                 Value<String?> balanceAsOf = const Value.absent(),
+                Value<String?> linkedGoalId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
@@ -12543,6 +12626,7 @@ class $$AccountsTableTableManager
                 providerKey: providerKey,
                 balanceMinor: balanceMinor,
                 balanceAsOf: balanceAsOf,
+                linkedGoalId: linkedGoalId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -14158,6 +14242,7 @@ typedef $$BudgetPeriodsTableCreateCompanionBuilder =
       Value<int?> overallAmountMinor,
       Value<bool> carryOver,
       Value<String> budgetSource,
+      Value<bool> datesAdjusted,
       Value<int> rowid,
     });
 typedef $$BudgetPeriodsTableUpdateCompanionBuilder =
@@ -14174,6 +14259,7 @@ typedef $$BudgetPeriodsTableUpdateCompanionBuilder =
       Value<int?> overallAmountMinor,
       Value<bool> carryOver,
       Value<String> budgetSource,
+      Value<bool> datesAdjusted,
       Value<int> rowid,
     });
 
@@ -14243,6 +14329,11 @@ class $$BudgetPeriodsTableFilterComposer
 
   ColumnFilters<String> get budgetSource => $composableBuilder(
     column: $table.budgetSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get datesAdjusted => $composableBuilder(
+    column: $table.datesAdjusted,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -14315,6 +14406,11 @@ class $$BudgetPeriodsTableOrderingComposer
     column: $table.budgetSource,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get datesAdjusted => $composableBuilder(
+    column: $table.datesAdjusted,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BudgetPeriodsTableAnnotationComposer
@@ -14367,6 +14463,11 @@ class $$BudgetPeriodsTableAnnotationComposer
     column: $table.budgetSource,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get datesAdjusted => $composableBuilder(
+    column: $table.datesAdjusted,
+    builder: (column) => column,
+  );
 }
 
 class $$BudgetPeriodsTableTableManager
@@ -14412,6 +14513,7 @@ class $$BudgetPeriodsTableTableManager
                 Value<int?> overallAmountMinor = const Value.absent(),
                 Value<bool> carryOver = const Value.absent(),
                 Value<String> budgetSource = const Value.absent(),
+                Value<bool> datesAdjusted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetPeriodsCompanion(
                 id: id,
@@ -14426,6 +14528,7 @@ class $$BudgetPeriodsTableTableManager
                 overallAmountMinor: overallAmountMinor,
                 carryOver: carryOver,
                 budgetSource: budgetSource,
+                datesAdjusted: datesAdjusted,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -14442,6 +14545,7 @@ class $$BudgetPeriodsTableTableManager
                 Value<int?> overallAmountMinor = const Value.absent(),
                 Value<bool> carryOver = const Value.absent(),
                 Value<String> budgetSource = const Value.absent(),
+                Value<bool> datesAdjusted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetPeriodsCompanion.insert(
                 id: id,
@@ -14456,6 +14560,7 @@ class $$BudgetPeriodsTableTableManager
                 overallAmountMinor: overallAmountMinor,
                 carryOver: carryOver,
                 budgetSource: budgetSource,
+                datesAdjusted: datesAdjusted,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -16909,6 +17014,7 @@ typedef $$SavingsGoalsTableCreateCompanionBuilder =
       Value<String?> targetDate,
       Value<String?> defaultAccountId,
       Value<String> status,
+      Value<String?> accountId,
       Value<int> rowid,
     });
 typedef $$SavingsGoalsTableUpdateCompanionBuilder =
@@ -16923,6 +17029,7 @@ typedef $$SavingsGoalsTableUpdateCompanionBuilder =
       Value<String?> targetDate,
       Value<String?> defaultAccountId,
       Value<String> status,
+      Value<String?> accountId,
       Value<int> rowid,
     });
 
@@ -16982,6 +17089,11 @@ class $$SavingsGoalsTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -17044,6 +17156,11 @@ class $$SavingsGoalsTableOrderingComposer
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SavingsGoalsTableAnnotationComposer
@@ -17090,6 +17207,9 @@ class $$SavingsGoalsTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
 }
 
 class $$SavingsGoalsTableTableManager
@@ -17133,6 +17253,7 @@ class $$SavingsGoalsTableTableManager
                 Value<String?> targetDate = const Value.absent(),
                 Value<String?> defaultAccountId = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavingsGoalsCompanion(
                 id: id,
@@ -17145,6 +17266,7 @@ class $$SavingsGoalsTableTableManager
                 targetDate: targetDate,
                 defaultAccountId: defaultAccountId,
                 status: status,
+                accountId: accountId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -17159,6 +17281,7 @@ class $$SavingsGoalsTableTableManager
                 Value<String?> targetDate = const Value.absent(),
                 Value<String?> defaultAccountId = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavingsGoalsCompanion.insert(
                 id: id,
@@ -17171,6 +17294,7 @@ class $$SavingsGoalsTableTableManager
                 targetDate: targetDate,
                 defaultAccountId: defaultAccountId,
                 status: status,
+                accountId: accountId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -17221,6 +17345,7 @@ typedef $$SavingsGoalEntriesTableCreateCompanionBuilder =
       required String transactedAt,
       Value<String?> note,
       Value<String?> linkedTransactionId,
+      Value<String?> linkedTransferId,
       Value<int> rowid,
     });
 typedef $$SavingsGoalEntriesTableUpdateCompanionBuilder =
@@ -17237,6 +17362,7 @@ typedef $$SavingsGoalEntriesTableUpdateCompanionBuilder =
       Value<String> transactedAt,
       Value<String?> note,
       Value<String?> linkedTransactionId,
+      Value<String?> linkedTransferId,
       Value<int> rowid,
     });
 
@@ -17306,6 +17432,11 @@ class $$SavingsGoalEntriesTableFilterComposer
 
   ColumnFilters<String> get linkedTransactionId => $composableBuilder(
     column: $table.linkedTransactionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedTransferId => $composableBuilder(
+    column: $table.linkedTransferId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -17378,6 +17509,11 @@ class $$SavingsGoalEntriesTableOrderingComposer
     column: $table.linkedTransactionId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get linkedTransferId => $composableBuilder(
+    column: $table.linkedTransferId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SavingsGoalEntriesTableAnnotationComposer
@@ -17428,6 +17564,11 @@ class $$SavingsGoalEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get linkedTransactionId => $composableBuilder(
     column: $table.linkedTransactionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get linkedTransferId => $composableBuilder(
+    column: $table.linkedTransferId,
     builder: (column) => column,
   );
 }
@@ -17484,6 +17625,7 @@ class $$SavingsGoalEntriesTableTableManager
                 Value<String> transactedAt = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> linkedTransactionId = const Value.absent(),
+                Value<String?> linkedTransferId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavingsGoalEntriesCompanion(
                 id: id,
@@ -17498,6 +17640,7 @@ class $$SavingsGoalEntriesTableTableManager
                 transactedAt: transactedAt,
                 note: note,
                 linkedTransactionId: linkedTransactionId,
+                linkedTransferId: linkedTransferId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -17514,6 +17657,7 @@ class $$SavingsGoalEntriesTableTableManager
                 required String transactedAt,
                 Value<String?> note = const Value.absent(),
                 Value<String?> linkedTransactionId = const Value.absent(),
+                Value<String?> linkedTransferId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavingsGoalEntriesCompanion.insert(
                 id: id,
@@ -17528,6 +17672,7 @@ class $$SavingsGoalEntriesTableTableManager
                 transactedAt: transactedAt,
                 note: note,
                 linkedTransactionId: linkedTransactionId,
+                linkedTransferId: linkedTransferId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

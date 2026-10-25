@@ -218,6 +218,14 @@ class BudgetPeriods extends SyncedTable {
   TextColumn get budgetSource =>
       text().withDefault(const Constant('manual'))();
 
+  /// True once the user has moved this period's start or end away from
+  /// where the schedule's rule put it. Only these periods override the
+  /// rule when working out which cycle holds a date; the rest are
+  /// regenerated from the rule as before, so changing the rule still
+  /// takes effect on periods nobody touched.
+  BoolColumn get datesAdjusted =>
+      boolean().withDefault(const Constant(false))();
+
   @override
   List<Set<Column<Object>>> get uniqueKeys => [
     {userId, startAt, endAt},
