@@ -164,9 +164,16 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
             savingsGoalEntries.linkedTransferId,
           );
         }
-        // Not 15 or 16: other changes took those numbers first, so a
-        // database can be at either without the shopping tables.
+        // Schema numbers 15 and 16 were each claimed by more than one
+        // change, and the steps for them did not all survive merging, so
+        // a database can be at either number without these. Everything
+        // here is safe to run on a database that already has it.
         if (from < 17) {
+          await _addColumnIfMissing(
+            m,
+            budgetPeriods,
+            budgetPeriods.datesAdjusted,
+          );
           await _createTableIfMissing(m, shoppingTrips);
           await _createTableIfMissing(m, shoppingTripItems);
         }

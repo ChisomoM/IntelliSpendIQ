@@ -7,7 +7,7 @@ import 'package:intellispendiq/data/db/app_database.dart';
 
 void main() {
   test(
-    'a v16 database without shopping tables gains them on upgrade',
+    'a v16 database missing columns and tables from merged changes is repaired',
     () async {
       final dir = await Directory.systemTemp.createTemp('shopping_migration_');
       addTearDown(() => dir.delete(recursive: true));
@@ -17,6 +17,9 @@ void main() {
       await first.customSelect('SELECT 1').get();
       await first.customStatement('DROP TABLE shopping_trip_items');
       await first.customStatement('DROP TABLE shopping_trips');
+      await first.customStatement(
+        'ALTER TABLE budget_periods DROP COLUMN dates_adjusted',
+      );
       await first.customStatement('PRAGMA user_version = 16');
       await first.close();
 
