@@ -30,6 +30,7 @@ void main() {
               IncomeSummaryCard(
                 incomeCategories: categories,
                 statusByCategory: status,
+                receivedByCategory: const {},
                 actualMinor: 0,
                 provisionalMinor: 800000,
                 onTapRow: (_, _) {},
@@ -63,7 +64,7 @@ void main() {
       expect(find.text('Edit income source'), findsOneWidget);
       expect(find.text('Other cycles are not affected'), findsOneWidget);
 
-      await tester.tap(find.text('Remove from this cycle'));
+      await tester.tap(find.text('Remove planned amount from this cycle'));
       await tester.pumpAndSettle();
 
       expect(removed, salary);

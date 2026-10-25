@@ -10,17 +10,29 @@ import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/domain/models/transaction_draft.dart';
 import 'package:intellispendiq/domain/services/budget_period_generator.dart';
 
-/// A cycle's income totals: [actualMinor] counts only paid envelopes,
-/// [provisionalMinor] adds unpaid ones on top. [actualMinor] is the
-/// figure used everywhere else — [provisionalMinor] is expectation-only.
+/// A cycle's income totals.
+///
+/// [actualMinor] is the money that really arrived: confirmed credits
+/// filed under an income category, however they were recorded (marking a
+/// source paid, an SMS, the entry form, voice). [provisionalMinor] adds
+/// what is still expected on top: per income source, the larger of what
+/// was planned and what has arrived. [actualMinor] is the figure used
+/// everywhere else; [provisionalMinor] is expectation-only.
+///
+/// Both maps are keyed by top-level income source: a sub category's
+/// amounts count under its parent.
 class IncomeTotals {
   const IncomeTotals({
     required this.actualMinor,
     required this.provisionalMinor,
+    this.plannedBySource = const {},
+    this.receivedBySource = const {},
   });
 
   final int actualMinor;
   final int provisionalMinor;
+  final Map<String, int> plannedBySource;
+  final Map<String, int> receivedBySource;
 }
 
 /// Why a cycle's dates couldn't be changed, worded for the user.
@@ -815,9 +827,10 @@ class BudgetPeriodRepository {
     }
   }
 
-  /// Marks an income envelope paid, backing it with a real credit
-  /// transaction (created with [amountMinor]/[transactedAt], which may
-  /// differ from the envelope's planned amount).
+  /// Records money received for an income envelope: a real credit
+  /// transaction ([amountMinor]/[transactedAt], which may be only part of
+  /// the planned amount) and a line marked paid pointing at it. The planned
+  /// amount is kept; what counts as received is read from transactions.
   Future<void> markCategoryBudgetPaid({
     required String periodId,
     required String categoryId,
@@ -869,7 +882,13 @@ class BudgetPeriodRepository {
         _db.categoryBudgets,
       )..where((b) => b.id.equals(existing.id))).write(
         CategoryBudgetsCompanion(
-          amountMinor: Value(amountMinor),
+          // A live line's amount is what was planned; the receipt is its
+          // own transaction and may be only part of it, so leave the plan
+          // alone. A line that had been removed starts over from this
+          // receipt.
+          amountMinor: existing.deletedAt == null
+              ? const Value.absent()
+              : Value(amountMinor),
           status: Value(IncomeStatus.paid.dbName),
           transactionId: Value(tx.id),
           deletedAt: const Value(null),
@@ -955,20 +974,72 @@ class BudgetPeriodRepository {
         );
   }
 
-  /// Actual (paid-only) and provisional (paid + unpaid) income totals
-  /// for this period, summed across every income-type category envelope.
+  /// What came in this cycle, and what was planned, for each income
+  /// source. Received money is read from the transactions themselves
+  /// (confirmed credits in an income category, dated inside the cycle), so
+  /// it is right however the money was recorded and needs no "mark as
+  /// paid". A planned amount with nothing received is simply expected.
   Future<IncomeTotals> incomeTotalsForPeriod(String periodId) async {
-    final budgets = await categoryBudgetsFor(periodId);
+    final period = await getPeriod(periodId);
+    if (period == null) {
+      return const IncomeTotals(actualMinor: 0, provisionalMinor: 0);
+    }
+
+    final categories = {
+      for (final row
+          in await (_db.select(_db.categories)..where(
+                (c) => c.userId.equals(userId) & c.deletedAt.isNull(),
+              ))
+              .get())
+        row.id: row,
+    };
+    // The top-level income source a category counts under, or null if it
+    // is not an income category at all.
+    String? sourceOf(String categoryId) {
+      final category = categories[categoryId];
+      if (category == null ||
+          CategoryType.fromDbName(category.categoryType) !=
+              CategoryType.income) {
+        return null;
+      }
+      final parent = categories[category.parentId];
+      return parent != null ? parent.id : category.id;
+    }
+
+    final planned = <String, int>{};
+    for (final budget in await categoryBudgetsFor(periodId)) {
+      final source = sourceOf(budget.categoryId);
+      if (source != null) {
+        planned[source] = (planned[source] ?? 0) + budget.amountMinor;
+      }
+    }
+
+    final received = <String, int>{};
+    final byCategory = await _transactions.receivedByCategoryInRange(
+      from: period.startAt,
+      to: period.endAt,
+    );
+    for (final entry in byCategory.entries) {
+      final source = sourceOf(entry.key);
+      if (source != null) {
+        received[source] = (received[source] ?? 0) + entry.value;
+      }
+    }
+
     var actual = 0;
     var provisional = 0;
-    for (final budget in budgets) {
-      if (await _categoryTypeOf(budget.categoryId) != CategoryType.income) {
-        continue;
-      }
-      provisional += budget.amountMinor;
-      if (budget.isPaid) actual += budget.amountMinor;
+    for (final source in {...planned.keys, ...received.keys}) {
+      final plan = planned[source] ?? 0;
+      final got = received[source] ?? 0;
+      actual += got;
+      provisional += got > plan ? got : plan;
     }
-    return IncomeTotals(actualMinor: actual, provisionalMinor: provisional);
+    return IncomeTotals(
+      actualMinor: actual,
+      provisionalMinor: provisional,
+      plannedBySource: planned,
+      receivedBySource: received,
+    );
   }
 
   Future<bool> transferCategoryBudget({

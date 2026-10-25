@@ -851,6 +851,39 @@ class TransactionRepository {
     return row.read(total) ?? 0;
   }
 
+  /// Confirmed credits in the half-open UTC range `[from, to)`, summed per
+  /// category. Money with no category is left out: it cannot be told apart
+  /// from a refund or a transfer leg, so it never counts as income.
+  Future<Map<String, int>> receivedByCategoryInRange({
+    required String from,
+    required String to,
+  }) async {
+    final t = _db.transactions;
+    final total = t.amountMinor.sum();
+    final query = _db.selectOnly(t)
+      ..addColumns([t.categoryId, total])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.categoryId.isNotNull() &
+            t.direction.equals(TxDirection.credit.name) &
+            t.status.equals(TxStatus.confirmed.dbName) &
+            t.transactedAt.isBiggerOrEqualValue(from) &
+            t.transactedAt.isSmallerThanValue(to),
+      )
+      ..groupBy([t.categoryId]);
+    return {
+      for (final row in await query.get())
+        row.read(t.categoryId)!: row.read(total) ?? 0,
+    };
+  }
+
+  /// Fires after any change to the transactions table, whatever wrote it:
+  /// the entry form, an SMS capture, voice, chat or an import. For screens
+  /// whose totals are derived from transactions and must stay current.
+  Stream<void> watchChanges() =>
+      _db.tableUpdates(TableUpdateQuery.onTable(_db.transactions));
+
   /// Confirmed debit total across every category for a calendar month.
   Future<int> totalSpent(String period) {
     final (from, to) = Iso.monthBoundsUtc(period);

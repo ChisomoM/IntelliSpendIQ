@@ -10,6 +10,8 @@ class BudgetsState extends Equatable {
     this.categories = const [],
     this.categoryBudgets = const {},
     this.incomeStatusByCategory = const {},
+    this.receivedByCategory = const {},
+    this.receiptTransactionByCategory = const {},
     this.actualIncomeMinor = 0,
     this.provisionalIncomeMinor = 0,
     this.spentByCategory = const {},
@@ -32,16 +34,27 @@ class BudgetsState extends Equatable {
   /// Raw per-period category envelopes keyed by category id.
   final Map<String, int> categoryBudgets;
 
-  /// Paid/unpaid status per income category for [budgetPeriod]. Absent
-  /// (rather than [IncomeStatus.unpaid]) for an income category with no
-  /// envelope yet.
+  /// Whether each income source has been received in [budgetPeriod]:
+  /// [IncomeStatus.paid] once what arrived covers what was planned (or
+  /// anything arrived with no plan), [IncomeStatus.unpaid] while something
+  /// is planned or only part has arrived. Absent for a source with neither.
+  /// Worked out from the transactions, not from a manual "mark as paid".
   final Map<String, IncomeStatus> incomeStatusByCategory;
 
-  /// Sum of paid income envelopes for [budgetPeriod] — the figure used
-  /// everywhere else money-in for this cycle is shown.
+  /// Money that arrived in [budgetPeriod] per top-level income source: the
+  /// confirmed credits filed under it or its sub categories.
+  final Map<String, int> receivedByCategory;
+
+  /// For a source whose line was marked paid, the transaction that marking
+  /// it paid recorded, by source id.
+  final Map<String, String> receiptTransactionByCategory;
+
+  /// Money that arrived in [budgetPeriod], from the transactions — the
+  /// figure used everywhere else money-in for this cycle is shown.
   final int actualIncomeMinor;
 
-  /// [actualIncomeMinor] plus unpaid ("expected") envelopes.
+  /// [actualIncomeMinor] plus what is still expected: per source, the
+  /// larger of what was planned and what has arrived.
   final int provisionalIncomeMinor;
 
   /// Confirmed debit spend per expense category for [budgetPeriod].
@@ -196,6 +209,8 @@ class BudgetsState extends Equatable {
     List<Category>? categories,
     Map<String, int>? categoryBudgets,
     Map<String, IncomeStatus>? incomeStatusByCategory,
+    Map<String, int>? receivedByCategory,
+    Map<String, String>? receiptTransactionByCategory,
     int? actualIncomeMinor,
     int? provisionalIncomeMinor,
     Map<String, int>? spentByCategory,
@@ -213,6 +228,9 @@ class BudgetsState extends Equatable {
       categoryBudgets: categoryBudgets ?? this.categoryBudgets,
       incomeStatusByCategory:
           incomeStatusByCategory ?? this.incomeStatusByCategory,
+      receivedByCategory: receivedByCategory ?? this.receivedByCategory,
+      receiptTransactionByCategory:
+          receiptTransactionByCategory ?? this.receiptTransactionByCategory,
       actualIncomeMinor: actualIncomeMinor ?? this.actualIncomeMinor,
       provisionalIncomeMinor:
           provisionalIncomeMinor ?? this.provisionalIncomeMinor,
@@ -231,6 +249,8 @@ class BudgetsState extends Equatable {
     categories,
     categoryBudgets,
     incomeStatusByCategory,
+    receivedByCategory,
+    receiptTransactionByCategory,
     actualIncomeMinor,
     provisionalIncomeMinor,
     spentByCategory,

@@ -100,16 +100,24 @@ class BudgetsView extends StatelessWidget {
                   IncomeSummaryCard(
                     incomeCategories: state.topLevelIncomeCategories,
                     statusByCategory: state.incomeStatusByCategory,
+                    receivedByCategory: state.receivedByCategory,
                     actualMinor: state.actualIncomeMinor,
                     provisionalMinor: state.provisionalIncomeMinor,
                     periodId: period.id,
-                    onTapRow: (category, current) =>
-                        _toggleIncomePaid(context, category, current),
+                    onTapRow: (category, current) => _recordIncomeReceived(
+                      context,
+                      category,
+                      remainingMinor:
+                          (category.budgetedAmountMinor ?? 0) -
+                          (state.receivedByCategory[category.id] ?? 0),
+                    ),
                     onRemoveFromCycle: (category, current) => _removeIncome(
                       context,
                       category,
                       current,
                       amountMinor: state.categoryBudgets[category.id] ?? 0,
+                      hasReceipt: state.receiptTransactionByCategory
+                          .containsKey(category.id),
                     ),
                   ),
                   const SizedBox(height: Space.sectionGap),
@@ -172,6 +180,7 @@ class BudgetsView extends StatelessWidget {
     Category category,
     IncomeStatus? current, {
     required int amountMinor,
+    required bool hasReceipt,
   }) async {
     final cubit = context.read<BudgetsCubit>();
     final messenger = ScaffoldMessenger.of(context);
@@ -179,7 +188,7 @@ class BudgetsView extends StatelessWidget {
       context,
       category: category,
       amountMinor: amountMinor,
-      isPaid: current == IncomeStatus.paid,
+      isPaid: hasReceipt,
     );
     if (result == null) return;
     await cubit.removeIncomeFromCycle(
@@ -191,16 +200,14 @@ class BudgetsView extends StatelessWidget {
     );
   }
 
-  Future<void> _toggleIncomePaid(
+  /// Records money received for [category] this cycle. Pre-filled with
+  /// what is still to come when something was planned.
+  Future<void> _recordIncomeReceived(
     BuildContext context,
-    Category category,
-    IncomeStatus? current,
-  ) async {
+    Category category, {
+    required int remainingMinor,
+  }) async {
     final cubit = context.read<BudgetsCubit>();
-    if (current == IncomeStatus.paid) {
-      await cubit.markIncomeUnpaid(category.id);
-      return;
-    }
     final accountRepository = context.read<AccountRepository>();
     final accounts = await accountRepository.getAll();
     final defaultAccount = await accountRepository.getDefault();
@@ -210,6 +217,7 @@ class BudgetsView extends StatelessWidget {
       category: category,
       accounts: accounts,
       defaultAccountId: defaultAccount.id,
+      suggestedAmountMinor: remainingMinor > 0 ? remainingMinor : null,
     );
     if (result == null) return;
     await cubit.markIncomePaid(

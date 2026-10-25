@@ -17,6 +17,7 @@ class IncomeSummaryCard extends StatelessWidget {
   const IncomeSummaryCard({
     required this.incomeCategories,
     required this.statusByCategory,
+    required this.receivedByCategory,
     required this.actualMinor,
     required this.provisionalMinor,
     required this.onTapRow,
@@ -28,9 +29,13 @@ class IncomeSummaryCard extends StatelessWidget {
   /// Top-level income categories, including those without a plan yet.
   final List<Category> incomeCategories;
 
-  /// Paid/unpaid status per category id. Absent means no envelope set
-  /// yet for this category this period.
+  /// Paid/unpaid status per category id. Absent means nothing planned and
+  /// nothing received yet for this category this period.
   final Map<String, IncomeStatus> statusByCategory;
+
+  /// Money that has arrived this period per category id (including its
+  /// sub categories), from the transactions.
+  final Map<String, int> receivedByCategory;
 
   final int actualMinor;
   final int provisionalMinor;
@@ -52,6 +57,7 @@ class IncomeSummaryCard extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final money = Theme.of(context).extension<MoneyColors>()!;
     final planned = incomeCategories.where((c) => c.hasBudget).toList();
+    final hasAny = planned.isNotEmpty || actualMinor > 0;
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -128,11 +134,12 @@ class IncomeSummaryCard extends StatelessWidget {
                 category: category,
                 periodId: periodId,
                 status: statusByCategory[category.id],
+                receivedMinor: receivedByCategory[category.id] ?? 0,
                 onTap: () => onTapRow(category, statusByCategory[category.id]),
                 onRemove: () =>
                     onRemoveFromCycle(category, statusByCategory[category.id]),
               ),
-            if (planned.isNotEmpty) ...[
+            if (hasAny) ...[
               Divider(height: 1, color: colors.outlineVariant),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -203,6 +210,7 @@ class _IncomeSourceRow extends StatelessWidget {
     required this.category,
     required this.onTap,
     required this.onRemove,
+    this.receivedMinor = 0,
     this.periodId,
     this.status,
   });
@@ -210,6 +218,9 @@ class _IncomeSourceRow extends StatelessWidget {
   final Category category;
   final String? periodId;
   final IncomeStatus? status;
+
+  /// Money that has arrived for this source this period.
+  final int receivedMinor;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
@@ -217,6 +228,17 @@ class _IncomeSourceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final isPaid = status == IncomeStatus.paid;
+    final hasPlan = category.hasBudget;
+    final hasReceived = receivedMinor > 0;
+
+    final String? subtitle;
+    if (isPaid) {
+      subtitle = hasPlan ? 'Paid' : 'Received';
+    } else if (hasReceived) {
+      subtitle = 'Part paid · ${Money.display(receivedMinor)} received';
+    } else {
+      subtitle = hasPlan ? 'Unpaid' : null;
+    }
 
     return AppListRow(
       leading: CategoryAvatar(
@@ -226,19 +248,21 @@ class _IncomeSourceRow extends StatelessWidget {
         size: 36,
       ),
       title: Text(category.name),
-      subtitle: category.hasBudget
-          ? Text(
-              isPaid ? 'Paid' : 'Unpaid',
+      subtitle: subtitle == null
+          ? null
+          : Text(
+              subtitle,
               style: AppTypography.metadata(
                 color: isPaid ? colors.primary : colors.onSurfaceVariant,
               ),
-            )
-          : null,
+            ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (category.hasBudget)
+          if (hasPlan)
             MoneyText(category.budgetedAmountMinor!, size: MoneySize.meta)
+          else if (hasReceived)
+            MoneyText(receivedMinor, size: MoneySize.meta)
           else
             Text(
               'Set amount',
@@ -252,18 +276,20 @@ class _IncomeSourceRow extends StatelessWidget {
           ),
         ],
       ),
-      // Tapping a row with a planned amount toggles paid/unpaid; a row
-      // with no amount yet opens the editor to set one first.
-      onTap: category.hasBudget
+      // Money still to come: tapping records it. Once the source has been
+      // received in full there is nothing to tick off, so tapping offers
+      // the other things you can do with it instead. A source with no
+      // amount and nothing received opens the editor to set one first.
+      onTap: isPaid
+          ? () => _showActions(context)
+          : (hasPlan || hasReceived)
           ? onTap
-          : () => Navigator.of(context).push<String?>(
-              CategoryEditorPage.route(existing: category, periodId: periodId),
-            ),
-      // A row with an amount in this cycle offers to remove it from this
-      // cycle alone as well as editing the source; one without goes
-      // straight to the editor, as before.
-      onLongPress: () =>
-          category.hasBudget ? _showActions(context) : _edit(context),
+          : () => _edit(context),
+      // A source with an amount or money received offers its actions; one
+      // with neither goes straight to the editor, as before.
+      onLongPress: (hasPlan || hasReceived)
+          ? () => _showActions(context)
+          : () => _edit(context),
     );
   }
 
@@ -286,25 +312,38 @@ class _IncomeSourceRow extends StatelessWidget {
               subtitle: const Text('This cycle'),
             ),
             ListTile(
+              leading: const Icon(Icons.add_circle_outline),
+              title: Text(
+                status == IncomeStatus.paid
+                    ? 'Record more money received'
+                    : 'Record money received',
+              ),
+              onTap: () => Navigator.of(sheetContext).pop(_IncomeAction.record),
+            ),
+            ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Edit income source'),
               onTap: () => Navigator.of(sheetContext).pop(_IncomeAction.edit),
             ),
-            ListTile(
-              leading: Icon(
-                Icons.remove_circle_outline,
-                color: Theme.of(sheetContext).colorScheme.error,
+            if (category.hasBudget)
+              ListTile(
+                leading: Icon(
+                  Icons.remove_circle_outline,
+                  color: Theme.of(sheetContext).colorScheme.error,
+                ),
+                title: const Text('Remove planned amount from this cycle'),
+                subtitle: const Text('Other cycles are not affected'),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_IncomeAction.remove),
               ),
-              title: const Text('Remove from this cycle'),
-              subtitle: const Text('Other cycles are not affected'),
-              onTap: () => Navigator.of(sheetContext).pop(_IncomeAction.remove),
-            ),
           ],
         ),
       ),
     );
     if (!context.mounted) return;
     switch (choice) {
+      case _IncomeAction.record:
+        onTap();
       case _IncomeAction.edit:
         _edit(context);
       case _IncomeAction.remove:
@@ -315,7 +354,7 @@ class _IncomeSourceRow extends StatelessWidget {
   }
 }
 
-enum _IncomeAction { edit, remove }
+enum _IncomeAction { record, edit, remove }
 
 /// What the user decided when removing an income source from a cycle.
 class RemoveIncomeResult {
@@ -346,7 +385,7 @@ Future<RemoveIncomeResult?> showRemoveIncomeDialog(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'This takes ${Money.display(amountMinor)} for '
+              'This takes the planned ${Money.display(amountMinor)} for '
               '"${category.name}" out of this cycle only. The income source '
               'and your other cycles are not changed.',
             ),
@@ -357,7 +396,8 @@ Future<RemoveIncomeResult?> showRemoveIncomeDialog(
                 title: const Text('Also delete the money received'),
                 subtitle: const Text(
                   'Removes the transaction recorded when you marked it paid. '
-                  'Left off, it stays in your activity and account balance.',
+                  'Left off, it stays in your activity, your account '
+                  "balance and this cycle's income.",
                 ),
                 value: deleteReceived,
                 onChanged: (value) => setState(() => deleteReceived = value),
@@ -404,6 +444,7 @@ Future<MarkIncomePaidResult?> showMarkIncomePaidSheet(
   required Category category,
   required List<Account> accounts,
   required String defaultAccountId,
+  int? suggestedAmountMinor,
 }) {
   return showModalBottomSheet<MarkIncomePaidResult>(
     context: context,
@@ -412,6 +453,7 @@ Future<MarkIncomePaidResult?> showMarkIncomePaidSheet(
       category: category,
       accounts: accounts,
       defaultAccountId: defaultAccountId,
+      suggestedAmountMinor: suggestedAmountMinor,
     ),
   );
 }
@@ -421,11 +463,16 @@ class _MarkIncomePaidSheet extends StatefulWidget {
     required this.category,
     required this.accounts,
     required this.defaultAccountId,
+    this.suggestedAmountMinor,
   });
 
   final Category category;
   final List<Account> accounts;
   final String defaultAccountId;
+
+  /// What to fill in first, such as what is still to come; the planned
+  /// amount when null.
+  final int? suggestedAmountMinor;
 
   @override
   State<_MarkIncomePaidSheet> createState() => _MarkIncomePaidSheetState();
@@ -439,9 +486,10 @@ class _MarkIncomePaidSheetState extends State<_MarkIncomePaidSheet> {
   @override
   void initState() {
     super.initState();
-    final planned = widget.category.budgetedAmountMinor;
+    final suggested =
+        widget.suggestedAmountMinor ?? widget.category.budgetedAmountMinor;
     _amountController = TextEditingController(
-      text: planned == null ? '' : Money.display(planned),
+      text: suggested == null ? '' : Money.display(suggested),
     );
     _accountId = widget.defaultAccountId;
   }

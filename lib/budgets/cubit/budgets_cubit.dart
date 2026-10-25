@@ -35,6 +35,9 @@ class BudgetsCubit extends Cubit<BudgetsState> {
   StreamSubscription<List<Category>>? _categorySubscription;
   StreamSubscription<BudgetPeriod?>? _periodSubscription;
   StreamSubscription<List<CategoryBudget>>? _categoryBudgetSubscription;
+  StreamSubscription<void>? _transactionSubscription;
+  bool _refreshing = false;
+  bool _refreshAgain = false;
 
   void loadUnawaited() => unawaited(load());
 
@@ -63,6 +66,8 @@ class BudgetsCubit extends Cubit<BudgetsState> {
         totalSpent: 0,
         categoryBudgets: const {},
         incomeStatusByCategory: const {},
+        receivedByCategory: const {},
+        receiptTransactionByCategory: const {},
         actualIncomeMinor: 0,
         provisionalIncomeMinor: 0,
       ),
@@ -74,6 +79,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     await _categorySubscription?.cancel();
     await _periodSubscription?.cancel();
     await _categoryBudgetSubscription?.cancel();
+    await _transactionSubscription?.cancel();
 
     emit(state.copyWith(budgetPeriod: period));
 
@@ -86,6 +92,35 @@ class BudgetsCubit extends Cubit<BudgetsState> {
         .listen(_onCategoryBudgets);
 
     _categorySubscription = _categories.watchAll().listen(_onCategories);
+
+    // Spend and income come from transactions, so they must follow every
+    // one that is added, edited or recategorised, however it got there.
+    _transactionSubscription = _transactions.watchChanges().listen(
+      (_) => unawaited(_refreshAfterTransactionChange()),
+    );
+  }
+
+  /// Re-reads spend and income after a transaction changed. A burst of
+  /// writes (an import, say) collapses into one extra pass rather than
+  /// one per write. Ignored until the screen has loaded once, so an early
+  /// write cannot show a half-loaded screen.
+  Future<void> _refreshAfterTransactionChange() async {
+    if (state.status != BudgetsStatus.loaded) return;
+    if (_refreshing) {
+      _refreshAgain = true;
+      return;
+    }
+    _refreshing = true;
+    try {
+      do {
+        _refreshAgain = false;
+        if (isClosed) return;
+        await _refreshSpend(state.categories);
+        await _refreshIncomeTotals();
+      } while (_refreshAgain);
+    } finally {
+      _refreshing = false;
+    }
   }
 
   Future<void> _onPeriod(BudgetPeriod? period) async {
@@ -116,13 +151,16 @@ class BudgetsCubit extends Cubit<BudgetsState> {
 
   Future<void> _onCategoryBudgets(List<CategoryBudget> budgets) async {
     final map = {for (final b in budgets) b.categoryId: b.amountMinor};
-    final statusMap = {
+    final receipts = {
       for (final b in budgets)
-        if (b.status != null) b.categoryId: b.status!,
+        if (b.isPaid && b.transactionId != null) b.categoryId: b.transactionId!,
     };
     if (isClosed) return;
     emit(
-      state.copyWith(categoryBudgets: map, incomeStatusByCategory: statusMap),
+      state.copyWith(
+        categoryBudgets: map,
+        receiptTransactionByCategory: receipts,
+      ),
     );
     await _refreshSpend(state.categories);
     await _refreshIncomeTotals();
@@ -133,10 +171,28 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     if (period == null) return;
     final totals = await _budgetPeriods.incomeTotalsForPeriod(period.id);
     if (isClosed) return;
+    // A source counts as paid once what arrived covers what was planned
+    // (or something arrived with nothing planned), whichever way the money
+    // was recorded.
+    final status = <String, IncomeStatus>{};
+    for (final source in {
+      ...totals.plannedBySource.keys,
+      ...totals.receivedBySource.keys,
+    }) {
+      final planned = totals.plannedBySource[source] ?? 0;
+      final got = totals.receivedBySource[source] ?? 0;
+      if (got > 0 && got >= planned) {
+        status[source] = IncomeStatus.paid;
+      } else if (planned > 0 || got > 0) {
+        status[source] = IncomeStatus.unpaid;
+      }
+    }
     emit(
       state.copyWith(
         actualIncomeMinor: totals.actualMinor,
         provisionalIncomeMinor: totals.provisionalMinor,
+        incomeStatusByCategory: status,
+        receivedByCategory: totals.receivedBySource,
       ),
     );
     // Keep a derived overall budget current as income changes.
@@ -361,6 +417,7 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     await _categorySubscription?.cancel();
     await _periodSubscription?.cancel();
     await _categoryBudgetSubscription?.cancel();
+    await _transactionSubscription?.cancel();
     return super.close();
   }
 }

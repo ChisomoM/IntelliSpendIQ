@@ -82,10 +82,11 @@ void main() {
       final kept = await services.transactions.getAllForExport();
       expect(kept.single.amountMinor, 750000);
       expect(kept.single.direction, TxDirection.credit);
+      // The money did arrive, so the cycle still counts it as income.
       final totals = await services.budgetPeriods.incomeTotalsForPeriod(
         july.id,
       );
-      expect(totals.actualMinor, 0);
+      expect(totals.actualMinor, 750000);
     },
   );
 
@@ -101,6 +102,8 @@ void main() {
 
     expect(await amountsIn(july), isEmpty);
     expect(await services.transactions.getAllForExport(), isEmpty);
+    final totals = await services.budgetPeriods.incomeTotalsForPeriod(july.id);
+    expect(totals.actualMinor, 0);
   });
 
   test('deleting the received money only touches that cycle', () async {
@@ -138,7 +141,7 @@ void main() {
     // silently reused.
     await plan(july, 800000);
     final totals = await services.budgetPeriods.incomeTotalsForPeriod(july.id);
-    expect(totals.actualMinor, 0);
+    expect(totals.actualMinor, 750000);
     expect(totals.provisionalMinor, 800000);
     await markPaid(july, 800000);
     expect(await services.transactions.getAllForExport(), hasLength(2));
