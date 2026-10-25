@@ -332,6 +332,19 @@ class WishlistRepository {
     );
   }
 
+  /// The live (not deleted) item, or null.
+  Future<WishlistItem?> byId(String id) async {
+    final row =
+        await (_db.select(_db.wishlistItems)..where(
+              (w) =>
+                  w.id.equals(id) &
+                  w.userId.equals(userId) &
+                  w.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _fromRow(row);
+  }
+
   Future<WishlistItem> _requireItem(String id) async {
     final row = await (_db.select(
       _db.wishlistItems,

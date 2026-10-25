@@ -363,6 +363,9 @@ class PlanningRow extends StatelessWidget {
     required this.wishlistItemCount,
     required this.onOpenSavingsGoals,
     required this.onOpenWishlist,
+    this.shoppingActive = false,
+    this.shoppingCartMinor = 0,
+    this.onOpenShopping,
     super.key,
   });
 
@@ -371,6 +374,12 @@ class PlanningRow extends StatelessWidget {
   final int wishlistItemCount;
   final VoidCallback onOpenSavingsGoals;
   final VoidCallback onOpenWishlist;
+
+  /// Whether a shopping trip is open, and what its cart holds. The
+  /// shopping tile is left out entirely when [onOpenShopping] is null.
+  final bool shoppingActive;
+  final int shoppingCartMinor;
+  final VoidCallback? onOpenShopping;
 
   @override
   Widget build(BuildContext context) {
@@ -412,6 +421,20 @@ class PlanningRow extends StatelessWidget {
             ),
           ],
         ),
+        if (onOpenShopping != null) ...[
+          const SizedBox(height: Space.x1),
+          _PlanningTile(
+            icon: AppIcons.cart,
+            label: 'Shopping trip',
+            value: shoppingActive
+                ? Text('Resume your trip', style: ctaStyle)
+                : Text('Start a trip', style: ctaStyle),
+            caption: shoppingActive
+                ? '${Money.display(shoppingCartMinor)} in cart'
+                : 'Shop from your plan and wishlist',
+            onTap: onOpenShopping!,
+          ),
+        ],
       ],
     );
   }

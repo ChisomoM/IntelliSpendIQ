@@ -21,6 +21,7 @@ import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/reminder_settings_repository.dart';
 import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
+import 'package:intellispendiq/data/repositories/shopping_trip_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
@@ -31,6 +32,7 @@ import 'package:intellispendiq/domain/services/backup_service.dart';
 import 'package:intellispendiq/domain/services/budget_import_service.dart';
 import 'package:intellispendiq/domain/services/capture_nudger.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
+import 'package:intellispendiq/domain/services/category_envelope_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
@@ -80,6 +82,12 @@ class App extends StatelessWidget {
         ),
         RepositoryProvider<WishlistRepository>.value(
           value: services.wishlist,
+        ),
+        RepositoryProvider<ShoppingTripRepository>.value(
+          value: services.shoppingTrips,
+        ),
+        RepositoryProvider<CategoryEnvelopeService>.value(
+          value: services.categoryEnvelopes,
         ),
         RepositoryProvider<CustomSenderRepository>.value(
           value: services.customSenders,

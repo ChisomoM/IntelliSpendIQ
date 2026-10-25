@@ -382,6 +382,52 @@ class WishlistItemPhotos extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// One shopping trip: a focused session of buying things from the plan.
+/// At most one is `active` at a time (enforced by the repository, not
+/// the schema). Planned transactions are only ever touched at checkout,
+/// so abandoning a trip leaves the ledger exactly as it was.
+@DataClassName('ShoppingTripRow')
+class ShoppingTrips extends SyncedTable {
+  /// The [BudgetPeriods] row the trip's envelopes are measured against,
+  /// fixed when the trip starts.
+  TextColumn get periodId => text()();
+
+  /// `active` | `completed` | `cancelled`.
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  TextColumn get startedAt => text()();
+  TextColumn get finishedAt => text().nullable()();
+}
+
+/// One line on a trip. Quantity and the edited price live here, not on
+/// the transaction: checkout writes only the total (and a "3 × K20"
+/// note) back to the ledger.
+@DataClassName('ShoppingTripItemRow')
+@TableIndex(name: 'idx_trip_item_trip', columns: {#tripId})
+class ShoppingTripItems extends SyncedTable {
+  TextColumn get tripId => text()();
+
+  /// `planned` | `wishlist` | `impulse`. Where the line came from, so
+  /// "impulse" means exactly "was not on the list" and cannot drift.
+  TextColumn get kind => text()();
+
+  /// The [Transactions] row this line is for. For a planned line it is
+  /// the existing planned transaction, set when the trip starts. For
+  /// other lines it is set at checkout, as a link back to what was
+  /// created.
+  TextColumn get transactionId => text().nullable()();
+  TextColumn get wishlistItemId => text().nullable()();
+  TextColumn get name => text()();
+  TextColumn get categoryId => text().nullable()();
+
+  /// What the plan said one unit costs, in ngwee. Null for impulse
+  /// lines.
+  IntColumn get plannedPriceMinor => integer().nullable()();
+  IntColumn get unitPriceMinor => integer()();
+  IntColumn get quantity => integer().withDefault(const Constant(1))();
+  BoolColumn get inCart => boolean().withDefault(const Constant(false))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+}
+
 /// A user-added SMS sender ID routed to an existing provider parser —
 /// e.g. a bank that sends alerts from a shortcode the built-in parser
 /// doesn't already recognize.

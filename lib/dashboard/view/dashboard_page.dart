@@ -10,6 +10,7 @@ import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
+import 'package:intellispendiq/data/repositories/shopping_trip_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
 import 'package:intellispendiq/design/design.dart';
@@ -17,6 +18,7 @@ import 'package:intellispendiq/home/cubit/cubit.dart';
 import 'package:intellispendiq/review/review.dart';
 import 'package:intellispendiq/savings_goals/view/savings_goals_page.dart';
 import 'package:intellispendiq/settings/settings.dart';
+import 'package:intellispendiq/shopping/shopping.dart';
 import 'package:intellispendiq/transactions/transactions.dart';
 import 'package:intellispendiq/wishlist/view/wishlist_page.dart';
 
@@ -25,16 +27,25 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => DashboardCubit(
-        transactions: context.read<TransactionRepository>(),
-        categories: context.read<CategoryRepository>(),
-        budgetPeriods: context.read<BudgetPeriodRepository>(),
-        rawCaptures: context.read<RawCaptureRepository>(),
-        accounts: context.read<AccountRepository>(),
-        savingsGoals: context.read<SavingsGoalRepository>(),
-        wishlist: context.read<WishlistRepository>(),
-      )..loadUnawaited(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => DashboardCubit(
+            transactions: context.read<TransactionRepository>(),
+            categories: context.read<CategoryRepository>(),
+            budgetPeriods: context.read<BudgetPeriodRepository>(),
+            rawCaptures: context.read<RawCaptureRepository>(),
+            accounts: context.read<AccountRepository>(),
+            savingsGoals: context.read<SavingsGoalRepository>(),
+            wishlist: context.read<WishlistRepository>(),
+          )..loadUnawaited(),
+        ),
+        BlocProvider(
+          create: (context) =>
+              ShoppingEntryCubit(context.read<ShoppingTripRepository>())
+                ..loadUnawaited(),
+        ),
+      ],
       child: const DashboardView(),
     );
   }
@@ -93,6 +104,23 @@ class DashboardView extends StatelessWidget {
                     periodLabel: state.periodDisplayLabel,
                     onTap: () => home.tabSelected(AppSection.budgets.tabIndex),
                   ),
+                  BlocBuilder<ShoppingEntryCubit, ShoppingEntryState>(
+                    builder: (context, shopping) {
+                      if (!shopping.hasActiveTrip) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: Space.x1),
+                        child: ShoppingResumeBanner(
+                          cartCount: shopping.cartCount,
+                          cartTotalMinor: shopping.cartTotalMinor,
+                          onTap: () => Navigator.of(
+                            context,
+                          ).push<void>(ShoppingPage.route()),
+                        ),
+                      );
+                    },
+                  ),
                   if (state.pendingReviewCount > 0) ...[
                     const SizedBox(height: Space.x1),
                     ReviewBanner(
@@ -124,6 +152,16 @@ class DashboardView extends StatelessWidget {
                     ).push<void>(SavingsGoalsPage.route()),
                     onOpenWishlist: () =>
                         Navigator.of(context).push<void>(WishlistPage.route()),
+                    shoppingActive: context
+                        .watch<ShoppingEntryCubit>()
+                        .state
+                        .hasActiveTrip,
+                    shoppingCartMinor: context
+                        .watch<ShoppingEntryCubit>()
+                        .state
+                        .cartTotalMinor,
+                    onOpenShopping: () =>
+                        Navigator.of(context).push<void>(ShoppingPage.route()),
                   ),
                   const SizedBox(height: Space.sectionGap),
                   CategoryBreakdownCard(
