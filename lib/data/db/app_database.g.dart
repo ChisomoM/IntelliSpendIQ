@@ -375,8 +375,11 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
   /// transaction history instead.
   final String? balanceAsOf;
 
-  /// Set only on the hidden account backing a savings goal's real
-  /// balance.
+  /// Set only on the hidden account backing a [SavingsGoals] row's real
+  /// balance. Excluded from every normal account list/picker — see
+  /// `AccountRepository.getAll`/`watchAll` — so it never appears
+  /// alongside the user's own accounts; only `SavingsGoalRepository`
+  /// moves money into or out of it, via real [Transfers].
   final String? linkedGoalId;
   const AccountRow({
     required this.id,
@@ -9751,7 +9754,9 @@ class SavingsGoalRow extends DataClass implements Insertable<SavingsGoalRow> {
   final String status;
 
   /// The hidden [Accounts] row that actually holds this goal's saved
-  /// money.
+  /// money — see [Accounts.linkedGoalId]. Nullable only for rows
+  /// created before this existed; `SavingsGoalRepository` creates one
+  /// lazily on first use for those.
   final String? accountId;
   const SavingsGoalRow({
     required this.id,
@@ -10483,7 +10488,11 @@ class SavingsGoalEntryRow extends DataClass
   /// take-back.
   final String? linkedTransactionId;
 
-  /// The real [Transfers] row that actually moved this entry's money.
+  /// The real [Transfers] row that actually moved this contribution's
+  /// (or plain withdrawal's) money between [accountId] and the goal's
+  /// hidden account. Null for the goal-funded portion of a purchase —
+  /// that leg moves no money of its own, [linkedTransactionId] already
+  /// covers it.
   final String? linkedTransferId;
   const SavingsGoalEntryRow({
     required this.id,
@@ -10571,9 +10580,7 @@ class SavingsGoalEntryRow extends DataClass
       linkedTransactionId: serializer.fromJson<String?>(
         json['linkedTransactionId'],
       ),
-      linkedTransferId: serializer.fromJson<String?>(
-        json['linkedTransferId'],
-      ),
+      linkedTransferId: serializer.fromJson<String?>(json['linkedTransferId']),
     );
   }
   @override
@@ -12128,6 +12135,1497 @@ class WishlistItemPhotosCompanion
   }
 }
 
+class $ShoppingTripsTable extends ShoppingTrips
+    with TableInfo<$ShoppingTripsTable, ShoppingTripRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ShoppingTripsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _periodIdMeta = const VerificationMeta(
+    'periodId',
+  );
+  @override
+  late final GeneratedColumn<String> periodId = GeneratedColumn<String>(
+    'period_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<String> startedAt = GeneratedColumn<String>(
+    'started_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _finishedAtMeta = const VerificationMeta(
+    'finishedAt',
+  );
+  @override
+  late final GeneratedColumn<String> finishedAt = GeneratedColumn<String>(
+    'finished_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    periodId,
+    status,
+    startedAt,
+    finishedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shopping_trips';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ShoppingTripRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('period_id')) {
+      context.handle(
+        _periodIdMeta,
+        periodId.isAcceptableOrUnknown(data['period_id']!, _periodIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_periodIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('finished_at')) {
+      context.handle(
+        _finishedAtMeta,
+        finishedAt.isAcceptableOrUnknown(data['finished_at']!, _finishedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ShoppingTripRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ShoppingTripRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      periodId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}period_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}started_at'],
+      )!,
+      finishedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}finished_at'],
+      ),
+    );
+  }
+
+  @override
+  $ShoppingTripsTable createAlias(String alias) {
+    return $ShoppingTripsTable(attachedDatabase, alias);
+  }
+}
+
+class ShoppingTripRow extends DataClass implements Insertable<ShoppingTripRow> {
+  final String id;
+  final String userId;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+
+  /// The [BudgetPeriods] row the trip's envelopes are measured against,
+  /// fixed when the trip starts.
+  final String periodId;
+
+  /// `active` | `completed` | `cancelled`.
+  final String status;
+  final String startedAt;
+  final String? finishedAt;
+  const ShoppingTripRow({
+    required this.id,
+    required this.userId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.periodId,
+    required this.status,
+    required this.startedAt,
+    this.finishedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<String>(deletedAt);
+    }
+    map['period_id'] = Variable<String>(periodId);
+    map['status'] = Variable<String>(status);
+    map['started_at'] = Variable<String>(startedAt);
+    if (!nullToAbsent || finishedAt != null) {
+      map['finished_at'] = Variable<String>(finishedAt);
+    }
+    return map;
+  }
+
+  ShoppingTripsCompanion toCompanion(bool nullToAbsent) {
+    return ShoppingTripsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      periodId: Value(periodId),
+      status: Value(status),
+      startedAt: Value(startedAt),
+      finishedAt: finishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(finishedAt),
+    );
+  }
+
+  factory ShoppingTripRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ShoppingTripRow(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      deletedAt: serializer.fromJson<String?>(json['deletedAt']),
+      periodId: serializer.fromJson<String>(json['periodId']),
+      status: serializer.fromJson<String>(json['status']),
+      startedAt: serializer.fromJson<String>(json['startedAt']),
+      finishedAt: serializer.fromJson<String?>(json['finishedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'deletedAt': serializer.toJson<String?>(deletedAt),
+      'periodId': serializer.toJson<String>(periodId),
+      'status': serializer.toJson<String>(status),
+      'startedAt': serializer.toJson<String>(startedAt),
+      'finishedAt': serializer.toJson<String?>(finishedAt),
+    };
+  }
+
+  ShoppingTripRow copyWith({
+    String? id,
+    String? userId,
+    String? createdAt,
+    String? updatedAt,
+    Value<String?> deletedAt = const Value.absent(),
+    String? periodId,
+    String? status,
+    String? startedAt,
+    Value<String?> finishedAt = const Value.absent(),
+  }) => ShoppingTripRow(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    periodId: periodId ?? this.periodId,
+    status: status ?? this.status,
+    startedAt: startedAt ?? this.startedAt,
+    finishedAt: finishedAt.present ? finishedAt.value : this.finishedAt,
+  );
+  ShoppingTripRow copyWithCompanion(ShoppingTripsCompanion data) {
+    return ShoppingTripRow(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      periodId: data.periodId.present ? data.periodId.value : this.periodId,
+      status: data.status.present ? data.status.value : this.status,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      finishedAt: data.finishedAt.present
+          ? data.finishedAt.value
+          : this.finishedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoppingTripRow(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('periodId: $periodId, ')
+          ..write('status: $status, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('finishedAt: $finishedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    periodId,
+    status,
+    startedAt,
+    finishedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ShoppingTripRow &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.periodId == this.periodId &&
+          other.status == this.status &&
+          other.startedAt == this.startedAt &&
+          other.finishedAt == this.finishedAt);
+}
+
+class ShoppingTripsCompanion extends UpdateCompanion<ShoppingTripRow> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<String?> deletedAt;
+  final Value<String> periodId;
+  final Value<String> status;
+  final Value<String> startedAt;
+  final Value<String?> finishedAt;
+  final Value<int> rowid;
+  const ShoppingTripsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.periodId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.finishedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ShoppingTripsCompanion.insert({
+    required String id,
+    required String userId,
+    required String createdAt,
+    required String updatedAt,
+    this.deletedAt = const Value.absent(),
+    required String periodId,
+    this.status = const Value.absent(),
+    required String startedAt,
+    this.finishedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       periodId = Value(periodId),
+       startedAt = Value(startedAt);
+  static Insertable<ShoppingTripRow> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
+    Expression<String>? periodId,
+    Expression<String>? status,
+    Expression<String>? startedAt,
+    Expression<String>? finishedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (periodId != null) 'period_id': periodId,
+      if (status != null) 'status': status,
+      if (startedAt != null) 'started_at': startedAt,
+      if (finishedAt != null) 'finished_at': finishedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ShoppingTripsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<String?>? deletedAt,
+    Value<String>? periodId,
+    Value<String>? status,
+    Value<String>? startedAt,
+    Value<String?>? finishedAt,
+    Value<int>? rowid,
+  }) {
+    return ShoppingTripsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      periodId: periodId ?? this.periodId,
+      status: status ?? this.status,
+      startedAt: startedAt ?? this.startedAt,
+      finishedAt: finishedAt ?? this.finishedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (periodId.present) {
+      map['period_id'] = Variable<String>(periodId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<String>(startedAt.value);
+    }
+    if (finishedAt.present) {
+      map['finished_at'] = Variable<String>(finishedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoppingTripsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('periodId: $periodId, ')
+          ..write('status: $status, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('finishedAt: $finishedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ShoppingTripItemsTable extends ShoppingTripItems
+    with TableInfo<$ShoppingTripItemsTable, ShoppingTripItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ShoppingTripItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
+  @override
+  late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
+    'trip_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _transactionIdMeta = const VerificationMeta(
+    'transactionId',
+  );
+  @override
+  late final GeneratedColumn<String> transactionId = GeneratedColumn<String>(
+    'transaction_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _wishlistItemIdMeta = const VerificationMeta(
+    'wishlistItemId',
+  );
+  @override
+  late final GeneratedColumn<String> wishlistItemId = GeneratedColumn<String>(
+    'wishlist_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _plannedPriceMinorMeta = const VerificationMeta(
+    'plannedPriceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> plannedPriceMinor = GeneratedColumn<int>(
+    'planned_price_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unitPriceMinorMeta = const VerificationMeta(
+    'unitPriceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> unitPriceMinor = GeneratedColumn<int>(
+    'unit_price_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _inCartMeta = const VerificationMeta('inCart');
+  @override
+  late final GeneratedColumn<bool> inCart = GeneratedColumn<bool>(
+    'in_cart',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("in_cart" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    tripId,
+    kind,
+    transactionId,
+    wishlistItemId,
+    name,
+    categoryId,
+    plannedPriceMinor,
+    unitPriceMinor,
+    quantity,
+    inCart,
+    sortOrder,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shopping_trip_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ShoppingTripItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('trip_id')) {
+      context.handle(
+        _tripIdMeta,
+        tripId.isAcceptableOrUnknown(data['trip_id']!, _tripIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tripIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+        _transactionIdMeta,
+        transactionId.isAcceptableOrUnknown(
+          data['transaction_id']!,
+          _transactionIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('wishlist_item_id')) {
+      context.handle(
+        _wishlistItemIdMeta,
+        wishlistItemId.isAcceptableOrUnknown(
+          data['wishlist_item_id']!,
+          _wishlistItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('planned_price_minor')) {
+      context.handle(
+        _plannedPriceMinorMeta,
+        plannedPriceMinor.isAcceptableOrUnknown(
+          data['planned_price_minor']!,
+          _plannedPriceMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('unit_price_minor')) {
+      context.handle(
+        _unitPriceMinorMeta,
+        unitPriceMinor.isAcceptableOrUnknown(
+          data['unit_price_minor']!,
+          _unitPriceMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_unitPriceMinorMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    }
+    if (data.containsKey('in_cart')) {
+      context.handle(
+        _inCartMeta,
+        inCart.isAcceptableOrUnknown(data['in_cart']!, _inCartMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ShoppingTripItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ShoppingTripItemRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      tripId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}trip_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      transactionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transaction_id'],
+      ),
+      wishlistItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wishlist_item_id'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
+      plannedPriceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}planned_price_minor'],
+      ),
+      unitPriceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}unit_price_minor'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      inCart: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}in_cart'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $ShoppingTripItemsTable createAlias(String alias) {
+    return $ShoppingTripItemsTable(attachedDatabase, alias);
+  }
+}
+
+class ShoppingTripItemRow extends DataClass
+    implements Insertable<ShoppingTripItemRow> {
+  final String id;
+  final String userId;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+  final String tripId;
+
+  /// `planned` | `wishlist` | `impulse`. Where the line came from, so
+  /// "impulse" means exactly "was not on the list" and cannot drift.
+  final String kind;
+
+  /// The [Transactions] row this line is for. For a planned line it is
+  /// the existing planned transaction, set when the trip starts. For
+  /// other lines it is set at checkout, as a link back to what was
+  /// created.
+  final String? transactionId;
+  final String? wishlistItemId;
+  final String name;
+  final String? categoryId;
+
+  /// What the plan said one unit costs, in ngwee. Null for impulse
+  /// lines.
+  final int? plannedPriceMinor;
+  final int unitPriceMinor;
+  final int quantity;
+  final bool inCart;
+  final int sortOrder;
+  const ShoppingTripItemRow({
+    required this.id,
+    required this.userId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.tripId,
+    required this.kind,
+    this.transactionId,
+    this.wishlistItemId,
+    required this.name,
+    this.categoryId,
+    this.plannedPriceMinor,
+    required this.unitPriceMinor,
+    required this.quantity,
+    required this.inCart,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<String>(deletedAt);
+    }
+    map['trip_id'] = Variable<String>(tripId);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || transactionId != null) {
+      map['transaction_id'] = Variable<String>(transactionId);
+    }
+    if (!nullToAbsent || wishlistItemId != null) {
+      map['wishlist_item_id'] = Variable<String>(wishlistItemId);
+    }
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    if (!nullToAbsent || plannedPriceMinor != null) {
+      map['planned_price_minor'] = Variable<int>(plannedPriceMinor);
+    }
+    map['unit_price_minor'] = Variable<int>(unitPriceMinor);
+    map['quantity'] = Variable<int>(quantity);
+    map['in_cart'] = Variable<bool>(inCart);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  ShoppingTripItemsCompanion toCompanion(bool nullToAbsent) {
+    return ShoppingTripItemsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      tripId: Value(tripId),
+      kind: Value(kind),
+      transactionId: transactionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transactionId),
+      wishlistItemId: wishlistItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(wishlistItemId),
+      name: Value(name),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      plannedPriceMinor: plannedPriceMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(plannedPriceMinor),
+      unitPriceMinor: Value(unitPriceMinor),
+      quantity: Value(quantity),
+      inCart: Value(inCart),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory ShoppingTripItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ShoppingTripItemRow(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      deletedAt: serializer.fromJson<String?>(json['deletedAt']),
+      tripId: serializer.fromJson<String>(json['tripId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      transactionId: serializer.fromJson<String?>(json['transactionId']),
+      wishlistItemId: serializer.fromJson<String?>(json['wishlistItemId']),
+      name: serializer.fromJson<String>(json['name']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      plannedPriceMinor: serializer.fromJson<int?>(json['plannedPriceMinor']),
+      unitPriceMinor: serializer.fromJson<int>(json['unitPriceMinor']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      inCart: serializer.fromJson<bool>(json['inCart']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'deletedAt': serializer.toJson<String?>(deletedAt),
+      'tripId': serializer.toJson<String>(tripId),
+      'kind': serializer.toJson<String>(kind),
+      'transactionId': serializer.toJson<String?>(transactionId),
+      'wishlistItemId': serializer.toJson<String?>(wishlistItemId),
+      'name': serializer.toJson<String>(name),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'plannedPriceMinor': serializer.toJson<int?>(plannedPriceMinor),
+      'unitPriceMinor': serializer.toJson<int>(unitPriceMinor),
+      'quantity': serializer.toJson<int>(quantity),
+      'inCart': serializer.toJson<bool>(inCart),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  ShoppingTripItemRow copyWith({
+    String? id,
+    String? userId,
+    String? createdAt,
+    String? updatedAt,
+    Value<String?> deletedAt = const Value.absent(),
+    String? tripId,
+    String? kind,
+    Value<String?> transactionId = const Value.absent(),
+    Value<String?> wishlistItemId = const Value.absent(),
+    String? name,
+    Value<String?> categoryId = const Value.absent(),
+    Value<int?> plannedPriceMinor = const Value.absent(),
+    int? unitPriceMinor,
+    int? quantity,
+    bool? inCart,
+    int? sortOrder,
+  }) => ShoppingTripItemRow(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    tripId: tripId ?? this.tripId,
+    kind: kind ?? this.kind,
+    transactionId: transactionId.present
+        ? transactionId.value
+        : this.transactionId,
+    wishlistItemId: wishlistItemId.present
+        ? wishlistItemId.value
+        : this.wishlistItemId,
+    name: name ?? this.name,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    plannedPriceMinor: plannedPriceMinor.present
+        ? plannedPriceMinor.value
+        : this.plannedPriceMinor,
+    unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
+    quantity: quantity ?? this.quantity,
+    inCart: inCart ?? this.inCart,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  ShoppingTripItemRow copyWithCompanion(ShoppingTripItemsCompanion data) {
+    return ShoppingTripItemRow(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      tripId: data.tripId.present ? data.tripId.value : this.tripId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
+      wishlistItemId: data.wishlistItemId.present
+          ? data.wishlistItemId.value
+          : this.wishlistItemId,
+      name: data.name.present ? data.name.value : this.name,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      plannedPriceMinor: data.plannedPriceMinor.present
+          ? data.plannedPriceMinor.value
+          : this.plannedPriceMinor,
+      unitPriceMinor: data.unitPriceMinor.present
+          ? data.unitPriceMinor.value
+          : this.unitPriceMinor,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      inCart: data.inCart.present ? data.inCart.value : this.inCart,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoppingTripItemRow(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('tripId: $tripId, ')
+          ..write('kind: $kind, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('wishlistItemId: $wishlistItemId, ')
+          ..write('name: $name, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('plannedPriceMinor: $plannedPriceMinor, ')
+          ..write('unitPriceMinor: $unitPriceMinor, ')
+          ..write('quantity: $quantity, ')
+          ..write('inCart: $inCart, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    tripId,
+    kind,
+    transactionId,
+    wishlistItemId,
+    name,
+    categoryId,
+    plannedPriceMinor,
+    unitPriceMinor,
+    quantity,
+    inCart,
+    sortOrder,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ShoppingTripItemRow &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.tripId == this.tripId &&
+          other.kind == this.kind &&
+          other.transactionId == this.transactionId &&
+          other.wishlistItemId == this.wishlistItemId &&
+          other.name == this.name &&
+          other.categoryId == this.categoryId &&
+          other.plannedPriceMinor == this.plannedPriceMinor &&
+          other.unitPriceMinor == this.unitPriceMinor &&
+          other.quantity == this.quantity &&
+          other.inCart == this.inCart &&
+          other.sortOrder == this.sortOrder);
+}
+
+class ShoppingTripItemsCompanion extends UpdateCompanion<ShoppingTripItemRow> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<String?> deletedAt;
+  final Value<String> tripId;
+  final Value<String> kind;
+  final Value<String?> transactionId;
+  final Value<String?> wishlistItemId;
+  final Value<String> name;
+  final Value<String?> categoryId;
+  final Value<int?> plannedPriceMinor;
+  final Value<int> unitPriceMinor;
+  final Value<int> quantity;
+  final Value<bool> inCart;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const ShoppingTripItemsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.tripId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.wishlistItemId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.plannedPriceMinor = const Value.absent(),
+    this.unitPriceMinor = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.inCart = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ShoppingTripItemsCompanion.insert({
+    required String id,
+    required String userId,
+    required String createdAt,
+    required String updatedAt,
+    this.deletedAt = const Value.absent(),
+    required String tripId,
+    required String kind,
+    this.transactionId = const Value.absent(),
+    this.wishlistItemId = const Value.absent(),
+    required String name,
+    this.categoryId = const Value.absent(),
+    this.plannedPriceMinor = const Value.absent(),
+    required int unitPriceMinor,
+    this.quantity = const Value.absent(),
+    this.inCart = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       tripId = Value(tripId),
+       kind = Value(kind),
+       name = Value(name),
+       unitPriceMinor = Value(unitPriceMinor);
+  static Insertable<ShoppingTripItemRow> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
+    Expression<String>? tripId,
+    Expression<String>? kind,
+    Expression<String>? transactionId,
+    Expression<String>? wishlistItemId,
+    Expression<String>? name,
+    Expression<String>? categoryId,
+    Expression<int>? plannedPriceMinor,
+    Expression<int>? unitPriceMinor,
+    Expression<int>? quantity,
+    Expression<bool>? inCart,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (tripId != null) 'trip_id': tripId,
+      if (kind != null) 'kind': kind,
+      if (transactionId != null) 'transaction_id': transactionId,
+      if (wishlistItemId != null) 'wishlist_item_id': wishlistItemId,
+      if (name != null) 'name': name,
+      if (categoryId != null) 'category_id': categoryId,
+      if (plannedPriceMinor != null) 'planned_price_minor': plannedPriceMinor,
+      if (unitPriceMinor != null) 'unit_price_minor': unitPriceMinor,
+      if (quantity != null) 'quantity': quantity,
+      if (inCart != null) 'in_cart': inCart,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ShoppingTripItemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<String?>? deletedAt,
+    Value<String>? tripId,
+    Value<String>? kind,
+    Value<String?>? transactionId,
+    Value<String?>? wishlistItemId,
+    Value<String>? name,
+    Value<String?>? categoryId,
+    Value<int?>? plannedPriceMinor,
+    Value<int>? unitPriceMinor,
+    Value<int>? quantity,
+    Value<bool>? inCart,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return ShoppingTripItemsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      tripId: tripId ?? this.tripId,
+      kind: kind ?? this.kind,
+      transactionId: transactionId ?? this.transactionId,
+      wishlistItemId: wishlistItemId ?? this.wishlistItemId,
+      name: name ?? this.name,
+      categoryId: categoryId ?? this.categoryId,
+      plannedPriceMinor: plannedPriceMinor ?? this.plannedPriceMinor,
+      unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
+      quantity: quantity ?? this.quantity,
+      inCart: inCart ?? this.inCart,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (tripId.present) {
+      map['trip_id'] = Variable<String>(tripId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<String>(transactionId.value);
+    }
+    if (wishlistItemId.present) {
+      map['wishlist_item_id'] = Variable<String>(wishlistItemId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (plannedPriceMinor.present) {
+      map['planned_price_minor'] = Variable<int>(plannedPriceMinor.value);
+    }
+    if (unitPriceMinor.present) {
+      map['unit_price_minor'] = Variable<int>(unitPriceMinor.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (inCart.present) {
+      map['in_cart'] = Variable<bool>(inCart.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoppingTripItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('tripId: $tripId, ')
+          ..write('kind: $kind, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('wishlistItemId: $wishlistItemId, ')
+          ..write('name: $name, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('plannedPriceMinor: $plannedPriceMinor, ')
+          ..write('unitPriceMinor: $unitPriceMinor, ')
+          ..write('quantity: $quantity, ')
+          ..write('inCart: $inCart, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -12160,6 +13658,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $WishlistItemsTable wishlistItems = $WishlistItemsTable(this);
   late final $WishlistItemPhotosTable wishlistItemPhotos =
       $WishlistItemPhotosTable(this);
+  late final $ShoppingTripsTable shoppingTrips = $ShoppingTripsTable(this);
+  late final $ShoppingTripItemsTable shoppingTripItems =
+      $ShoppingTripItemsTable(this);
   late final Index idxTxUserDate = Index(
     'idx_tx_user_date',
     'CREATE INDEX idx_tx_user_date ON transactions (user_id, transacted_at)',
@@ -12192,6 +13693,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_wishlist_photo_item',
     'CREATE INDEX idx_wishlist_photo_item ON wishlist_item_photos (wishlist_item_id)',
   );
+  late final Index idxTripItemTrip = Index(
+    'idx_trip_item_trip',
+    'CREATE INDEX idx_trip_item_trip ON shopping_trip_items (trip_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -12216,6 +13721,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     savingsGoalEntries,
     wishlistItems,
     wishlistItemPhotos,
+    shoppingTrips,
+    shoppingTripItems,
     idxTxUserDate,
     idxTxUserStatus,
     idxTxFuzzy,
@@ -12224,6 +13731,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxRawStatus,
     idxGoalEntryGoal,
     idxWishlistPhotoItem,
+    idxTripItemTrip,
   ];
 }
 
@@ -12241,6 +13749,7 @@ typedef $$AccountsTableCreateCompanionBuilder =
       Value<String?> providerKey,
       Value<int?> balanceMinor,
       Value<String?> balanceAsOf,
+      Value<String?> linkedGoalId,
       Value<int> rowid,
     });
 typedef $$AccountsTableUpdateCompanionBuilder =
@@ -12257,6 +13766,7 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<String?> providerKey,
       Value<int?> balanceMinor,
       Value<String?> balanceAsOf,
+      Value<String?> linkedGoalId,
       Value<int> rowid,
     });
 
@@ -12326,6 +13836,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<String> get balanceAsOf => $composableBuilder(
     column: $table.balanceAsOf,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedGoalId => $composableBuilder(
+    column: $table.linkedGoalId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -12398,6 +13913,11 @@ class $$AccountsTableOrderingComposer
     column: $table.balanceAsOf,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get linkedGoalId => $composableBuilder(
+    column: $table.linkedGoalId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -12450,6 +13970,11 @@ class $$AccountsTableAnnotationComposer
     column: $table.balanceAsOf,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get linkedGoalId => $composableBuilder(
+    column: $table.linkedGoalId,
+    builder: (column) => column,
+  );
 }
 
 class $$AccountsTableTableManager
@@ -12495,6 +14020,7 @@ class $$AccountsTableTableManager
                 Value<String?> providerKey = const Value.absent(),
                 Value<int?> balanceMinor = const Value.absent(),
                 Value<String?> balanceAsOf = const Value.absent(),
+                Value<String?> linkedGoalId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
@@ -12509,6 +14035,7 @@ class $$AccountsTableTableManager
                 providerKey: providerKey,
                 balanceMinor: balanceMinor,
                 balanceAsOf: balanceAsOf,
+                linkedGoalId: linkedGoalId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -12525,6 +14052,7 @@ class $$AccountsTableTableManager
                 Value<String?> providerKey = const Value.absent(),
                 Value<int?> balanceMinor = const Value.absent(),
                 Value<String?> balanceAsOf = const Value.absent(),
+                Value<String?> linkedGoalId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
@@ -12539,19 +14067,11 @@ class $$AccountsTableTableManager
                 providerKey: providerKey,
                 balanceMinor: balanceMinor,
                 balanceAsOf: balanceAsOf,
+                linkedGoalId: linkedGoalId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$AccountsTable, AccountRow>(table),
-                  BaseReferences<_$AppDatabase, $AccountsTable, AccountRow>(
-                    db,
-                    table,
-                    e,
-                  ),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -12904,16 +14424,7 @@ class $$CategoriesTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$CategoriesTable, CategoryRow>(table),
-                  BaseReferences<_$AppDatabase, $CategoriesTable, CategoryRow>(
-                    db,
-                    table,
-                    e,
-                  ),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13538,16 +15049,7 @@ class $$TransactionsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$TransactionsTable, TransactionRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $TransactionsTable,
-                    TransactionRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13812,16 +15314,7 @@ class $$OverallBudgetsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$OverallBudgetsTable, OverallBudgetRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $OverallBudgetsTable,
-                    OverallBudgetRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14107,16 +15600,7 @@ class $$BudgetSchedulesTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$BudgetSchedulesTable, BudgetScheduleRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $BudgetSchedulesTable,
-                    BudgetScheduleRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14455,16 +15939,7 @@ class $$BudgetPeriodsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$BudgetPeriodsTable, BudgetPeriodRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $BudgetPeriodsTable,
-                    BudgetPeriodRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14771,16 +16246,7 @@ class $$CategoryBudgetsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$CategoryBudgetsTable, CategoryBudgetRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $CategoryBudgetsTable,
-                    CategoryBudgetRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14996,16 +16462,7 @@ class $$PayeesTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$PayeesTable, PayeeRow>(table),
-                  BaseReferences<_$AppDatabase, $PayeesTable, PayeeRow>(
-                    db,
-                    table,
-                    e,
-                  ),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -15237,16 +16694,7 @@ class $$LabelsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$LabelsTable, LabelRow>(table),
-                  BaseReferences<_$AppDatabase, $LabelsTable, LabelRow>(
-                    db,
-                    table,
-                    e,
-                  ),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -15397,16 +16845,7 @@ class $$TransactionLabelsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$TransactionLabelsTable, TransactionLabel>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $TransactionLabelsTable,
-                    TransactionLabel
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -15755,16 +17194,7 @@ class $$TransfersTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$TransfersTable, TransferRow>(table),
-                  BaseReferences<_$AppDatabase, $TransfersTable, TransferRow>(
-                    db,
-                    table,
-                    e,
-                  ),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16187,16 +17617,7 @@ class $$RawCapturesTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$RawCapturesTable, RawCaptureRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $RawCapturesTable,
-                    RawCaptureRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16335,16 +17756,7 @@ class $$SettingsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$SettingsTable, SettingRow>(table),
-                  BaseReferences<_$AppDatabase, $SettingsTable, SettingRow>(
-                    db,
-                    table,
-                    e,
-                  ),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16587,16 +17999,7 @@ class $$CustomSenderIdsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$CustomSenderIdsTable, CustomSenderRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $CustomSenderIdsTable,
-                    CustomSenderRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16853,19 +18256,7 @@ class $$MerchantCategoryRulesTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<
-                    $MerchantCategoryRulesTable,
-                    MerchantCategoryRuleRow
-                  >(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $MerchantCategoryRulesTable,
-                    MerchantCategoryRuleRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16905,6 +18296,7 @@ typedef $$SavingsGoalsTableCreateCompanionBuilder =
       Value<String?> targetDate,
       Value<String?> defaultAccountId,
       Value<String> status,
+      Value<String?> accountId,
       Value<int> rowid,
     });
 typedef $$SavingsGoalsTableUpdateCompanionBuilder =
@@ -16919,6 +18311,7 @@ typedef $$SavingsGoalsTableUpdateCompanionBuilder =
       Value<String?> targetDate,
       Value<String?> defaultAccountId,
       Value<String> status,
+      Value<String?> accountId,
       Value<int> rowid,
     });
 
@@ -16978,6 +18371,11 @@ class $$SavingsGoalsTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -17040,6 +18438,11 @@ class $$SavingsGoalsTableOrderingComposer
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SavingsGoalsTableAnnotationComposer
@@ -17086,6 +18489,9 @@ class $$SavingsGoalsTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
 }
 
 class $$SavingsGoalsTableTableManager
@@ -17129,6 +18535,7 @@ class $$SavingsGoalsTableTableManager
                 Value<String?> targetDate = const Value.absent(),
                 Value<String?> defaultAccountId = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavingsGoalsCompanion(
                 id: id,
@@ -17141,6 +18548,7 @@ class $$SavingsGoalsTableTableManager
                 targetDate: targetDate,
                 defaultAccountId: defaultAccountId,
                 status: status,
+                accountId: accountId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -17155,6 +18563,7 @@ class $$SavingsGoalsTableTableManager
                 Value<String?> targetDate = const Value.absent(),
                 Value<String?> defaultAccountId = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavingsGoalsCompanion.insert(
                 id: id,
@@ -17167,19 +18576,11 @@ class $$SavingsGoalsTableTableManager
                 targetDate: targetDate,
                 defaultAccountId: defaultAccountId,
                 status: status,
+                accountId: accountId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$SavingsGoalsTable, SavingsGoalRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $SavingsGoalsTable,
-                    SavingsGoalRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -17217,6 +18618,7 @@ typedef $$SavingsGoalEntriesTableCreateCompanionBuilder =
       required String transactedAt,
       Value<String?> note,
       Value<String?> linkedTransactionId,
+      Value<String?> linkedTransferId,
       Value<int> rowid,
     });
 typedef $$SavingsGoalEntriesTableUpdateCompanionBuilder =
@@ -17233,6 +18635,7 @@ typedef $$SavingsGoalEntriesTableUpdateCompanionBuilder =
       Value<String> transactedAt,
       Value<String?> note,
       Value<String?> linkedTransactionId,
+      Value<String?> linkedTransferId,
       Value<int> rowid,
     });
 
@@ -17302,6 +18705,11 @@ class $$SavingsGoalEntriesTableFilterComposer
 
   ColumnFilters<String> get linkedTransactionId => $composableBuilder(
     column: $table.linkedTransactionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedTransferId => $composableBuilder(
+    column: $table.linkedTransferId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -17374,6 +18782,11 @@ class $$SavingsGoalEntriesTableOrderingComposer
     column: $table.linkedTransactionId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get linkedTransferId => $composableBuilder(
+    column: $table.linkedTransferId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SavingsGoalEntriesTableAnnotationComposer
@@ -17424,6 +18837,11 @@ class $$SavingsGoalEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get linkedTransactionId => $composableBuilder(
     column: $table.linkedTransactionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get linkedTransferId => $composableBuilder(
+    column: $table.linkedTransferId,
     builder: (column) => column,
   );
 }
@@ -17480,6 +18898,7 @@ class $$SavingsGoalEntriesTableTableManager
                 Value<String> transactedAt = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> linkedTransactionId = const Value.absent(),
+                Value<String?> linkedTransferId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavingsGoalEntriesCompanion(
                 id: id,
@@ -17494,6 +18913,7 @@ class $$SavingsGoalEntriesTableTableManager
                 transactedAt: transactedAt,
                 note: note,
                 linkedTransactionId: linkedTransactionId,
+                linkedTransferId: linkedTransferId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -17510,6 +18930,7 @@ class $$SavingsGoalEntriesTableTableManager
                 required String transactedAt,
                 Value<String?> note = const Value.absent(),
                 Value<String?> linkedTransactionId = const Value.absent(),
+                Value<String?> linkedTransferId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SavingsGoalEntriesCompanion.insert(
                 id: id,
@@ -17524,21 +18945,11 @@ class $$SavingsGoalEntriesTableTableManager
                 transactedAt: transactedAt,
                 note: note,
                 linkedTransactionId: linkedTransactionId,
+                linkedTransferId: linkedTransferId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$SavingsGoalEntriesTable, SavingsGoalEntryRow>(
-                    table,
-                  ),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $SavingsGoalEntriesTable,
-                    SavingsGoalEntryRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -17925,16 +19336,7 @@ class $$WishlistItemsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$WishlistItemsTable, WishlistItemRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $WishlistItemsTable,
-                    WishlistItemRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18145,18 +19547,7 @@ class $$WishlistItemPhotosTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$WishlistItemPhotosTable, WishlistItemPhotoRow>(
-                    table,
-                  ),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $WishlistItemPhotosTable,
-                    WishlistItemPhotoRow
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18182,6 +19573,716 @@ typedef $$WishlistItemPhotosTableProcessedTableManager =
         >,
       ),
       WishlistItemPhotoRow,
+      PrefetchHooks Function()
+    >;
+typedef $$ShoppingTripsTableCreateCompanionBuilder =
+    ShoppingTripsCompanion Function({
+      required String id,
+      required String userId,
+      required String createdAt,
+      required String updatedAt,
+      Value<String?> deletedAt,
+      required String periodId,
+      Value<String> status,
+      required String startedAt,
+      Value<String?> finishedAt,
+      Value<int> rowid,
+    });
+typedef $$ShoppingTripsTableUpdateCompanionBuilder =
+    ShoppingTripsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<String> periodId,
+      Value<String> status,
+      Value<String> startedAt,
+      Value<String?> finishedAt,
+      Value<int> rowid,
+    });
+
+class $$ShoppingTripsTableFilterComposer
+    extends Composer<_$AppDatabase, $ShoppingTripsTable> {
+  $$ShoppingTripsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get periodId => $composableBuilder(
+    column: $table.periodId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ShoppingTripsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ShoppingTripsTable> {
+  $$ShoppingTripsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get periodId => $composableBuilder(
+    column: $table.periodId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ShoppingTripsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ShoppingTripsTable> {
+  $$ShoppingTripsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get periodId =>
+      $composableBuilder(column: $table.periodId, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$ShoppingTripsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ShoppingTripsTable,
+          ShoppingTripRow,
+          $$ShoppingTripsTableFilterComposer,
+          $$ShoppingTripsTableOrderingComposer,
+          $$ShoppingTripsTableAnnotationComposer,
+          $$ShoppingTripsTableCreateCompanionBuilder,
+          $$ShoppingTripsTableUpdateCompanionBuilder,
+          (
+            ShoppingTripRow,
+            BaseReferences<_$AppDatabase, $ShoppingTripsTable, ShoppingTripRow>,
+          ),
+          ShoppingTripRow,
+          PrefetchHooks Function()
+        > {
+  $$ShoppingTripsTableTableManager(_$AppDatabase db, $ShoppingTripsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ShoppingTripsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ShoppingTripsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ShoppingTripsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<String> periodId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> startedAt = const Value.absent(),
+                Value<String?> finishedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ShoppingTripsCompanion(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                periodId: periodId,
+                status: status,
+                startedAt: startedAt,
+                finishedAt: finishedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String createdAt,
+                required String updatedAt,
+                Value<String?> deletedAt = const Value.absent(),
+                required String periodId,
+                Value<String> status = const Value.absent(),
+                required String startedAt,
+                Value<String?> finishedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ShoppingTripsCompanion.insert(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                periodId: periodId,
+                status: status,
+                startedAt: startedAt,
+                finishedAt: finishedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ShoppingTripsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ShoppingTripsTable,
+      ShoppingTripRow,
+      $$ShoppingTripsTableFilterComposer,
+      $$ShoppingTripsTableOrderingComposer,
+      $$ShoppingTripsTableAnnotationComposer,
+      $$ShoppingTripsTableCreateCompanionBuilder,
+      $$ShoppingTripsTableUpdateCompanionBuilder,
+      (
+        ShoppingTripRow,
+        BaseReferences<_$AppDatabase, $ShoppingTripsTable, ShoppingTripRow>,
+      ),
+      ShoppingTripRow,
+      PrefetchHooks Function()
+    >;
+typedef $$ShoppingTripItemsTableCreateCompanionBuilder =
+    ShoppingTripItemsCompanion Function({
+      required String id,
+      required String userId,
+      required String createdAt,
+      required String updatedAt,
+      Value<String?> deletedAt,
+      required String tripId,
+      required String kind,
+      Value<String?> transactionId,
+      Value<String?> wishlistItemId,
+      required String name,
+      Value<String?> categoryId,
+      Value<int?> plannedPriceMinor,
+      required int unitPriceMinor,
+      Value<int> quantity,
+      Value<bool> inCart,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+typedef $$ShoppingTripItemsTableUpdateCompanionBuilder =
+    ShoppingTripItemsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<String> tripId,
+      Value<String> kind,
+      Value<String?> transactionId,
+      Value<String?> wishlistItemId,
+      Value<String> name,
+      Value<String?> categoryId,
+      Value<int?> plannedPriceMinor,
+      Value<int> unitPriceMinor,
+      Value<int> quantity,
+      Value<bool> inCart,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+
+class $$ShoppingTripItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $ShoppingTripItemsTable> {
+  $$ShoppingTripItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tripId => $composableBuilder(
+    column: $table.tripId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transactionId => $composableBuilder(
+    column: $table.transactionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get wishlistItemId => $composableBuilder(
+    column: $table.wishlistItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get plannedPriceMinor => $composableBuilder(
+    column: $table.plannedPriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get unitPriceMinor => $composableBuilder(
+    column: $table.unitPriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get inCart => $composableBuilder(
+    column: $table.inCart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ShoppingTripItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ShoppingTripItemsTable> {
+  $$ShoppingTripItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tripId => $composableBuilder(
+    column: $table.tripId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transactionId => $composableBuilder(
+    column: $table.transactionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get wishlistItemId => $composableBuilder(
+    column: $table.wishlistItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get plannedPriceMinor => $composableBuilder(
+    column: $table.plannedPriceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get unitPriceMinor => $composableBuilder(
+    column: $table.unitPriceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get inCart => $composableBuilder(
+    column: $table.inCart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ShoppingTripItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ShoppingTripItemsTable> {
+  $$ShoppingTripItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get tripId =>
+      $composableBuilder(column: $table.tripId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get transactionId => $composableBuilder(
+    column: $table.transactionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get wishlistItemId => $composableBuilder(
+    column: $table.wishlistItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get plannedPriceMinor => $composableBuilder(
+    column: $table.plannedPriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get unitPriceMinor => $composableBuilder(
+    column: $table.unitPriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<bool> get inCart =>
+      $composableBuilder(column: $table.inCart, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+}
+
+class $$ShoppingTripItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ShoppingTripItemsTable,
+          ShoppingTripItemRow,
+          $$ShoppingTripItemsTableFilterComposer,
+          $$ShoppingTripItemsTableOrderingComposer,
+          $$ShoppingTripItemsTableAnnotationComposer,
+          $$ShoppingTripItemsTableCreateCompanionBuilder,
+          $$ShoppingTripItemsTableUpdateCompanionBuilder,
+          (
+            ShoppingTripItemRow,
+            BaseReferences<
+              _$AppDatabase,
+              $ShoppingTripItemsTable,
+              ShoppingTripItemRow
+            >,
+          ),
+          ShoppingTripItemRow,
+          PrefetchHooks Function()
+        > {
+  $$ShoppingTripItemsTableTableManager(
+    _$AppDatabase db,
+    $ShoppingTripItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ShoppingTripItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ShoppingTripItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ShoppingTripItemsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<String> tripId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String?> transactionId = const Value.absent(),
+                Value<String?> wishlistItemId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                Value<int?> plannedPriceMinor = const Value.absent(),
+                Value<int> unitPriceMinor = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<bool> inCart = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ShoppingTripItemsCompanion(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                tripId: tripId,
+                kind: kind,
+                transactionId: transactionId,
+                wishlistItemId: wishlistItemId,
+                name: name,
+                categoryId: categoryId,
+                plannedPriceMinor: plannedPriceMinor,
+                unitPriceMinor: unitPriceMinor,
+                quantity: quantity,
+                inCart: inCart,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String createdAt,
+                required String updatedAt,
+                Value<String?> deletedAt = const Value.absent(),
+                required String tripId,
+                required String kind,
+                Value<String?> transactionId = const Value.absent(),
+                Value<String?> wishlistItemId = const Value.absent(),
+                required String name,
+                Value<String?> categoryId = const Value.absent(),
+                Value<int?> plannedPriceMinor = const Value.absent(),
+                required int unitPriceMinor,
+                Value<int> quantity = const Value.absent(),
+                Value<bool> inCart = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ShoppingTripItemsCompanion.insert(
+                id: id,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                tripId: tripId,
+                kind: kind,
+                transactionId: transactionId,
+                wishlistItemId: wishlistItemId,
+                name: name,
+                categoryId: categoryId,
+                plannedPriceMinor: plannedPriceMinor,
+                unitPriceMinor: unitPriceMinor,
+                quantity: quantity,
+                inCart: inCart,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ShoppingTripItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ShoppingTripItemsTable,
+      ShoppingTripItemRow,
+      $$ShoppingTripItemsTableFilterComposer,
+      $$ShoppingTripItemsTableOrderingComposer,
+      $$ShoppingTripItemsTableAnnotationComposer,
+      $$ShoppingTripItemsTableCreateCompanionBuilder,
+      $$ShoppingTripItemsTableUpdateCompanionBuilder,
+      (
+        ShoppingTripItemRow,
+        BaseReferences<
+          _$AppDatabase,
+          $ShoppingTripItemsTable,
+          ShoppingTripItemRow
+        >,
+      ),
+      ShoppingTripItemRow,
       PrefetchHooks Function()
     >;
 
@@ -18226,4 +20327,8 @@ class $AppDatabaseManager {
       $$WishlistItemsTableTableManager(_db, _db.wishlistItems);
   $$WishlistItemPhotosTableTableManager get wishlistItemPhotos =>
       $$WishlistItemPhotosTableTableManager(_db, _db.wishlistItemPhotos);
+  $$ShoppingTripsTableTableManager get shoppingTrips =>
+      $$ShoppingTripsTableTableManager(_db, _db.shoppingTrips);
+  $$ShoppingTripItemsTableTableManager get shoppingTripItems =>
+      $$ShoppingTripItemsTableTableManager(_db, _db.shoppingTripItems);
 }

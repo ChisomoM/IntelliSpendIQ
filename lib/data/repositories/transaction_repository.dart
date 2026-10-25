@@ -503,6 +503,7 @@ class TransactionRepository {
     bool clearPayee = false,
     String? accountId,
     TxDirection? direction,
+    String? periodId,
   }) async {
     await (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
@@ -530,6 +531,7 @@ class TransactionRepository {
         direction: direction == null
             ? const Value.absent()
             : Value(direction.name),
+        periodId: periodId == null ? const Value.absent() : Value(periodId),
         updatedAt: Value(Iso.nowUtc()),
       ),
     );

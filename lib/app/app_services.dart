@@ -22,6 +22,7 @@ import 'package:intellispendiq/data/repositories/raw_capture_repository.dart';
 import 'package:intellispendiq/data/repositories/reminder_settings_repository.dart';
 import 'package:intellispendiq/data/repositories/savings_goal_repository.dart';
 import 'package:intellispendiq/data/repositories/settings_repository.dart';
+import 'package:intellispendiq/data/repositories/shopping_trip_repository.dart';
 import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/data/repositories/transfer_repository.dart';
 import 'package:intellispendiq/data/repositories/wishlist_repository.dart';
@@ -36,6 +37,7 @@ import 'package:intellispendiq/domain/services/budget_import_service.dart';
 import 'package:intellispendiq/domain/services/capture_core.dart';
 import 'package:intellispendiq/domain/services/capture_nudger.dart';
 import 'package:intellispendiq/domain/services/capture_service.dart';
+import 'package:intellispendiq/domain/services/category_envelope_service.dart';
 import 'package:intellispendiq/domain/services/data_reset_service.dart';
 import 'package:intellispendiq/domain/services/finance_chat_service.dart';
 import 'package:intellispendiq/domain/services/merchant_categorizer.dart';
@@ -76,6 +78,8 @@ class AppServices {
     required this.merchantCategoryRules,
     required this.savingsGoals,
     required this.wishlist,
+    required this.shoppingTrips,
+    required this.categoryEnvelopes,
     required this.appLock,
     required this.identity,
     required this.license,
@@ -233,6 +237,18 @@ class AppServices {
       savingsGoals: savingsGoals,
       budgetPeriods: budgetPeriods,
     );
+    final shoppingTrips = ShoppingTripRepository(
+      db,
+      userId: userId,
+      transactions: transactions,
+      wishlist: wishlist,
+      budgetPeriods: budgetPeriods,
+    );
+    final categoryEnvelopes = CategoryEnvelopeService(
+      categories: categories,
+      budgetPeriods: budgetPeriods,
+      transactions: transactions,
+    );
 
     // Day-one seeds (plan §6.2): categories and the default Airtel Money
     // account. Both are no-ops after the first launch.
@@ -311,6 +327,8 @@ class AppServices {
       merchantCategoryRules: merchantCategoryRules,
       savingsGoals: savingsGoals,
       wishlist: wishlist,
+      shoppingTrips: shoppingTrips,
+      categoryEnvelopes: categoryEnvelopes,
       appLock: AppLockRepository(
         secureStore: store,
         settings: settings,
@@ -373,6 +391,8 @@ class AppServices {
   final MerchantCategoryRuleRepository merchantCategoryRules;
   final SavingsGoalRepository savingsGoals;
   final WishlistRepository wishlist;
+  final ShoppingTripRepository shoppingTrips;
+  final CategoryEnvelopeService categoryEnvelopes;
   final AppLockRepository appLock;
   final IdentityRepository identity;
   final LicenseRepository license;
