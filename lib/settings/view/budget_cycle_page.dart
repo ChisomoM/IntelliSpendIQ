@@ -6,6 +6,7 @@ import 'package:intellispendiq/design/design.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/settings/budget_cadence_labels.dart';
 import 'package:intellispendiq/settings/cubit/cubit.dart';
+import 'package:intellispendiq/settings/view/cycle_dates_page.dart';
 
 /// Choose how successive budget periods are generated.
 class BudgetCyclePage extends StatelessWidget {
@@ -118,6 +119,16 @@ class BudgetCycleView extends StatelessWidget {
                             _pickAnchorDate(context, schedule.anchorDate),
                       ),
                     ],
+                    const SizedBox(height: Space.sectionGap),
+                    _DetailGroup(
+                      title: 'Adjust cycle dates',
+                      value:
+                          'Start a cycle early or late, such as when payday '
+                          'comes before the 25th',
+                      enabled: !saving,
+                      onTap: () =>
+                          Navigator.of(context).push(CycleDatesPage.route()),
+                    ),
                     if (saving) ...[
                       const SizedBox(height: Space.x2),
                       const Center(child: CircularProgressIndicator()),
