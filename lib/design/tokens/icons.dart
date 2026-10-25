@@ -71,6 +71,7 @@ abstract final class AppIcons {
   // this package (see `CategoryIcons.shopping`), same reasoning as
   // [savingsGoal] above.
   static const wishlist = HugeIcons.strokeRoundedShoppingBag01;
+  static const cart = HugeIcons.strokeRoundedShoppingCart01;
 
   // Account types.
   static const accountCash = HugeIcons.strokeRoundedCash01;
