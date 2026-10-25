@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intellispendiq/app/app_services.dart';
 import 'package:intellispendiq/core/ids.dart';
+import 'package:intellispendiq/core/time.dart';
+import 'package:intellispendiq/data/db/app_database.dart';
 import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/domain/models/budget_period.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
@@ -268,4 +270,118 @@ void main() {
       );
     },
   );
+
+  group('leftover cycles from earlier schedules', () {
+    /// A cycle row with exactly these dates, as an earlier schedule rule
+    /// could have left behind.
+    Future<String> leftover(DateTime start, DateTime endExclusive) async {
+      final schedule = await services.budgetPeriods.ensureSchedule();
+      final id = Ids.newId();
+      final now = Iso.nowUtc();
+      await services.db
+          .into(services.db.budgetPeriods)
+          .insert(
+            BudgetPeriodsCompanion.insert(
+              id: id,
+              userId: services.userId,
+              createdAt: now,
+              updatedAt: now,
+              scheduleId: schedule.id,
+              startAt: Iso.fromDateTime(start),
+              endAt: Iso.fromDateTime(endExclusive),
+              label: 'leftover',
+            ),
+          );
+      return id;
+    }
+
+    test(
+      'moving onto their exact dates merges them instead of failing',
+      () async {
+        // Moving the boundary to 1 Nov makes the current cycle
+        // 25 Sep to 1 Nov, which a leftover row already is.
+        final old = await leftover(DateTime(2026, 9, 25), DateTime(2026, 11));
+        final oldTx = await spend(DateTime(2026, 10, 5), current);
+        await services.db.customStatement(
+          'UPDATE transactions SET period_id = ? WHERE id = ?',
+          [old, oldTx],
+        );
+        final food = (await services.categories.byName('Food'))!;
+        final pets = await services.categories.create('Pets');
+        await services.budgetPeriods.upsertCategoryBudget(
+          periodId: current.id,
+          categoryId: food.id,
+          amountMinor: 1000,
+        );
+        await services.budgetPeriods.upsertCategoryBudget(
+          periodId: old,
+          categoryId: food.id,
+          amountMinor: 9999,
+        );
+        await services.budgetPeriods.upsertCategoryBudget(
+          periodId: old,
+          categoryId: pets.id,
+          amountMinor: 700,
+        );
+
+        await services.budgetPeriods.moveBoundary(
+          earlierId: current.id,
+          laterId: next.id,
+          newBoundary: DateTime(2026, 11),
+        );
+
+        expect(await services.budgetPeriods.getPeriod(old), isNull);
+        expect(await periodOf(oldTx), current.id);
+        final budgets = {
+          for (final b in await services.budgetPeriods.categoryBudgetsFor(
+            current.id,
+          ))
+            b.categoryId: b.amountMinor,
+        };
+        // The cycle's own envelope wins; the one it lacked is carried over.
+        expect(budgets[food.id], 1000);
+        expect(budgets[pets.id], 700);
+        expect(
+          day((await services.budgetPeriods.getPeriod(current.id))!.endAt),
+          DateTime(2026, 11),
+        );
+      },
+    );
+
+    test(
+      'the cycle list stays unbroken after several rule changes and an edit',
+      () async {
+        final repo = services.budgetPeriods;
+        for (final m in [8, 9, 10, 11, 12]) {
+          await repo.ensurePeriodContaining(DateTime(2026, m, 10));
+        }
+        for (final payday in [6, 24]) {
+          await repo.updateSchedule(
+            cadence: BudgetCadence.payday,
+            anchorDay: payday,
+          );
+          for (final m in [8, 9, 10, 11, 12]) {
+            await repo.ensurePeriodContaining(DateTime(2026, m, 28));
+          }
+        }
+        final now = await repo.ensurePeriodContaining(DateTime(2026, 10, 25));
+        final after = await repo.shiftPeriod(now, 1);
+        await repo.moveBoundary(
+          earlierId: now.id,
+          laterId: after.id,
+          newBoundary: DateTime(2026, 11, 22),
+        );
+
+        final list = await repo.cyclesBetween(
+          earliest: DateTime(2026, 8),
+          now: DateTime(2026, 11, 25),
+        );
+
+        expect(list.first.start, DateTime(2026, 11, 22));
+        for (var i = 0; i + 1 < list.length; i++) {
+          expect(list[i + 1].endExclusive, list[i].start);
+        }
+      },
+    );
+  });
 }

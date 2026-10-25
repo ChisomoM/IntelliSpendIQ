@@ -105,6 +105,9 @@ class _CycleDatesPageState extends State<CycleDatesPage> {
       _reload();
     } on CycleEditException catch (error) {
       if (mounted) _say(error.message);
+    } on Object catch (error) {
+      // Never fail silently: a change that did not save has to say so.
+      if (mounted) _say('Could not change the cycle dates: $error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
