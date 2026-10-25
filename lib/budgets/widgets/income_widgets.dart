@@ -20,6 +20,7 @@ class IncomeSummaryCard extends StatelessWidget {
     required this.actualMinor,
     required this.provisionalMinor,
     required this.onTapRow,
+    required this.onRemoveFromCycle,
     this.periodId,
     super.key,
   });
@@ -37,6 +38,11 @@ class IncomeSummaryCard extends StatelessWidget {
   /// Called when a row (with a planned amount) is tapped, to toggle its
   /// paid/unpaid state.
   final void Function(Category category, IncomeStatus? current) onTapRow;
+
+  /// Called when the user asks to remove a row's amount from this cycle
+  /// only.
+  final void Function(Category category, IncomeStatus? current)
+  onRemoveFromCycle;
 
   /// Budget period to write planned amounts into when editing.
   final String? periodId;
@@ -123,6 +129,8 @@ class IncomeSummaryCard extends StatelessWidget {
                 periodId: periodId,
                 status: statusByCategory[category.id],
                 onTap: () => onTapRow(category, statusByCategory[category.id]),
+                onRemove: () =>
+                    onRemoveFromCycle(category, statusByCategory[category.id]),
               ),
             if (planned.isNotEmpty) ...[
               Divider(height: 1, color: colors.outlineVariant),
@@ -194,6 +202,7 @@ class _IncomeSourceRow extends StatelessWidget {
   const _IncomeSourceRow({
     required this.category,
     required this.onTap,
+    required this.onRemove,
     this.periodId,
     this.status,
   });
@@ -202,6 +211,7 @@ class _IncomeSourceRow extends StatelessWidget {
   final String? periodId;
   final IncomeStatus? status;
   final VoidCallback onTap;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -249,11 +259,127 @@ class _IncomeSourceRow extends StatelessWidget {
           : () => Navigator.of(context).push<String?>(
               CategoryEditorPage.route(existing: category, periodId: periodId),
             ),
-      onLongPress: () => Navigator.of(context).push<String?>(
-        CategoryEditorPage.route(existing: category, periodId: periodId),
-      ),
+      // A row with an amount in this cycle offers to remove it from this
+      // cycle alone as well as editing the source; one without goes
+      // straight to the editor, as before.
+      onLongPress: () =>
+          category.hasBudget ? _showActions(context) : _edit(context),
     );
   }
+
+  void _edit(BuildContext context) {
+    Navigator.of(context).push<String?>(
+      CategoryEditorPage.route(existing: category, periodId: periodId),
+    );
+  }
+
+  Future<void> _showActions(BuildContext context) async {
+    final choice = await showModalBottomSheet<_IncomeAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(category.name),
+              subtitle: const Text('This cycle'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit income source'),
+              onTap: () => Navigator.of(sheetContext).pop(_IncomeAction.edit),
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.remove_circle_outline,
+                color: Theme.of(sheetContext).colorScheme.error,
+              ),
+              title: const Text('Remove from this cycle'),
+              subtitle: const Text('Other cycles are not affected'),
+              onTap: () => Navigator.of(sheetContext).pop(_IncomeAction.remove),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted) return;
+    switch (choice) {
+      case _IncomeAction.edit:
+        _edit(context);
+      case _IncomeAction.remove:
+        onRemove();
+      case null:
+        break;
+    }
+  }
+}
+
+enum _IncomeAction { edit, remove }
+
+/// What the user decided when removing an income source from a cycle.
+class RemoveIncomeResult {
+  const RemoveIncomeResult({required this.deleteReceivedTransaction});
+
+  /// Only ever true for a source that had been marked paid.
+  final bool deleteReceivedTransaction;
+}
+
+/// Confirms removing [category] from the cycle being viewed. For a source
+/// that was marked paid, also asks whether to delete the money-received
+/// transaction that marking it paid created; it is kept unless the user
+/// turns that on. Returns null if the user cancels.
+Future<RemoveIncomeResult?> showRemoveIncomeDialog(
+  BuildContext context, {
+  required Category category,
+  required int amountMinor,
+  required bool isPaid,
+}) {
+  var deleteReceived = false;
+  return showDialog<RemoveIncomeResult>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text('Remove from this cycle?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This takes ${Money.display(amountMinor)} for '
+              '"${category.name}" out of this cycle only. The income source '
+              'and your other cycles are not changed.',
+            ),
+            if (isPaid) ...[
+              const SizedBox(height: Space.x2),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Also delete the money received'),
+                subtitle: const Text(
+                  'Removes the transaction recorded when you marked it paid. '
+                  'Left off, it stays in your activity and account balance.',
+                ),
+                value: deleteReceived,
+                onChanged: (value) => setState(() => deleteReceived = value),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(
+              RemoveIncomeResult(deleteReceivedTransaction: deleteReceived),
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Amount + date + account picked when marking an income envelope paid

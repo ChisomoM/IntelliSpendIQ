@@ -105,6 +105,12 @@ class BudgetsView extends StatelessWidget {
                     periodId: period.id,
                     onTapRow: (category, current) =>
                         _toggleIncomePaid(context, category, current),
+                    onRemoveFromCycle: (category, current) => _removeIncome(
+                      context,
+                      category,
+                      current,
+                      amountMinor: state.categoryBudgets[category.id] ?? 0,
+                    ),
                   ),
                   const SizedBox(height: Space.sectionGap),
                   if (state.isEmpty)
@@ -158,6 +164,30 @@ class BudgetsView extends StatelessWidget {
         initialType: CategoryType.expense,
         periodId: periodId,
       ),
+    );
+  }
+
+  Future<void> _removeIncome(
+    BuildContext context,
+    Category category,
+    IncomeStatus? current, {
+    required int amountMinor,
+  }) async {
+    final cubit = context.read<BudgetsCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await showRemoveIncomeDialog(
+      context,
+      category: category,
+      amountMinor: amountMinor,
+      isPaid: current == IncomeStatus.paid,
+    );
+    if (result == null) return;
+    await cubit.removeIncomeFromCycle(
+      category.id,
+      deleteReceivedTransaction: result.deleteReceivedTransaction,
+    );
+    messenger.showSnackBar(
+      SnackBar(content: Text('Removed ${category.name} from this cycle')),
     );
   }
 

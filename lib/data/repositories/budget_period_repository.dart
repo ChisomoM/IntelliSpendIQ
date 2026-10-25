@@ -879,6 +879,56 @@ class BudgetPeriodRepository {
     }
   }
 
+  /// Removes an income source's line from one cycle, leaving the source
+  /// itself and every other cycle alone. Afterwards the source reads as
+  /// having no amount set for that cycle.
+  ///
+  /// When the line was marked paid it is backed by a real "money received"
+  /// transaction. That transaction is kept unless [deleteReceivedTransaction]
+  /// is true, in which case it is deleted too (it can be restored from the
+  /// ledger's undo like any other deleted entry). Either way the line stops
+  /// pointing at it, so marking the source paid again later records a new
+  /// receipt instead of silently reusing the old one.
+  ///
+  /// Returns false, writing nothing, if there was no line for this
+  /// category in this cycle, or the category is not an income one.
+  Future<bool> removeIncomeFromPeriod({
+    required String periodId,
+    required String categoryId,
+    bool deleteReceivedTransaction = false,
+  }) async {
+    if (await _categoryTypeOf(categoryId) != CategoryType.income) return false;
+    final envelope =
+        await (_db.select(_db.categoryBudgets)..where(
+              (b) =>
+                  b.userId.equals(userId) &
+                  b.periodId.equals(periodId) &
+                  b.categoryId.equals(categoryId) &
+                  b.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (envelope == null) return false;
+
+    final now = Iso.nowUtc();
+    await _db.transaction(() async {
+      final receivedId = envelope.transactionId;
+      if (deleteReceivedTransaction && receivedId != null) {
+        await _transactions.softDelete(receivedId);
+      }
+      await (_db.update(
+        _db.categoryBudgets,
+      )..where((b) => b.id.equals(envelope.id))).write(
+        CategoryBudgetsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          status: const Value(null),
+          transactionId: const Value(null),
+        ),
+      );
+    });
+    return true;
+  }
+
   /// Marks an income envelope unpaid again. The transaction that had
   /// backed it, if any, is left alone in the ledger — only the link is
   /// cleared.

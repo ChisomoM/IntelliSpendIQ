@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,29 +8,8 @@ import 'package:intellispendiq/data/repositories/transaction_repository.dart';
 import 'package:intellispendiq/domain/models/enums.dart';
 import 'package:intellispendiq/settings/view/cycle_dates_page.dart';
 
+import '../../support/font_guard.dart';
 import '../../support/test_harness.dart';
-
-/// Runs [body] while ignoring failed Google Fonts downloads. The app's
-/// text styles ask for their typeface over the network, which a test
-/// cannot do; any other error still fails the test.
-Future<void> ignoringFontFetchErrors(Future<void> Function() body) {
-  final done = Completer<void>();
-  runZonedGuarded(
-    () async {
-      try {
-        await body();
-        done.complete();
-      } on Object catch (error, stack) {
-        done.completeError(error, stack);
-      }
-    },
-    (error, stack) {
-      if ('$error'.contains('Failed to load font')) return;
-      if (!done.isCompleted) done.completeError(error, stack);
-    },
-  );
-  return done.future;
-}
 
 void main() {
   late AppServices services;

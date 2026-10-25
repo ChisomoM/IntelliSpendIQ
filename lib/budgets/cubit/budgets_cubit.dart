@@ -179,6 +179,22 @@ class BudgetsCubit extends Cubit<BudgetsState> {
     );
   }
 
+  /// Removes an income source from the cycle being viewed, and only that
+  /// cycle. If it had been marked paid, [deleteReceivedTransaction]
+  /// decides whether the money-received transaction goes with it.
+  Future<void> removeIncomeFromCycle(
+    String categoryId, {
+    bool deleteReceivedTransaction = false,
+  }) async {
+    final period = state.budgetPeriod;
+    if (period == null) return;
+    await _budgetPeriods.removeIncomeFromPeriod(
+      periodId: period.id,
+      categoryId: categoryId,
+      deleteReceivedTransaction: deleteReceivedTransaction,
+    );
+  }
+
   /// Switches how the period's overall budget is computed.
   Future<void> setBudgetSource(BudgetSource source) async {
     final period = state.budgetPeriod;
