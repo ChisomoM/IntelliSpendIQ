@@ -20,6 +20,51 @@ class IncomeTotals {
   final int provisionalMinor;
 }
 
+/// Why a cycle's dates couldn't be changed, worded for the user.
+class CycleEditException implements Exception {
+  const CycleEditException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// What a boundary move changes: the two cycles' new labels and how many
+/// transactions switch cycle.
+class CycleMovePreview {
+  const CycleMovePreview({
+    required this.earlierLabel,
+    required this.laterLabel,
+    required this.transactionsMoving,
+    required this.movesIntoLater,
+  });
+
+  final String earlierLabel;
+  final String laterLabel;
+  final int transactionsMoving;
+
+  /// True when the boundary moved earlier, so transactions pass from the
+  /// earlier cycle into the later one; false for the other way round.
+  final bool movesIntoLater;
+}
+
+class _MovePlan {
+  const _MovePlan({
+    required this.newBoundaryUtc,
+    required this.earlierLabel,
+    required this.laterLabel,
+    required this.movesIntoLater,
+    required this.movingFilter,
+  });
+
+  final String newBoundaryUtc;
+  final String earlierLabel;
+  final String laterLabel;
+  final bool movesIntoLater;
+  final Expression<bool> Function($TransactionsTable t) movingFilter;
+}
+
 /// Persists budget schedules, period instances, overall plans, and
 /// per-period category envelopes.
 class BudgetPeriodRepository {
@@ -139,48 +184,256 @@ class BudgetPeriodRepository {
   }
 
   /// Period containing [reference] (local), creating + seeding if needed.
+  ///
+  /// A saved period wins over the schedule's rule, so a cycle whose dates
+  /// were adjusted (see [moveBoundary]) keeps them. The rule only fills
+  /// days no saved period covers.
   Future<BudgetPeriod> ensurePeriodContaining(DateTime reference) async {
     final schedule = await ensureSchedule();
-    final bounds = BudgetPeriodGenerator.boundsContaining(schedule, reference);
-    return _ensurePeriod(schedule, bounds);
+    final resolved = await _resolve(schedule, reference);
+    final stored = resolved.stored;
+    if (stored != null) {
+      final period = _periodFromRow(stored);
+      await carryForwardInto(period);
+      return period;
+    }
+    return _ensurePeriod(schedule, resolved.bounds);
   }
 
   /// Moves [delta] periods from [current] (-1 previous, +1 next).
   Future<BudgetPeriod> shiftPeriod(BudgetPeriod current, int delta) async {
-    final schedule = await ensureSchedule();
-    final startLocal = Iso.toDateTime(current.startAt).toLocal();
-    final endLocal = Iso.toDateTime(current.endAt).toLocal();
-    final bounds = BudgetPeriodGenerator.shift(
-      schedule,
-      DateTime(startLocal.year, startLocal.month, startLocal.day),
-      DateTime(endLocal.year, endLocal.month, endLocal.day),
-      delta,
-    );
-    return _ensurePeriod(schedule, bounds);
+    final start = _localDay(current.startAt);
+    final end = _localDay(current.endAt);
+    final probe = switch (delta) {
+      0 => start,
+      > 0 => end,
+      _ => DateTime(start.year, start.month, start.day - 1),
+    };
+    return ensurePeriodContaining(probe);
   }
 
   /// Every cycle from the one containing [now] back to the one
-  /// containing [earliest], newest first. Computed from the schedule
-  /// rather than read from storage, because a cycle only gets a row once
-  /// someone opens it; nothing is created here. Capped at [maxCycles].
+  /// containing [earliest], newest first. Computed rather than read from
+  /// storage, because a cycle only gets a row once someone opens it;
+  /// nothing is created here. Saved cycles keep their adjusted dates.
+  /// Capped at [maxCycles].
   Future<List<LocalPeriodBounds>> cyclesBetween({
     required DateTime earliest,
     required DateTime now,
     int maxCycles = 120,
   }) async {
     final schedule = await ensureSchedule();
-    var bounds = BudgetPeriodGenerator.boundsContaining(schedule, now);
+    var bounds = (await _resolve(schedule, now)).bounds;
     final cycles = <LocalPeriodBounds>[bounds];
     while (bounds.start.isAfter(earliest) && cycles.length < maxCycles) {
-      bounds = BudgetPeriodGenerator.shift(
-        schedule,
-        bounds.start,
-        bounds.endExclusive,
-        -1,
+      final before = DateTime(
+        bounds.start.year,
+        bounds.start.month,
+        bounds.start.day - 1,
       );
+      bounds = (await _resolve(schedule, before)).bounds;
       cycles.add(bounds);
     }
     return cycles;
+  }
+
+  static DateTime _localDay(String iso) {
+    final local = Iso.toDateTime(iso).toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  /// The bounds for the cycle holding [reference], and the saved period
+  /// that has them, if any. Writes nothing.
+  ///
+  /// Saved periods are looked at first. When several overlap the day (a
+  /// leftover from changing the rule, which never rewrites old periods)
+  /// the one that matches the rule exactly wins, as it always has,
+  /// otherwise the latest. With none saved, the rule's bounds are used
+  /// but trimmed so they never overlap a saved neighbour.
+  Future<({LocalPeriodBounds bounds, BudgetPeriodRow? stored})> _resolve(
+    BudgetSchedule schedule,
+    DateTime reference,
+  ) async {
+    final day = DateTime(reference.year, reference.month, reference.day);
+    final dayUtc = Iso.fromDateTime(day);
+    final rule = BudgetPeriodGenerator.boundsContaining(schedule, day);
+
+    final containing =
+        await (_db.select(_db.budgetPeriods)..where(
+              (p) =>
+                  p.userId.equals(userId) &
+                  p.deletedAt.isNull() &
+                  p.startAt.isSmallerOrEqualValue(dayUtc) &
+                  p.endAt.isBiggerThanValue(dayUtc),
+            ))
+            .get();
+    if (containing.isNotEmpty) {
+      final ruleStart = Iso.fromDateTime(rule.start);
+      final ruleEnd = Iso.fromDateTime(rule.endExclusive);
+      final exact = containing
+          .where((p) => p.startAt == ruleStart && p.endAt == ruleEnd)
+          .firstOrNull;
+      final stored =
+          exact ??
+          (containing..sort((a, b) => b.startAt.compareTo(a.startAt))).first;
+      return (
+        bounds: (
+          start: _localDay(stored.startAt),
+          endExclusive: _localDay(stored.endAt),
+        ),
+        stored: stored,
+      );
+    }
+
+    final previous =
+        await (_db.select(_db.budgetPeriods)
+              ..where(
+                (p) =>
+                    p.userId.equals(userId) &
+                    p.deletedAt.isNull() &
+                    p.endAt.isSmallerOrEqualValue(dayUtc),
+              )
+              ..orderBy([(p) => OrderingTerm.desc(p.endAt)])
+              ..limit(1))
+            .getSingleOrNull();
+    final next =
+        await (_db.select(_db.budgetPeriods)
+              ..where(
+                (p) =>
+                    p.userId.equals(userId) &
+                    p.deletedAt.isNull() &
+                    p.startAt.isBiggerThanValue(dayUtc),
+              )
+              ..orderBy([(p) => OrderingTerm.asc(p.startAt)])
+              ..limit(1))
+            .getSingleOrNull();
+    var start = rule.start;
+    var end = rule.endExclusive;
+    if (previous != null) {
+      final previousEnd = _localDay(previous.endAt);
+      if (previousEnd.isAfter(start)) start = previousEnd;
+    }
+    if (next != null) {
+      final nextStart = _localDay(next.startAt);
+      if (nextStart.isBefore(end)) end = nextStart;
+    }
+    return (bounds: (start: start, endExclusive: end), stored: null);
+  }
+
+  /// What moving the boundary between two neighbouring cycles to
+  /// [newBoundary] would do, without doing it. Throws
+  /// [CycleEditException] if it can't be done.
+  Future<CycleMovePreview> previewBoundaryMove({
+    required String earlierId,
+    required String laterId,
+    required DateTime newBoundary,
+  }) async {
+    final plan = await _planMove(earlierId, laterId, newBoundary);
+    final moving = await (_db.select(_db.transactions)
+          ..where((t) => plan.movingFilter(t) & t.deletedAt.isNull()))
+        .get();
+    return CycleMovePreview(
+      earlierLabel: plan.earlierLabel,
+      laterLabel: plan.laterLabel,
+      transactionsMoving: moving.length,
+      movesIntoLater: plan.movesIntoLater,
+    );
+  }
+
+  /// Moves the boundary between two neighbouring cycles, so one ends and
+  /// the other starts on [newBoundary]. Cycles stay back to back with no
+  /// gap or overlap, each keeps at least one day, and the transactions
+  /// that now fall on the other side of the boundary move with it. Budgets
+  /// already set stay with the cycle they were set on.
+  ///
+  /// Starting the next cycle early (payday came before the 25th) moves
+  /// the boundary earlier; a late payday moves it later.
+  Future<CycleMovePreview> moveBoundary({
+    required String earlierId,
+    required String laterId,
+    required DateTime newBoundary,
+  }) async {
+    final plan = await _planMove(earlierId, laterId, newBoundary);
+    final preview = await previewBoundaryMove(
+      earlierId: earlierId,
+      laterId: laterId,
+      newBoundary: newBoundary,
+    );
+    final now = Iso.nowUtc();
+    await _db.transaction(() async {
+      await (_db.update(_db.budgetPeriods)
+            ..where((p) => p.id.equals(earlierId)))
+          .write(
+            BudgetPeriodsCompanion(
+              endAt: Value(plan.newBoundaryUtc),
+              label: Value(plan.earlierLabel),
+              updatedAt: Value(now),
+            ),
+          );
+      await (_db.update(_db.budgetPeriods)..where((p) => p.id.equals(laterId)))
+          .write(
+            BudgetPeriodsCompanion(
+              startAt: Value(plan.newBoundaryUtc),
+              label: Value(plan.laterLabel),
+              updatedAt: Value(now),
+            ),
+          );
+      await (_db.update(_db.transactions)
+            ..where((t) => plan.movingFilter(t)))
+          .write(
+            TransactionsCompanion(
+              periodId: Value(plan.movesIntoLater ? laterId : earlierId),
+              updatedAt: Value(now),
+            ),
+          );
+    });
+    return preview;
+  }
+
+  Future<_MovePlan> _planMove(
+    String earlierId,
+    String laterId,
+    DateTime newBoundary,
+  ) async {
+    final earlier = await getPeriod(earlierId);
+    final later = await getPeriod(laterId);
+    if (earlier == null || later == null) {
+      throw const CycleEditException('That cycle no longer exists.');
+    }
+    if (earlier.endAt != later.startAt) {
+      throw const CycleEditException(
+        'These two cycles are not next to each other.',
+      );
+    }
+    final day = DateTime(newBoundary.year, newBoundary.month, newBoundary.day);
+    final earlierStart = _localDay(earlier.startAt);
+    final laterEnd = _localDay(later.endAt);
+    if (!day.isAfter(earlierStart) || !day.isBefore(laterEnd)) {
+      throw const CycleEditException(
+        'That date has to leave each cycle at least one day.',
+      );
+    }
+    final newUtc = Iso.fromDateTime(day);
+    final oldUtc = earlier.endAt;
+    if (newUtc == oldUtc) {
+      throw const CycleEditException('The cycles already change on that date.');
+    }
+    final movesIntoLater = newUtc.compareTo(oldUtc) < 0;
+    // Only the slice between the old and new boundary changes hands.
+    final sliceStart = movesIntoLater ? newUtc : oldUtc;
+    final sliceEnd = movesIntoLater ? oldUtc : newUtc;
+    final fromId = movesIntoLater ? earlierId : laterId;
+    return _MovePlan(
+      newBoundaryUtc: newUtc,
+      earlierLabel: Iso.periodLabel(earlierStart, day),
+      laterLabel: Iso.periodLabel(day, laterEnd),
+      movesIntoLater: movesIntoLater,
+      movingFilter: (t) =>
+          t.userId.equals(userId) &
+          t.periodId.equals(fromId) &
+          t.transactedAt.isBiggerOrEqualValue(sliceStart) &
+          t.transactedAt.isSmallerThanValue(sliceEnd),
+    );
   }
 
   Future<BudgetPeriod?> getPeriod(String id) async {
