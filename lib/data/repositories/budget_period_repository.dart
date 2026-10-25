@@ -440,6 +440,33 @@ class BudgetPeriodRepository {
     );
   }
 
+  /// Saved periods that overlap `[from, toExclusive)`, newest first;
+  /// either end left null is open. A period only exists once someone has
+  /// opened it, which is also the only way it can hold budgets or
+  /// transactions, so these are exactly the cycles with anything to report.
+  Future<List<BudgetPeriod>> periodsOverlapping({
+    DateTime? from,
+    DateTime? toExclusive,
+  }) async {
+    final rows =
+        await (_db.select(_db.budgetPeriods)
+              ..where((p) {
+                var filter = p.userId.equals(userId) & p.deletedAt.isNull();
+                if (from != null) {
+                  filter &= p.endAt.isBiggerThanValue(Iso.fromDateTime(from));
+                }
+                if (toExclusive != null) {
+                  filter &= p.startAt.isSmallerThanValue(
+                    Iso.fromDateTime(toExclusive),
+                  );
+                }
+                return filter;
+              })
+              ..orderBy([(p) => OrderingTerm.desc(p.startAt)]))
+            .get();
+    return rows.map(_periodFromRow).toList();
+  }
+
   Future<BudgetPeriod?> getPeriod(String id) async {
     final row = await (_db.select(
       _db.budgetPeriods,

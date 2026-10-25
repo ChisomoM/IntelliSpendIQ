@@ -222,7 +222,9 @@ class _ThemeSelector extends StatelessWidget {
               for (final option in ThemeMode.values) ...[
                 if (option != ThemeMode.values.first)
                   const SizedBox(width: Space.x1),
-                Expanded(child: _ThemeOption(option: option, selected: option == mode)),
+                Expanded(
+                  child: _ThemeOption(option: option, selected: option == mode),
+                ),
               ],
             ],
           ),
@@ -248,7 +250,9 @@ class _ThemeOption extends StatelessWidget {
     };
 
     return Material(
-      color: selected ? colors.primary.withValues(alpha: 0.10) : Colors.transparent,
+      color: selected
+          ? colors.primary.withValues(alpha: 0.10)
+          : Colors.transparent,
       borderRadius: Radii.inputRadius,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -501,7 +505,10 @@ class _AppLockSection extends StatelessWidget {
             ),
             AppListRow(
               leading: _RowIcon(icon: AppIcons.close, color: colors.error),
-              title: Text('Turn off app lock', style: TextStyle(color: colors.error)),
+              title: Text(
+                'Turn off app lock',
+                style: TextStyle(color: colors.error),
+              ),
               onTap: () => _confirmDisable(context),
             ),
           ],
@@ -582,11 +589,23 @@ class _DataSectionState extends State<_DataSection> {
           rows: [
             AppListRow(
               leading: const _RowIcon(icon: AppIcons.exportData),
+              title: const Text('Export to Excel'),
+              subtitle: const Text(
+                'Transactions and budgets, on two sheets',
+              ),
+              onTap: _busy
+                  ? null
+                  : () => _exportTransactions(context, excel: true),
+            ),
+            AppListRow(
+              leading: const _RowIcon(icon: AppIcons.exportData),
               title: const Text('Export transactions (CSV)'),
               subtitle: const Text(
                 'Pick all time, a date range, or a budget cycle',
               ),
-              onTap: _busy ? null : () => _exportCsv(context),
+              onTap: _busy
+                  ? null
+                  : () => _exportTransactions(context, excel: false),
             ),
             AppListRow(
               leading: const _RowIcon(icon: AppIcons.restore),
@@ -652,7 +671,10 @@ class _DataSectionState extends State<_DataSection> {
     );
   }
 
-  Future<void> _exportCsv(BuildContext context) async {
+  Future<void> _exportTransactions(
+    BuildContext context, {
+    required bool excel,
+  }) async {
     final backup = context.read<BackupService>();
     final messenger = ScaffoldMessenger.of(context);
     final range = await pickExportRange(
@@ -663,7 +685,9 @@ class _DataSectionState extends State<_DataSection> {
     if (range == null || !mounted) return;
     setState(() => _busy = true);
     try {
-      final file = await backup.exportTransactionsCsv(range: range);
+      final file = excel
+          ? await backup.exportTransactionsXlsx(range: range)
+          : await backup.exportTransactionsCsv(range: range);
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
@@ -959,7 +983,9 @@ class _BudgetImportPreview extends StatelessWidget {
           child: const Text('Cancel'),
         ),
         TextButton(
-          onPressed: plan.hasWork ? () => Navigator.of(context).pop(true) : null,
+          onPressed: plan.hasWork
+              ? () => Navigator.of(context).pop(true)
+              : null,
           child: const Text('Add to budget'),
         ),
       ],

@@ -24,6 +24,7 @@ BackupService _testBackupService(AppServices services) => BackupService(
   transfers: services.transfers,
   savingsGoals: services.savingsGoals,
   wishlist: services.wishlist,
+  budgetPeriods: services.budgetPeriods,
   tempDirectory: () async => Directory.systemTemp,
 );
 
