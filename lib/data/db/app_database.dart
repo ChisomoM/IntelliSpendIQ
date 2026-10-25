@@ -164,6 +164,10 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
             savingsGoalEntries.linkedTransferId,
           );
         }
+        if (from < 16) {
+          await _createTableIfMissing(m, shoppingTrips);
+          await _createTableIfMissing(m, shoppingTripItems);
+        }
       });
     },
     beforeOpen: (details) async {
