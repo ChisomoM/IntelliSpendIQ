@@ -37,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   /// Tells live queries to re-run after another engine wrote to the
   /// file.
@@ -164,7 +164,9 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
             savingsGoalEntries.linkedTransferId,
           );
         }
-        if (from < 16) {
+        // Not 15 or 16: other changes took those numbers first, so a
+        // database can be at either without the shopping tables.
+        if (from < 17) {
           await _createTableIfMissing(m, shoppingTrips);
           await _createTableIfMissing(m, shoppingTripItems);
         }
