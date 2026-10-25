@@ -190,9 +190,8 @@ class BudgetPeriodRepository {
 
   /// Period containing [reference] (local), creating + seeding if needed.
   ///
-  /// A saved period wins over the schedule's rule, so a cycle whose dates
-  /// were adjusted (see [moveBoundary]) keeps them. The rule only fills
-  /// days no saved period covers.
+  /// A cycle whose dates were adjusted (see [moveBoundary]) keeps them;
+  /// the schedule's rule decides everywhere else.
   Future<BudgetPeriod> ensurePeriodContaining(DateTime reference) async {
     final schedule = await ensureSchedule();
     final resolved = await _resolve(schedule, reference);
@@ -248,54 +247,52 @@ class BudgetPeriodRepository {
   }
 
   /// The bounds for the cycle holding [reference], and the saved period
-  /// that has them, if any. Writes nothing.
+  /// that has them if the user adjusted its dates. Writes nothing.
   ///
-  /// Saved periods are looked at first. When several overlap the day (a
-  /// leftover from changing the rule, which never rewrites old periods)
-  /// the one that matches the rule exactly wins, as it always has,
-  /// otherwise the latest. With none saved, the rule's bounds are used
-  /// but trimmed so they never overlap a saved neighbour.
+  /// Only adjusted periods (see [BudgetPeriods.datesAdjusted]) override
+  /// the schedule's rule. Every other saved period is just a cached
+  /// result of the rule, so after the user changes the rule (say, payday
+  /// from the 1st to the 25th) the new rule decides again, exactly as
+  /// before. The rule's bounds are trimmed so they never overlap an
+  /// adjusted neighbour.
   Future<({LocalPeriodBounds bounds, BudgetPeriodRow? stored})> _resolve(
     BudgetSchedule schedule,
     DateTime reference,
   ) async {
     final day = DateTime(reference.year, reference.month, reference.day);
     final dayUtc = Iso.fromDateTime(day);
-    final rule = BudgetPeriodGenerator.boundsContaining(schedule, day);
 
     final containing =
-        await (_db.select(_db.budgetPeriods)..where(
-              (p) =>
-                  p.userId.equals(userId) &
-                  p.deletedAt.isNull() &
-                  p.startAt.isSmallerOrEqualValue(dayUtc) &
-                  p.endAt.isBiggerThanValue(dayUtc),
-            ))
-            .get();
-    if (containing.isNotEmpty) {
-      final ruleStart = Iso.fromDateTime(rule.start);
-      final ruleEnd = Iso.fromDateTime(rule.endExclusive);
-      final exact = containing
-          .where((p) => p.startAt == ruleStart && p.endAt == ruleEnd)
-          .firstOrNull;
-      final stored =
-          exact ??
-          (containing..sort((a, b) => b.startAt.compareTo(a.startAt))).first;
+        await (_db.select(_db.budgetPeriods)
+              ..where(
+                (p) =>
+                    p.userId.equals(userId) &
+                    p.deletedAt.isNull() &
+                    p.datesAdjusted.equals(true) &
+                    p.startAt.isSmallerOrEqualValue(dayUtc) &
+                    p.endAt.isBiggerThanValue(dayUtc),
+              )
+              ..orderBy([(p) => OrderingTerm.desc(p.startAt)])
+              ..limit(1))
+            .getSingleOrNull();
+    if (containing != null) {
       return (
         bounds: (
-          start: _localDay(stored.startAt),
-          endExclusive: _localDay(stored.endAt),
+          start: _localDay(containing.startAt),
+          endExclusive: _localDay(containing.endAt),
         ),
-        stored: stored,
+        stored: containing,
       );
     }
 
+    final rule = BudgetPeriodGenerator.boundsContaining(schedule, day);
     final previous =
         await (_db.select(_db.budgetPeriods)
               ..where(
                 (p) =>
                     p.userId.equals(userId) &
                     p.deletedAt.isNull() &
+                    p.datesAdjusted.equals(true) &
                     p.endAt.isSmallerOrEqualValue(dayUtc),
               )
               ..orderBy([(p) => OrderingTerm.desc(p.endAt)])
@@ -307,6 +304,7 @@ class BudgetPeriodRepository {
                 (p) =>
                     p.userId.equals(userId) &
                     p.deletedAt.isNull() &
+                    p.datesAdjusted.equals(true) &
                     p.startAt.isBiggerThanValue(dayUtc),
               )
               ..orderBy([(p) => OrderingTerm.asc(p.startAt)])
@@ -334,9 +332,9 @@ class BudgetPeriodRepository {
     required DateTime newBoundary,
   }) async {
     final plan = await _planMove(earlierId, laterId, newBoundary);
-    final moving = await (_db.select(_db.transactions)
-          ..where((t) => plan.movingFilter(t) & t.deletedAt.isNull()))
-        .get();
+    final moving = await (_db.select(
+      _db.transactions,
+    )..where((t) => plan.movingFilter(t) & t.deletedAt.isNull())).get();
     return CycleMovePreview(
       earlierLabel: plan.earlierLabel,
       laterLabel: plan.laterLabel,
@@ -366,31 +364,32 @@ class BudgetPeriodRepository {
     );
     final now = Iso.nowUtc();
     await _db.transaction(() async {
-      await (_db.update(_db.budgetPeriods)
-            ..where((p) => p.id.equals(earlierId)))
-          .write(
-            BudgetPeriodsCompanion(
-              endAt: Value(plan.newBoundaryUtc),
-              label: Value(plan.earlierLabel),
-              updatedAt: Value(now),
-            ),
-          );
-      await (_db.update(_db.budgetPeriods)..where((p) => p.id.equals(laterId)))
-          .write(
-            BudgetPeriodsCompanion(
-              startAt: Value(plan.newBoundaryUtc),
-              label: Value(plan.laterLabel),
-              updatedAt: Value(now),
-            ),
-          );
-      await (_db.update(_db.transactions)
-            ..where((t) => plan.movingFilter(t)))
-          .write(
-            TransactionsCompanion(
-              periodId: Value(plan.movesIntoLater ? laterId : earlierId),
-              updatedAt: Value(now),
-            ),
-          );
+      await (_db.update(
+        _db.budgetPeriods,
+      )..where((p) => p.id.equals(earlierId))).write(
+        BudgetPeriodsCompanion(
+          endAt: Value(plan.newBoundaryUtc),
+          label: Value(plan.earlierLabel),
+          datesAdjusted: const Value(true),
+          updatedAt: Value(now),
+        ),
+      );
+      await (_db.update(
+        _db.budgetPeriods,
+      )..where((p) => p.id.equals(laterId))).write(
+        BudgetPeriodsCompanion(
+          startAt: Value(plan.newBoundaryUtc),
+          label: Value(plan.laterLabel),
+          datesAdjusted: const Value(true),
+          updatedAt: Value(now),
+        ),
+      );
+      await (_db.update(_db.transactions)..where(plan.movingFilter)).write(
+        TransactionsCompanion(
+          periodId: Value(plan.movesIntoLater ? laterId : earlierId),
+          updatedAt: Value(now),
+        ),
+      );
     });
     return preview;
   }
@@ -439,6 +438,33 @@ class BudgetPeriodRepository {
           t.transactedAt.isBiggerOrEqualValue(sliceStart) &
           t.transactedAt.isSmallerThanValue(sliceEnd),
     );
+  }
+
+  /// Saved periods that overlap `[from, toExclusive)`, newest first;
+  /// either end left null is open. A period only exists once someone has
+  /// opened it, which is also the only way it can hold budgets or
+  /// transactions, so these are exactly the cycles with anything to report.
+  Future<List<BudgetPeriod>> periodsOverlapping({
+    DateTime? from,
+    DateTime? toExclusive,
+  }) async {
+    final rows =
+        await (_db.select(_db.budgetPeriods)
+              ..where((p) {
+                var filter = p.userId.equals(userId) & p.deletedAt.isNull();
+                if (from != null) {
+                  filter &= p.endAt.isBiggerThanValue(Iso.fromDateTime(from));
+                }
+                if (toExclusive != null) {
+                  filter &= p.startAt.isSmallerThanValue(
+                    Iso.fromDateTime(toExclusive),
+                  );
+                }
+                return filter;
+              })
+              ..orderBy([(p) => OrderingTerm.desc(p.startAt)]))
+            .get();
+    return rows.map(_periodFromRow).toList();
   }
 
   Future<BudgetPeriod?> getPeriod(String id) async {

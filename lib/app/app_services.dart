@@ -267,6 +267,7 @@ class AppServices {
       transfers: transfers,
       savingsGoals: savingsGoals,
       wishlist: wishlist,
+      budgetPeriods: budgetPeriods,
     );
     final budgetImportService = BudgetImportService(
       db: db,

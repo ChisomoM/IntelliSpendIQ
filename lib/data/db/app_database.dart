@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   /// Tells live queries to re-run after another engine wrote to the
   /// file.
@@ -160,6 +160,13 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
             m,
             savingsGoalEntries,
             savingsGoalEntries.linkedTransferId,
+          );
+        }
+        if (from < 15) {
+          await _addColumnIfMissing(
+            m,
+            budgetPeriods,
+            budgetPeriods.datesAdjusted,
           );
         }
       });

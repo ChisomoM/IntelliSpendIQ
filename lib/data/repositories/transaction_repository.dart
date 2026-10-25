@@ -14,6 +14,26 @@ import 'package:intellispendiq/domain/models/transaction_draft.dart';
 ///
 /// Equatable so cubit states holding these compare by value and do not
 /// emit spurious rebuilds.
+/// One cell of a cycle's category breakdown: the total of the
+/// confirmed or planned transactions of one direction in one category.
+class CategoryPeriodTotal extends Equatable {
+  const CategoryPeriodTotal({
+    required this.categoryId,
+    required this.direction,
+    required this.status,
+    required this.totalMinor,
+  });
+
+  /// Null for transactions with no category.
+  final String? categoryId;
+  final TxDirection direction;
+  final TxStatus status;
+  final int totalMinor;
+
+  @override
+  List<Object?> get props => [categoryId, direction, status, totalMinor];
+}
+
 class CategorySpend extends Equatable {
   const CategorySpend({
     required this.categoryId,
@@ -877,6 +897,38 @@ class TransactionRepository {
       );
     final row = await query.getSingle();
     return row.read(total) ?? 0;
+  }
+
+  /// Confirmed and planned totals for one cycle by category and
+  /// direction, keyed by [Transaction.periodId] like the Budgets screen.
+  /// Anything else (duplicates, rejected, awaiting review) is left out.
+  Future<List<CategoryPeriodTotal>> categoryTotalsForPeriod(
+    String periodId,
+  ) async {
+    final t = _db.transactions;
+    final total = t.amountMinor.sum();
+    final query = _db.selectOnly(t)
+      ..addColumns([t.categoryId, t.direction, t.status, total])
+      ..where(
+        t.userId.equals(userId) &
+            t.deletedAt.isNull() &
+            t.periodId.equals(periodId) &
+            t.status.isIn([
+              TxStatus.confirmed.dbName,
+              TxStatus.planned.dbName,
+            ]),
+      )
+      ..groupBy([t.categoryId, t.direction, t.status]);
+    return (await query.get())
+        .map(
+          (row) => CategoryPeriodTotal(
+            categoryId: row.read(t.categoryId),
+            direction: TxDirection.fromName(row.read(t.direction)!),
+            status: TxStatus.fromDbName(row.read(t.status)!),
+            totalMinor: row.read(total) ?? 0,
+          ),
+        )
+        .toList();
   }
 
   /// Confirmed debit total for one cycle, keyed by [Transaction.periodId].

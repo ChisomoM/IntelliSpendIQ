@@ -48,7 +48,9 @@ class _CycleDatesPageState extends State<CycleDatesPage> {
   void _reload() => setState(() => _cycles = _load());
 
   void _say(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Confirms with the user what a move will do, then does it.
@@ -262,7 +264,8 @@ class _CycleDatesPageState extends State<CycleDatesPage> {
                           title: Text(
                             Iso.periodLabel(bounds.start, bounds.endExclusive),
                           ),
-                          subtitle: _tag(bounds, currentStart, nextStart) == null
+                          subtitle:
+                              _tag(bounds, currentStart, nextStart) == null
                               ? null
                               : Text(_tag(bounds, currentStart, nextStart)!),
                           trailing: AppIcon(

@@ -1,7 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:excel/excel.dart'
+    show
+        CellIndex,
+        CellStyle,
+        CellValue,
+        DateTimeCellValue,
+        DoubleCellValue,
+        Excel,
+        NumFormat,
+        Sheet,
+        TextCellValue;
 import 'package:intellispendiq/data/repositories/account_repository.dart';
+import 'package:intellispendiq/data/repositories/budget_period_repository.dart';
 import 'package:intellispendiq/data/repositories/category_repository.dart';
 import 'package:intellispendiq/data/repositories/label_repository.dart';
 import 'package:intellispendiq/data/repositories/overall_budget_repository.dart';
@@ -22,6 +34,7 @@ import 'package:intellispendiq/domain/models/transaction.dart';
 import 'package:intellispendiq/domain/models/transfer.dart';
 import 'package:intellispendiq/domain/models/wishlist_item.dart';
 import 'package:intellispendiq/domain/models/wishlist_item_photo.dart';
+import 'package:intellispendiq/domain/services/budget_report.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -90,6 +103,38 @@ class RestoreSummary {
       wishlistItemPhotosImported;
 }
 
+/// One line of the transactions export, before it is turned into CSV
+/// text or typed spreadsheet cells.
+class _SheetRow {
+  const _SheetRow({
+    required this.when,
+    required this.merchant,
+    required this.description,
+    required this.category,
+    required this.subCategory,
+    required this.account,
+    required this.toAccount,
+    required this.direction,
+    required this.amountMinor,
+    required this.currency,
+    required this.status,
+    required this.source,
+  });
+
+  final DateTime when;
+  final String merchant;
+  final String description;
+  final String category;
+  final String subCategory;
+  final String account;
+  final String toAccount;
+  final String direction;
+  final int? amountMinor;
+  final String currency;
+  final String status;
+  final String source;
+}
+
 /// The window an export covers: [from] inclusive, [toExclusive]
 /// exclusive, either open-ended. [label] is what the picker shows.
 class ExportRange {
@@ -134,6 +179,7 @@ class BackupService {
     required TransferRepository transfers,
     required SavingsGoalRepository savingsGoals,
     required WishlistRepository wishlist,
+    required BudgetPeriodRepository budgetPeriods,
     Future<Directory> Function()? tempDirectory,
   }) : _transactions = transactions,
        _accounts = accounts,
@@ -144,6 +190,11 @@ class BackupService {
        _transfers = transfers,
        _savingsGoals = savingsGoals,
        _wishlist = wishlist,
+       _budgetReport = BudgetReportBuilder(
+         budgetPeriods: budgetPeriods,
+         transactions: transactions,
+         categories: categories,
+       ),
        _tempDirectory = tempDirectory ?? getTemporaryDirectory;
 
   final TransactionRepository _transactions;
@@ -155,12 +206,13 @@ class BackupService {
   final TransferRepository _transfers;
   final SavingsGoalRepository _savingsGoals;
   final WishlistRepository _wishlist;
+  final BudgetReportBuilder _budgetReport;
 
   /// Defaults to `path_provider`'s temp directory; overridable so
   /// tests never need a platform channel just to write a file.
   final Future<Directory> Function() _tempDirectory;
 
-  static const _csvColumns = [
+  static const _columns = [
     'Date',
     'Merchant',
     'Description',
@@ -173,6 +225,17 @@ class BackupService {
     'Currency',
     'Status',
     'Source',
+  ];
+
+  static const _budgetColumns = [
+    'Cycle',
+    'Type',
+    'Category',
+    'Sub category',
+    'Budgeted',
+    'Spent / received',
+    'Planned (unpaid)',
+    'Remaining',
   ];
 
   /// Writes the transactions and transfers inside [range] (everything,
@@ -189,6 +252,182 @@ class BackupService {
   Future<File> exportTransactionsCsv({
     ExportRange range = ExportRange.allTime,
   }) async {
+    final rows = await _collectRows(range);
+    final buffer = StringBuffer()..writeln(_columns.map(_csvField).join(','));
+    for (final row in rows) {
+      buffer.writeln(
+        [
+          row.when.toLocal().toIso8601String(),
+          row.merchant,
+          row.description,
+          row.category,
+          row.subCategory,
+          row.account,
+          row.toAccount,
+          row.direction,
+          if (row.amountMinor == null)
+            ''
+          else
+            (row.amountMinor! / 100).toStringAsFixed(2),
+          row.currency,
+          row.status,
+          row.source,
+        ].map(_csvField).join(','),
+      );
+    }
+    return _writeTempFile(
+      'transactions${range.fileSuffix}',
+      'csv',
+      buffer.toString(),
+    );
+  }
+
+  /// Writes an Excel workbook with two sheets for [range].
+  ///
+  /// **Transactions** holds the same rows as [exportTransactionsCsv],
+  /// with real dates and numbers. **Budget** holds, for each budget cycle
+  /// touching the range, what was budgeted against what was spent or
+  /// received and what is still planned, overall and by category with
+  /// sub categories under their parent.
+  ///
+  /// A cycle that only partly falls inside a custom date range is
+  /// reported whole on the Budget sheet, because its budgets belong to
+  /// the cycle.
+  Future<File> exportTransactionsXlsx({
+    ExportRange range = ExportRange.allTime,
+  }) async {
+    final rows = await _collectRows(range);
+    final budgetRows = await _budgetReport.build(
+      from: range.from,
+      toExclusive: range.toExclusive,
+    );
+
+    final workbook = Excel.createExcel();
+    workbook.rename(workbook.getDefaultSheet()!, 'Transactions');
+    final transactions = workbook['Transactions'];
+    final budget = workbook['Budget'];
+
+    final header = CellStyle(bold: true);
+    final money = CellStyle(numberFormat: NumFormat.standard_4);
+    final dateTime = CellStyle(
+      numberFormat: NumFormat.custom(formatCode: 'yyyy-mm-dd hh:mm'),
+    );
+
+    void put(
+      Sheet sheet,
+      int column,
+      int row,
+      CellValue? value, [
+      CellStyle? style,
+    ]) => sheet.updateCell(
+      CellIndex.indexByColumnRow(columnIndex: column, rowIndex: row),
+      value,
+      cellStyle: style,
+    );
+    CellValue text(String? value) => TextCellValue(value ?? '');
+    CellValue? amount(int? minor) =>
+        minor == null ? null : DoubleCellValue(minor / 100);
+
+    for (final (column, name) in _columns.indexed) {
+      put(transactions, column, 0, text(name), header);
+    }
+    for (final (index, row) in rows.indexed) {
+      final r = index + 1;
+      put(
+        transactions,
+        0,
+        r,
+        DateTimeCellValue.fromDateTime(row.when.toLocal()),
+        dateTime,
+      );
+      put(transactions, 1, r, text(row.merchant));
+      put(transactions, 2, r, text(row.description));
+      put(transactions, 3, r, text(row.category));
+      put(transactions, 4, r, text(row.subCategory));
+      put(transactions, 5, r, text(row.account));
+      put(transactions, 6, r, text(row.toAccount));
+      put(transactions, 7, r, text(row.direction));
+      put(transactions, 8, r, amount(row.amountMinor), money);
+      put(transactions, 9, r, text(row.currency));
+      put(transactions, 10, r, text(row.status));
+      put(transactions, 11, r, text(row.source));
+    }
+    for (final (column, width) in const [
+      20.0,
+      24.0,
+      28.0,
+      18.0,
+      18.0,
+      18.0,
+      18.0,
+      11.0,
+      14.0,
+      9.0,
+      12.0,
+      11.0,
+    ].indexed) {
+      transactions.setColumnWidth(column, width);
+    }
+
+    for (final (column, name) in _budgetColumns.indexed) {
+      put(budget, column, 0, text(name), header);
+    }
+    for (final (index, row) in budgetRows.indexed) {
+      final r = index + 1;
+      put(budget, 0, r, text(row.cycle));
+      put(
+        budget,
+        1,
+        r,
+        text(switch (row.kind) {
+          BudgetReportKind.overall => 'Overall',
+          BudgetReportKind.expense => 'Expense',
+          BudgetReportKind.income => 'Income',
+        }),
+      );
+      put(budget, 2, r, text(row.category));
+      put(budget, 3, r, text(row.subCategory));
+      put(budget, 4, r, amount(row.budgetedMinor), money);
+      put(budget, 5, r, amount(row.paidMinor), money);
+      put(budget, 6, r, amount(row.plannedMinor), money);
+      put(budget, 7, r, amount(row.remainingMinor), money);
+    }
+    final noteRow = budgetRows.length + 2;
+    if (range.from != null || range.toExclusive != null) {
+      put(
+        budget,
+        0,
+        noteRow,
+        text('Cycles that overlap the chosen dates are shown in full.'),
+      );
+    }
+    if (budgetRows.isEmpty) {
+      put(budget, 0, 1, text('No budget cycles in this range.'));
+    }
+    for (final (column, width) in const [
+      24.0,
+      10.0,
+      20.0,
+      20.0,
+      14.0,
+      16.0,
+      16.0,
+      14.0,
+    ].indexed) {
+      budget.setColumnWidth(column, width);
+    }
+
+    final bytes = workbook.encode();
+    if (bytes == null) throw StateError('Could not build the Excel file.');
+    return _writeTempBytes(
+      'transactions${range.fileSuffix}',
+      'xlsx',
+      bytes,
+    );
+  }
+
+  /// Transactions and transfers in [range] as typed rows, newest first.
+  Future<List<_SheetRow>> _collectRows(ExportRange range) async {
     final transactions = await _transactions.getAllForExport(
       from: range.from,
       toExclusive: range.toExclusive,
@@ -204,63 +443,49 @@ class BackupService {
       for (final account in await _accounts.getAll()) account.id: account.name,
     };
 
-    // (when, row) so transactions and transfers interleave by date.
-    final rows = <(DateTime, List<String>)>[];
+    final rows = <_SheetRow>[];
     for (final tx in transactions) {
       final category = categories[tx.categoryId];
       final parent = categories[category?.parentId];
-      rows.add((
-        tx.transactedAt,
-        [
-          tx.transactedAt.toLocal().toIso8601String(),
-          tx.merchant ?? '',
-          tx.description ?? '',
+      rows.add(
+        _SheetRow(
+          when: tx.transactedAt,
+          merchant: tx.merchant ?? '',
+          description: tx.description ?? '',
           // A parent that no longer exists leaves the child alone in
           // `Category` rather than dropping it.
-          parent?.name ?? category?.name ?? '',
-          parent == null ? '' : category?.name ?? '',
-          accountNames[tx.accountId] ?? '',
-          '',
-          tx.direction.name,
-          (tx.amountMinor / 100).toStringAsFixed(2),
-          tx.currency,
-          tx.status.dbName,
-          tx.source.name,
-        ],
-      ));
+          category: parent?.name ?? category?.name ?? '',
+          subCategory: parent == null ? '' : category?.name ?? '',
+          account: accountNames[tx.accountId] ?? '',
+          toAccount: '',
+          direction: tx.direction.name,
+          amountMinor: tx.amountMinor,
+          currency: tx.currency,
+          status: tx.status.dbName,
+          source: tx.source.name,
+        ),
+      );
     }
     for (final transfer in transfers) {
-      rows.add((
-        transfer.transactedAt,
-        [
-          transfer.transactedAt.toLocal().toIso8601String(),
-          '',
-          transfer.note ?? '',
-          '',
-          '',
-          accountNames[transfer.fromAccountId] ?? '',
-          accountNames[transfer.toAccountId] ?? '',
-          'transfer',
-          (transfer.amountMinor / 100).toStringAsFixed(2),
-          '',
-          '',
-          'transfer',
-        ],
-      ));
+      rows.add(
+        _SheetRow(
+          when: transfer.transactedAt,
+          merchant: '',
+          description: transfer.note ?? '',
+          category: '',
+          subCategory: '',
+          account: accountNames[transfer.fromAccountId] ?? '',
+          toAccount: accountNames[transfer.toAccountId] ?? '',
+          direction: 'transfer',
+          amountMinor: transfer.amountMinor,
+          currency: '',
+          status: '',
+          source: 'transfer',
+        ),
+      );
     }
-    rows.sort((a, b) => b.$1.compareTo(a.$1));
-
-    final buffer = StringBuffer()
-      ..writeln(_csvColumns.map(_csvField).join(','));
-    for (final row in rows) {
-      buffer.writeln(row.$2.map(_csvField).join(','));
-    }
-
-    return _writeTempFile(
-      'transactions${range.fileSuffix}',
-      'csv',
-      buffer.toString(),
-    );
+    rows.sort((a, b) => b.when.compareTo(a.when));
+    return rows;
   }
 
   Future<File> exportBackupJson() async {
@@ -462,6 +687,23 @@ class BackupService {
       p.join(dir.path, 'intellispendiq_${label}_$stamp.$extension'),
     );
     await file.writeAsString(contents);
+    return file;
+  }
+
+  Future<File> _writeTempBytes(
+    String label,
+    String extension,
+    List<int> bytes,
+  ) async {
+    final dir = await _tempDirectory();
+    final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(
+      RegExp('[^0-9]'),
+      '',
+    );
+    final file = File(
+      p.join(dir.path, 'intellispendiq_${label}_$stamp.$extension'),
+    );
+    await file.writeAsBytes(bytes);
     return file;
   }
 
