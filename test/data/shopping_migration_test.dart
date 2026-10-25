@@ -7,7 +7,7 @@ import 'package:intellispendiq/data/db/app_database.dart';
 
 void main() {
   test(
-    'a v16 database missing columns and tables from merged changes is repaired',
+    'a v17 database missing columns and tables from merged changes is repaired',
     () async {
       final dir = await Directory.systemTemp.createTemp('shopping_migration_');
       addTearDown(() => dir.delete(recursive: true));
@@ -20,7 +20,7 @@ void main() {
       await first.customStatement(
         'ALTER TABLE budget_periods DROP COLUMN dates_adjusted',
       );
-      await first.customStatement('PRAGMA user_version = 16');
+      await first.customStatement('PRAGMA user_version = 17');
       await first.close();
 
       final second = AppDatabase(NativeDatabase(file));

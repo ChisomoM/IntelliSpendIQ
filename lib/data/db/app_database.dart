@@ -37,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   /// Tells live queries to re-run after another engine wrote to the
   /// file.
@@ -166,9 +166,9 @@ ALTER TABLE monthly_incomes ADD COLUMN label TEXT NULL
         }
         // Schema numbers 15 and 16 were each claimed by more than one
         // change, and the steps for them did not all survive merging, so
-        // a database can be at either number without these. Everything
+        // a database can be at 15, 16 or 17 without these. Everything
         // here is safe to run on a database that already has it.
-        if (from < 17) {
+        if (from < 18) {
           await _addColumnIfMissing(
             m,
             budgetPeriods,
