@@ -362,8 +362,23 @@ class BudgetPeriodRepository {
       laterId: laterId,
       newBoundary: newBoundary,
     );
+    final earlier = (await getPeriod(earlierId))!;
+    final later = (await getPeriod(laterId))!;
     final now = Iso.nowUtc();
     await _db.transaction(() async {
+      // The database allows one period per start/end pair. A leftover
+      // from an earlier schedule can already hold the dates one of these
+      // is about to take; it is the same cycle, so fold it in first.
+      await _absorbDuplicates(
+        survivorId: earlierId,
+        startAt: earlier.startAt,
+        endAt: plan.newBoundaryUtc,
+      );
+      await _absorbDuplicates(
+        survivorId: laterId,
+        startAt: plan.newBoundaryUtc,
+        endAt: later.endAt,
+      );
       await (_db.update(
         _db.budgetPeriods,
       )..where((p) => p.id.equals(earlierId))).write(
@@ -393,6 +408,91 @@ class BudgetPeriodRepository {
     });
     return preview;
   }
+
+  /// Folds any other period with exactly the dates [startAt]..[endAt]
+  /// into [survivorId] and removes it: its transactions follow, and so do
+  /// its category budgets, except where the survivor already has one for
+  /// that category (the survivor's wins). Such a period is a duplicate of
+  /// the same cycle, left behind when the schedule rule changed.
+  Future<void> _absorbDuplicates({
+    required String survivorId,
+    required String startAt,
+    required String endAt,
+  }) async {
+    final survivor = await (_db.select(
+      _db.budgetPeriods,
+    )..where((p) => p.id.equals(survivorId))).getSingle();
+    final duplicates =
+        await (_db.select(_db.budgetPeriods)..where(
+              (p) =>
+                  p.userId.equals(userId) &
+                  p.startAt.equals(startAt) &
+                  p.endAt.equals(endAt) &
+                  p.id.equals(survivorId).not(),
+            ))
+            .get();
+    final now = Iso.nowUtc();
+    for (final duplicate in duplicates) {
+      await (_db.update(
+        _db.transactions,
+      )..where((t) => t.periodId.equals(duplicate.id))).write(
+        TransactionsCompanion(
+          periodId: Value(survivorId),
+          updatedAt: Value(now),
+        ),
+      );
+
+      final kept = {
+        for (final b in await (_db.select(
+          _db.categoryBudgets,
+        )..where((b) => b.periodId.equals(survivorId))).get())
+          b.categoryId: b,
+      };
+      final incoming = await (_db.select(
+        _db.categoryBudgets,
+      )..where((b) => b.periodId.equals(duplicate.id))).get();
+      for (final budget in incoming) {
+        final existing = kept[budget.categoryId];
+        if (existing == null) {
+          await _repointBudget(budget.id, survivorId, now);
+        } else if (existing.deletedAt != null && budget.deletedAt == null) {
+          // The survivor's envelope was removed; the live one takes over.
+          await (_db.delete(
+            _db.categoryBudgets,
+          )..where((b) => b.id.equals(existing.id))).go();
+          await _repointBudget(budget.id, survivorId, now);
+        } else {
+          await (_db.delete(
+            _db.categoryBudgets,
+          )..where((b) => b.id.equals(budget.id))).go();
+        }
+      }
+
+      if (survivor.overallAmountMinor == null &&
+          duplicate.overallAmountMinor != null) {
+        await (_db.update(
+          _db.budgetPeriods,
+        )..where((p) => p.id.equals(survivorId))).write(
+          BudgetPeriodsCompanion(
+            overallAmountMinor: Value(duplicate.overallAmountMinor),
+            budgetSource: Value(duplicate.budgetSource),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+      await (_db.delete(
+        _db.budgetPeriods,
+      )..where((p) => p.id.equals(duplicate.id))).go();
+    }
+  }
+
+  Future<void> _repointBudget(String id, String periodId, String now) =>
+      (_db.update(_db.categoryBudgets)..where((b) => b.id.equals(id))).write(
+        CategoryBudgetsCompanion(
+          periodId: Value(periodId),
+          updatedAt: Value(now),
+        ),
+      );
 
   Future<_MovePlan> _planMove(
     String earlierId,
