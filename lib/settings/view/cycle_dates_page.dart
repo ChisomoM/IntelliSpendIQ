@@ -45,7 +45,13 @@ class _CycleDatesPageState extends State<CycleDatesPage> {
     return DateTime(local.year, local.month, local.day);
   }
 
-  void _reload() => setState(() => _cycles = _load());
+  void _reload() {
+    // A block body: an arrow would return the Future it assigns, and
+    // setState rejects a callback that returns one.
+    setState(() {
+      _cycles = _load();
+    });
+  }
 
   void _say(String message) {
     ScaffoldMessenger.of(
